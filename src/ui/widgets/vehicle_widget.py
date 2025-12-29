@@ -546,3 +546,99 @@ class VehicleDesignerWidget(QWidget):
             left=0.1, right=0.95, top=0.92, bottom=0.08, hspace=0.4, wspace=0.3
         )
         self.flight_canvas.draw()
+    
+    def update_flight_plots_6dof(self, flight_result):
+        """
+        Update flight result plots for 6-DOF FlightResult6DOF.
+        
+        Includes new plots for propellant mass, Euler angles, and flow status.
+        """
+        self._flight_result = flight_result
+        
+        self.flight_figure.clear()
+        
+        # Create grid layout: 3 rows x 2 columns
+        gs = self.flight_figure.add_gridspec(3, 2, hspace=0.35, wspace=0.3)
+        
+        plot_style = {
+            'facecolor': '#0a0e14',
+            'grid_color': '#1a242e',
+            'text_color': '#8899aa',
+            'title_color': '#ffffff',
+            'line_colors': ['#00d4ff', '#00ff9d', '#ff6b35', '#ff3366']
+        }
+        
+        def style_axis(ax, title):
+            ax.set_facecolor(plot_style['facecolor'])
+            ax.tick_params(colors=plot_style['text_color'])
+            ax.set_title(title, color=plot_style['title_color'], fontweight='bold', fontsize=11)
+            ax.grid(True, color=plot_style['grid_color'], alpha=0.5)
+            for spine in ax.spines.values():
+                spine.set_color('#2a3a4a')
+        
+        # === Altitude vs Time ===
+        ax1 = self.flight_figure.add_subplot(gs[0, 0])
+        ax1.plot(flight_result.time, flight_result.position_z, 
+                color=plot_style['line_colors'][0], linewidth=2)
+        ax1.axhline(y=flight_result.apogee_altitude, 
+                   color='#ff6b35', linestyle='--', alpha=0.8,
+                   label=f'Apogee: {flight_result.apogee_altitude:.0f} m')
+        ax1.set_xlabel('Time (s)', color=plot_style['text_color'])
+        ax1.set_ylabel('Altitude (m)', color=plot_style['text_color'])
+        ax1.legend(facecolor='#141b22', edgecolor='#2a3a4a', labelcolor='#ffffff', fontsize=9)
+        style_axis(ax1, 'ALTITUDE')
+        
+        # === Propellant Mass ===
+        ax2 = self.flight_figure.add_subplot(gs[0, 1])
+        ax2.plot(flight_result.time, flight_result.propellant_mass,
+                color=plot_style['line_colors'][1], linewidth=2)
+        ax2.fill_between(flight_result.time, 0, flight_result.propellant_mass,
+                        color=plot_style['line_colors'][1], alpha=0.3)
+        ax2.set_xlabel('Time (s)', color=plot_style['text_color'])
+        ax2.set_ylabel('Propellant (kg)', color=plot_style['text_color'])
+        style_axis(ax2, 'PROPELLANT')
+        
+        # === Attitude (Euler angles) ===
+        ax3 = self.flight_figure.add_subplot(gs[1, 0])
+        ax3.plot(flight_result.time, flight_result.pitch, 
+                color=plot_style['line_colors'][0], linewidth=1.5, label='Pitch')
+        ax3.plot(flight_result.time, flight_result.yaw, 
+                color=plot_style['line_colors'][2], linewidth=1.5, label='Yaw')
+        ax3.set_xlabel('Time (s)', color=plot_style['text_color'])
+        ax3.set_ylabel('Angle (deg)', color=plot_style['text_color'])
+        ax3.legend(facecolor='#141b22', edgecolor='#2a3a4a', labelcolor='#ffffff', fontsize=9)
+        style_axis(ax3, 'ATTITUDE')
+        
+        # === Velocity ===
+        ax4 = self.flight_figure.add_subplot(gs[1, 1])
+        velocity = np.sqrt(flight_result.velocity_x**2 + 
+                          flight_result.velocity_y**2 + 
+                          flight_result.velocity_z**2)
+        ax4.plot(flight_result.time, velocity,
+                color=plot_style['line_colors'][3], linewidth=2)
+        ax4.axhline(y=flight_result.max_velocity, 
+                   color='#00d4ff', linestyle='--', alpha=0.6)
+        ax4.set_xlabel('Time (s)', color=plot_style['text_color'])
+        ax4.set_ylabel('Velocity (m/s)', color=plot_style['text_color'])
+        style_axis(ax4, 'VELOCITY')
+        
+        # === Summary Box ===
+        ax5 = self.flight_figure.add_subplot(gs[2, :])
+        ax5.axis('off')
+        
+        summary = (
+            f"APOGEE: {flight_result.apogee_altitude:.0f} m   │   "
+            f"MAX VEL: {flight_result.max_velocity:.0f} m/s (M{flight_result.max_mach:.2f})   │   "
+            f"BURNOUT: {flight_result.burnout_altitude:.0f} m   │   "
+            f"FLIGHT: {flight_result.flight_time:.1f}s"
+        )
+        ax5.text(0.5, 0.5, summary, transform=ax5.transAxes,
+                ha='center', va='center', color='#00ff9d', fontsize=11,
+                fontweight='bold', fontfamily='Consolas',
+                bbox=dict(boxstyle='round,pad=0.8', facecolor='#141b22', 
+                         edgecolor='#00d4ff', linewidth=2))
+        
+        self.flight_figure.subplots_adjust(
+            left=0.1, right=0.95, top=0.92, bottom=0.08, hspace=0.4, wspace=0.3
+        )
+        self.flight_canvas.draw()

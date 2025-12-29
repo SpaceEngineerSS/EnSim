@@ -8,6 +8,9 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from src.core.chemistry import CombustionProblem
 from src.core.propulsion import NozzleConditions, calculate_performance, PerformanceResult
 from src.utils.nasa_parser import create_sample_database
+from src.core.rocket import Rocket
+from src.core.flight_6dof import simulate_flight_6dof, FlightResult6DOF
+from src.core.monte_carlo import run_monte_carlo, DispersionConfig, DispersionResult
 
 
 @dataclass
@@ -182,6 +185,200 @@ class CalculationWorker(QThread):
             )
             
             self.log.emit("Simulation complete!")
+            self.finished.emit(result)
+            
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+# =============================================================================
+# 6-DOF Flight Simulation Worker
+# =============================================================================
+
+@dataclass
+class FlightParams:
+    """Parameters for 6-DOF flight simulation."""
+    # Required
+    thrust_vac: float = 10000.0      # Vacuum thrust (N)
+    isp_vac: float = 250.0           # Vacuum ISP (s)
+    burn_time: float = 10.0          # Burn time (s)
+    
+    # Rocket configuration
+    fuel_mass: float = 5.0           # kg
+    oxidizer_mass: float = 15.0      # kg
+    
+    # Launch parameters
+    launch_angle_deg: float = 85.0   # From horizontal
+    launch_azimuth_deg: float = 0.0  # North = 0
+    
+    # Simulation parameters
+    dt: float = 0.01                 # Time step
+    max_time: float = 300.0          # Max simulation time
+    exit_area: float = 0.01          # Nozzle exit area (m²)
+    
+    # Adaptive parameters
+    use_adaptive: bool = True
+    output_dt: float = 0.01          # Fixed output rate
+    rtol: float = 1e-6
+    atol: float = 1e-6
+    
+    # Perturbation parameters (Monte Carlo)
+    throttle: float = 1.0
+    cd_factor: float = 1.0
+    fin_misalignment_deg: float = 0.0
+
+
+class FlightSimulationWorker(QThread):
+    """
+    Worker thread for 6-DOF flight simulation.
+    
+    Signals:
+        log(str): Progress messages
+        progress(int): Progress percentage (0-100)
+        finished(FlightResult6DOF): Emitted on success
+        error(str): Emitted on failure
+    """
+    
+    log = pyqtSignal(str)
+    progress = pyqtSignal(int)
+    finished = pyqtSignal(object)  # FlightResult6DOF
+    error = pyqtSignal(str)
+    
+    def __init__(self, params: FlightParams, parent=None):
+        super().__init__(parent)
+        self.params = params
+    
+    def run(self):
+        """Execute 6-DOF flight simulation in background thread."""
+        try:
+            # Step 1: Create rocket
+            self.log.emit("Creating rocket configuration...")
+            self.progress.emit(10)
+            
+            rocket = Rocket()
+            rocket.engine.fuel_mass = self.params.fuel_mass
+            rocket.engine.oxidizer_mass = self.params.oxidizer_mass
+            rocket.engine.thrust_vac = self.params.thrust_vac
+            rocket.engine.isp_vac = self.params.isp_vac
+            
+            # Step 2: Run simulation
+            self.log.emit(f"Running 6-DOF simulation (adaptive={self.params.use_adaptive})...")
+            self.progress.emit(30)
+            
+            result = simulate_flight_6dof(
+                rocket=rocket,
+                thrust_vac=self.params.thrust_vac,
+                isp_vac=self.params.isp_vac,
+                burn_time=self.params.burn_time,
+                exit_area=self.params.exit_area,
+                dt=self.params.dt,
+                max_time=self.params.max_time,
+                launch_angle_deg=self.params.launch_angle_deg,
+                launch_azimuth_deg=self.params.launch_azimuth_deg,
+                use_adaptive=self.params.use_adaptive,
+                output_dt=self.params.output_dt,
+                rtol=self.params.rtol,
+                atol=self.params.atol,
+                throttle=self.params.throttle,
+                cd_factor=self.params.cd_factor,
+                fin_misalignment_deg=self.params.fin_misalignment_deg
+            )
+            
+            self.progress.emit(90)
+            self.log.emit(f"Simulation complete! Apogee: {result.apogee_altitude:.1f}m")
+            self.progress.emit(100)
+            
+            self.finished.emit(result)
+            
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+# =============================================================================
+# Monte Carlo Dispersion Worker
+# =============================================================================
+
+@dataclass
+class MonteCarloParams:
+    """Parameters for Monte Carlo dispersion analysis."""
+    # Base flight params
+    thrust_vac: float = 10000.0
+    isp_vac: float = 250.0
+    burn_time: float = 10.0
+    fuel_mass: float = 5.0
+    oxidizer_mass: float = 15.0
+    
+    # Monte Carlo config
+    num_simulations: int = 100
+    thrust_sigma: float = 0.02       # 2% thrust variation
+    isp_sigma: float = 0.01          # 1% ISP variation
+    cd_sigma: float = 0.05           # 5% drag variation
+    wind_speed_mean: float = 3.0     # m/s
+    wind_speed_sigma: float = 2.0    # m/s
+    seed: Optional[int] = None       # Reproducibility
+
+
+class MonteCarloWorker(QThread):
+    """
+    Worker thread for Monte Carlo dispersion analysis.
+    
+    Signals:
+        log(str): Progress messages
+        progress(int): Progress percentage (0-100)
+        finished(DispersionResult): Emitted on success
+        error(str): Emitted on failure
+    """
+    
+    log = pyqtSignal(str)
+    progress = pyqtSignal(int)
+    finished = pyqtSignal(object)  # DispersionResult
+    error = pyqtSignal(str)
+    
+    def __init__(self, params: MonteCarloParams, parent=None):
+        super().__init__(parent)
+        self.params = params
+    
+    def run(self):
+        """Execute Monte Carlo analysis in background thread."""
+        try:
+            # Step 1: Create rocket
+            self.log.emit("Creating rocket configuration...")
+            self.progress.emit(5)
+            
+            rocket = Rocket()
+            rocket.engine.fuel_mass = self.params.fuel_mass
+            rocket.engine.oxidizer_mass = self.params.oxidizer_mass
+            
+            # Step 2: Configure dispersion
+            self.log.emit(f"Starting Monte Carlo ({self.params.num_simulations} simulations)...")
+            self.progress.emit(10)
+            
+            config = DispersionConfig(
+                num_simulations=self.params.num_simulations,
+                thrust_sigma=self.params.thrust_sigma,
+                isp_sigma=self.params.isp_sigma,
+                cd_sigma=self.params.cd_sigma,
+                wind_speed_mean=self.params.wind_speed_mean,
+                wind_speed_sigma=self.params.wind_speed_sigma,
+                seed=self.params.seed
+            )
+            
+            # Step 3: Run Monte Carlo
+            result = run_monte_carlo(
+                rocket=rocket,
+                thrust_vac=self.params.thrust_vac,
+                isp_vac=self.params.isp_vac,
+                burn_time=self.params.burn_time,
+                config=config,
+                dt=0.05,  # Faster for MC
+                max_time=120.0,
+                verbose=False
+            )
+            
+            self.progress.emit(95)
+            self.log.emit(f"Monte Carlo complete! CEP: {result.cep_radius:.1f}m")
+            self.progress.emit(100)
+            
             self.finished.emit(result)
             
         except Exception as e:

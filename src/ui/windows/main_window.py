@@ -15,7 +15,7 @@ from ..widgets.input_panel import InputPanel
 from ..widgets.graph_widget import PerformanceGraph
 from ..widgets.view3d_widget import NozzleView3D
 from ..widgets.advanced_engineering import AdvancedEngineeringWidget
-from ..workers import CalculationWorker, SimulationParams, SimulationResult
+from ..workers import CalculationWorker, SimulationParams, SimulationResult, MonteCarloWorker, MonteCarloParams
 from ...core.project_manager import ProjectManager
 from ...utils.exporter import export_nozzle_profile_csv, export_report
 from ...core.propulsion import get_nozzle_profile
@@ -311,6 +311,13 @@ class MainWindow(QMainWindow):
         self.action_propellant_db = QAction("🧪 &Propellant Database...", self)
         self.action_propellant_db.triggered.connect(self._show_propellant_editor)
         analysis_menu.addAction(self.action_propellant_db)
+        
+        analysis_menu.addSeparator()
+        
+        self.action_monte_carlo = QAction("🎲 &Monte Carlo Dispersion...", self)
+        self.action_monte_carlo.setToolTip("Run landing dispersion analysis (N simulations)")
+        self.action_monte_carlo.triggered.connect(self._run_monte_carlo_analysis)
+        analysis_menu.addAction(self.action_monte_carlo)
         
         # View menu (Phase 7: Units)
         view_menu = menubar.addMenu("&View")
@@ -976,6 +983,7 @@ class MainWindow(QMainWindow):
             return
         
         try:
+            import numpy as np
             from src.core.cooling import calculate_thermal_profile
             from src.core.materials import get_material
             
@@ -1048,7 +1056,7 @@ class MainWindow(QMainWindow):
             self._log(f"❌ Mission analysis error: {e}")
     
     def _run_flight_simulation(self):
-        """Run flight simulation using engine results (Phase 3)."""
+        """Run 6-DOF flight simulation using engine results."""
         if self._last_result is None:
             self._log("❌ Run engine simulation first before flight!")
             QMessageBox.warning(
@@ -1063,7 +1071,7 @@ class MainWindow(QMainWindow):
             return
         
         try:
-            from src.core.flight import simulate_flight
+            from src.core.flight_6dof import simulate_flight_6dof
             
             # Get rocket from vehicle widget
             rocket = self.vehicle_widget.get_rocket()
@@ -1078,8 +1086,6 @@ class MainWindow(QMainWindow):
             exit_area = throat_area_m2 * self._last_params.expansion_ratio
             
             # Get thrust and Isp from simulation results
-            # Note: thrust is total thrust at given conditions
-            # For vacuum thrust, we use the stored thrust + pressure correction
             thrust_vac = self._last_result.thrust
             isp_vac = self._last_result.isp_vacuum
             
@@ -1099,19 +1105,20 @@ class MainWindow(QMainWindow):
             rocket.engine.mass_flow_rate = mdot
             rocket.engine.burn_time = burn_time
             
-            self._log(f"🚀 Launching flight simulation...")
+            self._log(f"🚀 Launching 6-DOF flight simulation...")
             self._log(f"  Thrust: {thrust_vac/1000:.1f} kN, Burn: {burn_time:.1f}s")
             
-            # Get launch conditions (Phase 3.5)
+            # Get launch conditions
             launch_cond = self.vehicle_widget.get_launch_conditions()
             wind_speed = launch_cond.get('wind_speed', 0.0)
             rail_length = launch_cond.get('rail_length', 1.5)
+            launch_angle = launch_cond.get('launch_angle', 85.0)
             
             if wind_speed > 0:
                 self._log(f"  Wind: {wind_speed} m/s, Rail: {rail_length}m")
             
-            # Run simulation
-            result = simulate_flight(
+            # Run 6-DOF simulation with adaptive integration
+            result = simulate_flight_6dof(
                 rocket=rocket,
                 thrust_vac=thrust_vac,
                 isp_vac=isp_vac,
@@ -1119,20 +1126,35 @@ class MainWindow(QMainWindow):
                 exit_area=exit_area,
                 dt=0.01,
                 max_time=300.0,
+                launch_angle_deg=launch_angle,
                 wind_speed=wind_speed,
-                rail_length=rail_length
+                rail_length=rail_length,
+                use_adaptive=True,
+                output_dt=0.01,  # 100Hz fixed output
+                throttle=1.0
             )
             
-            # Update plots
-            self.vehicle_widget.update_flight_plots(result)
+            # Store flight result for visualization
+            self._last_flight_result = result
             
-            self._log(f"✅ Flight simulation complete:")
-            self._log(f"  Apogee: {result.apogee_altitude/1000:.2f} km")
+            # Update plots with new 6-DOF data
+            self.vehicle_widget.update_flight_plots_6dof(result)
+            
+            self._log(f"✅ 6-DOF Flight simulation complete:")
+            self._log(f"  Apogee: {result.apogee_altitude:.1f} m ({result.apogee_altitude/1000:.2f} km)")
             self._log(f"  Max Velocity: {result.max_velocity:.0f} m/s (M{result.max_mach:.2f})")
-            self._log(f"  Max G: {result.max_acceleration:.1f}")
+            self._log(f"  Burnout Alt: {result.burnout_altitude:.1f} m")
+            self._log(f"  Flight Time: {result.flight_time:.1f}s")
+            
+            # Log propellant usage
+            if len(result.propellant_mass) > 0:
+                prop_initial = result.propellant_mass[0]
+                prop_final = result.propellant_mass[-1]
+                self._log(f"  Propellant: {prop_initial:.1f} → {prop_final:.1f} kg")
             
         except Exception as e:
             self._log(f"❌ Flight simulation error: {e}")
+            QMessageBox.critical(self, "Flight Error", str(e))
             import traceback
             traceback.print_exc()
     
@@ -1218,3 +1240,114 @@ class MainWindow(QMainWindow):
         
         self.status_bar.showMessage(f"Units: {system}", 2000)
         self._log(f"🔄 Switched to {system} units")
+    
+    # =========================================================================
+    # Monte Carlo Dispersion Analysis
+    # =========================================================================
+    
+    def _run_monte_carlo_analysis(self):
+        """Run Monte Carlo landing dispersion analysis."""
+        from PyQt6.QtWidgets import QDialog, QFormLayout, QDialogButtonBox, QSpinBox, QProgressDialog
+        
+        # Check prerequisites
+        if self._last_result is None:
+            QMessageBox.warning(
+                self,
+                "⚠️ Engine Simulation Required",
+                "Run an engine simulation first to get thrust/Isp values."
+            )
+            return
+        
+        # Show config dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Monte Carlo Dispersion Analysis")
+        dialog.setMinimumWidth(320)
+        
+        layout = QFormLayout(dialog)
+        
+        num_sims_spin = QSpinBox()
+        num_sims_spin.setRange(10, 1000)
+        num_sims_spin.setValue(100)
+        num_sims_spin.setSingleStep(10)
+        layout.addRow("Simulations:", num_sims_spin)
+        
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        num_sims = num_sims_spin.value()
+        
+        # Create progress dialog
+        progress = QProgressDialog(
+            f"Running {num_sims} simulations...", "Cancel", 0, 100, self
+        )
+        progress.setWindowTitle("Monte Carlo Analysis")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.show()
+        
+        self._log(f"🎲 Starting Monte Carlo analysis (N={num_sims})...")
+        
+        # Create worker params
+        params = MonteCarloParams(
+            thrust_vac=self._last_result.thrust,
+            isp_vac=self._last_result.isp_vacuum,
+            burn_time=10.0,  # Default
+            fuel_mass=5.0,
+            oxidizer_mass=15.0,
+            num_simulations=num_sims,
+            thrust_sigma=0.02,
+            isp_sigma=0.01,
+            cd_sigma=0.05,
+            seed=42
+        )
+        
+        # Create and start worker
+        self._mc_worker = MonteCarloWorker(params)
+        
+        def on_progress(pct):
+            progress.setValue(pct)
+        
+        def on_finished(result):
+            progress.close()
+            self._on_monte_carlo_complete(result)
+        
+        def on_error(msg):
+            progress.close()
+            self._log(f"❌ Monte Carlo error: {msg}")
+            QMessageBox.critical(self, "Monte Carlo Error", msg)
+        
+        self._mc_worker.progress.connect(on_progress)
+        self._mc_worker.finished.connect(on_finished)
+        self._mc_worker.error.connect(on_error)
+        self._mc_worker.log.connect(self._log)
+        self._mc_worker.start()
+    
+    def _on_monte_carlo_complete(self, result):
+        """Handle Monte Carlo completion and display results."""
+        self._log(f"✅ Monte Carlo complete: {result.num_simulations} runs")
+        self._log(f"   CEP (50%): {result.cep_radius:.1f} m")
+        
+        # Format ellipse
+        if result.ellipse_major and result.ellipse_minor:
+            ellipse_str = f"{result.ellipse_major:.0f}m × {result.ellipse_minor:.0f}m"
+        else:
+            ellipse_str = "N/A"
+        
+        # Show result dialog
+        QMessageBox.information(
+            self,
+            "🎲 Dispersion Analysis Complete",
+            f"<h3>Monte Carlo Results (N={result.num_simulations})</h3>"
+            f"<table style='font-size: 12pt;'>"
+            f"<tr><td><b>CEP (50%):</b></td><td>{result.cep_radius:.1f} m</td></tr>"
+            f"<tr><td><b>3σ Ellipse:</b></td><td>{ellipse_str}</td></tr>"
+            f"<tr><td><b>Mean Apogee:</b></td><td>{result.mean_apogee:.0f} m</td></tr>"
+            f"<tr><td><b>Success Rate:</b></td><td>{result.success_rate*100:.0f}%</td></tr>"
+            f"</table>"
+        )

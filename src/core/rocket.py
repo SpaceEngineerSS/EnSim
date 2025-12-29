@@ -294,6 +294,70 @@ class Rocket:
         total_mass = m_nose + m_body + m_fins + m_engine_dry + m_prop
         
         return total_moment / total_mass if total_mass > 0 else 0
+    
+    @property
+    def initial_propellant_mass(self) -> float:
+        """
+        Get initial propellant mass for state vector initialization.
+        
+        This is the value that should be used for state[13] at t=0.
+        
+        Returns:
+            Initial propellant mass (kg)
+        """
+        return self.engine.propellant_mass
+    
+    def get_mass_from_propellant(self, m_prop: float) -> float:
+        """
+        Calculate total rocket mass from current propellant mass.
+        
+        This method is used by the 14-element state vector solver where
+        m_prop is integrated as state[13].
+        
+        Args:
+            m_prop: Current propellant mass from state vector (kg)
+            
+        Returns:
+            Total rocket mass (kg)
+        """
+        return self.dry_mass + max(0.0, m_prop)
+    
+    def get_cg_from_propellant(self, m_prop: float) -> float:
+        """
+        Calculate CG position from current propellant mass.
+        
+        This method is used by the 14-element state vector solver where
+        m_prop is integrated as state[13].
+        
+        Args:
+            m_prop: Current propellant mass from state vector (kg)
+            
+        Returns:
+            CG position from nose tip (m)
+        """
+        # Component CG positions (from nose tip)
+        x_nose = self.nose.position_cg
+        x_body = self.nose.length + self.body.length / 2
+        x_fins = self.fins.position + self.fins.fin.root_chord / 2
+        x_engine = self.engine.position
+        
+        # Component masses
+        m_nose = self.nose.mass
+        m_body = self.body.mass
+        m_fins = self.fins.mass
+        m_engine_dry = self.engine.engine_mass_dry
+        
+        # Clamp propellant
+        m_prop = max(0.0, m_prop)
+        
+        # Weighted CG
+        total_moment = (m_nose * x_nose + 
+                       m_body * x_body + 
+                       m_fins * x_fins + 
+                       (m_engine_dry + m_prop) * x_engine)
+        total_mass = m_nose + m_body + m_fins + m_engine_dry + m_prop
+        
+        return total_moment / total_mass if total_mass > 0 else 0
 
 
 def create_default_rocket() -> Rocket:

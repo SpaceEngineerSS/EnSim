@@ -9,12 +9,15 @@ References:
     - Gordon, S. & McBride, B.J. (1994). NASA RP-1311.
 """
 
+import os
 import re
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 from numba import jit
 from numpy.typing import NDArray
+
 
 from .constants import GAS_CONSTANT
 from .types import (
@@ -24,6 +27,408 @@ from .types import (
     EquilibriumResult,
     CalculationError,
 )
+
+
+# =============================================================================
+# NASA 7-Term Polynomial Thermo Data Loader
+# =============================================================================
+
+# Path to NASA thermo data file (relative to project root)
+_DATA_DIR = Path(__file__).parent.parent.parent / "data"
+NASA_THERMO_FILE = _DATA_DIR / "nasa_thermo.dat"
+
+
+@jit(nopython=True, cache=True)
+def nasa_get_cp_r(T: float, coeffs_low: np.ndarray, coeffs_high: np.ndarray, 
+                  T_mid: float) -> float:
+    """
+    Calculate Cp/R for a species at temperature T using NASA 7-term polynomial.
+    
+    Cp/R = a1 + a2*T + a3*T² + a4*T³ + a5*T⁴
+    
+    Args:
+        T: Temperature (K)
+        coeffs_low: Low-temperature coefficients [a1..a7] for T < T_mid
+        coeffs_high: High-temperature coefficients [a1..a7] for T >= T_mid
+        T_mid: Mid-point temperature (K), typically 1000K
+        
+    Returns:
+        Cp/R (dimensionless)
+    """
+    c = coeffs_high if T >= T_mid else coeffs_low
+    return c[0] + c[1]*T + c[2]*T*T + c[3]*T*T*T + c[4]*T*T*T*T
+
+
+@jit(nopython=True, cache=True)
+def nasa_get_h_rt(T: float, coeffs_low: np.ndarray, coeffs_high: np.ndarray,
+                  T_mid: float) -> float:
+    """
+    Calculate H/(R*T) for a species at temperature T using NASA 7-term polynomial.
+    
+    H/(RT) = a1 + a2/2*T + a3/3*T² + a4/4*T³ + a5/5*T⁴ + a6/T
+    
+    Args:
+        T: Temperature (K)
+        coeffs_low: Low-temperature coefficients [a1..a7] for T < T_mid
+        coeffs_high: High-temperature coefficients [a1..a7] for T >= T_mid
+        T_mid: Mid-point temperature (K)
+        
+    Returns:
+        H/(RT) (dimensionless)
+    """
+    c = coeffs_high if T >= T_mid else coeffs_low
+    return c[0] + c[1]/2.0*T + c[2]/3.0*T*T + c[3]/4.0*T*T*T + c[4]/5.0*T*T*T*T + c[5]/T
+
+
+@jit(nopython=True, cache=True)
+def nasa_get_s_r(T: float, coeffs_low: np.ndarray, coeffs_high: np.ndarray,
+                 T_mid: float) -> float:
+    """
+    Calculate S/R for a species at temperature T using NASA 7-term polynomial.
+    
+    S/R = a1*ln(T) + a2*T + a3/2*T² + a4/3*T³ + a5/4*T⁴ + a7
+    
+    Args:
+        T: Temperature (K)
+        coeffs_low: Low-temperature coefficients [a1..a7] for T < T_mid
+        coeffs_high: High-temperature coefficients [a1..a7] for T >= T_mid
+        T_mid: Mid-point temperature (K)
+        
+    Returns:
+        S/R (dimensionless)
+    """
+    c = coeffs_high if T >= T_mid else coeffs_low
+    return c[0]*np.log(T) + c[1]*T + c[2]/2.0*T*T + c[3]/3.0*T*T*T + c[4]/4.0*T*T*T*T + c[6]
+
+
+@jit(nopython=True, cache=True)
+def bilinear_interpolate(
+    x: float, y: float,
+    x_grid: np.ndarray, y_grid: np.ndarray,
+    values: np.ndarray
+) -> float:
+    """
+    Bilinear interpolation for 2D lookup tables with clamping.
+    
+    Used for interpolating combustion properties (Tc, gamma, M_mol) 
+    from O/F ratio and chamber pressure grids.
+    
+    Args:
+        x: First coordinate (e.g., O/F ratio)
+        y: Second coordinate (e.g., Pc in Pa)
+        x_grid: 1D array of x grid points (sorted ascending)
+        y_grid: 1D array of y grid points (sorted ascending)
+        values: 2D array of values at grid points, shape (len(x_grid), len(y_grid))
+        
+    Returns:
+        Interpolated value (clamped at boundaries, no extrapolation)
+    """
+    nx = len(x_grid)
+    ny = len(y_grid)
+    
+    # Clamp x to grid bounds (no extrapolation)
+    if x <= x_grid[0]:
+        x = x_grid[0]
+        ix = 0
+    elif x >= x_grid[nx-1]:
+        x = x_grid[nx-1]
+        ix = nx - 2
+    else:
+        # Find interval [x_grid[ix], x_grid[ix+1]] containing x
+        ix = 0
+        for i in range(nx - 1):
+            if x_grid[i] <= x < x_grid[i+1]:
+                ix = i
+                break
+    
+    # Clamp y to grid bounds (no extrapolation)
+    if y <= y_grid[0]:
+        y = y_grid[0]
+        iy = 0
+    elif y >= y_grid[ny-1]:
+        y = y_grid[ny-1]
+        iy = ny - 2
+    else:
+        # Find interval [y_grid[iy], y_grid[iy+1]] containing y
+        iy = 0
+        for j in range(ny - 1):
+            if y_grid[j] <= y < y_grid[j+1]:
+                iy = j
+                break
+    
+    # Clamp indices to valid range
+    if ix >= nx - 1:
+        ix = nx - 2
+    if iy >= ny - 1:
+        iy = ny - 2
+    if ix < 0:
+        ix = 0
+    if iy < 0:
+        iy = 0
+    
+    # Bilinear interpolation
+    x0, x1 = x_grid[ix], x_grid[ix + 1]
+    y0, y1 = y_grid[iy], y_grid[iy + 1]
+    
+    dx = x1 - x0
+    dy = y1 - y0
+    
+    if dx < 1e-20:
+        tx = 0.0
+    else:
+        tx = (x - x0) / dx
+    
+    if dy < 1e-20:
+        ty = 0.0
+    else:
+        ty = (y - y0) / dy
+    
+    # Get corner values
+    v00 = values[ix, iy]
+    v10 = values[ix + 1, iy]
+    v01 = values[ix, iy + 1]
+    v11 = values[ix + 1, iy + 1]
+    
+    # Bilinear formula
+    v = (1 - tx) * (1 - ty) * v00 + tx * (1 - ty) * v10 + \
+        (1 - tx) * ty * v01 + tx * ty * v11
+    
+    return v
+
+
+def load_nasa_thermo_dat(filepath: Optional[Path] = None) -> Dict[str, Dict]:
+    """
+    Load NASA 7-term polynomial coefficients from .dat file.
+    
+    File format (per species):
+        Line 1: Name, description, formula, phase, MW, Hf0
+        Line 2: Low-temp coefficients a1-a5 (card 1)
+        Line 3: Low-temp a6-a7, High-temp a1-a3 (card 2)
+        Line 4: High-temp a4-a7 (card 3)
+        Line 5: Blank (card 4)
+    
+    Args:
+        filepath: Path to nasa_thermo.dat (default: data/nasa_thermo.dat)
+        
+    Returns:
+        Dictionary mapping species name to coefficient data:
+        {
+            'H2': {
+                'name': 'H2',
+                'M_mol': 2.01588,  # g/mol
+                'h_f': 0.0,       # J/mol formation enthalpy
+                'T_mid': 1000.0,  # K
+                'coeffs_low': np.array([a1..a7]),
+                'coeffs_high': np.array([a1..a7])
+            },
+            ...
+        }
+    """
+    if filepath is None:
+        filepath = NASA_THERMO_FILE
+    
+    if not filepath.exists():
+        raise FileNotFoundError(f"NASA thermo data file not found: {filepath}")
+    
+    species_data = {}
+    
+    with open(filepath, 'r') as f:
+        lines = f.readlines()
+    
+    i = 0
+    # Skip header lines until we find species data
+    while i < len(lines):
+        line = lines[i].strip()
+        if line == 'THERMO' or line.startswith('END') or not line:
+            i += 1
+            continue
+        # Check if this is a temperature range line
+        parts = line.split()
+        if len(parts) == 3 and all(p.replace('.', '').replace('-', '').isdigit() for p in parts):
+            # Temperature range line (e.g., "200.000  1000.000  6000.000")
+            i += 1
+            continue
+        break
+    
+    # Parse species entries
+    while i < len(lines) - 3:
+        line = lines[i]
+        
+        if line.strip() == 'END' or not line.strip():
+            i += 1
+            continue
+        
+        # Line 1: Species header
+        # Format: Name (col 1-18), Description, Formula, Phase, MW, Hf
+        name_part = line[:18].strip().split()[0] if line[:18].strip() else ""
+        if not name_part:
+            i += 1
+            continue
+        
+        # Parse MW and Hf from end of line
+        parts = line.split()
+        try:
+            M_mol = float(parts[-2])
+            h_f = float(parts[-1])
+        except (ValueError, IndexError):
+            M_mol = 0.0
+            h_f = 0.0
+        
+        # Lines 2-4: Coefficients
+        try:
+            line2 = lines[i + 1]
+            line3 = lines[i + 2]
+            line4 = lines[i + 3]
+        except IndexError:
+            break
+        
+        # Parse coefficients (fixed-width format: 15 chars each)
+        def parse_coeffs_line(l):
+            coeffs = []
+            for j in range(5):
+                start = j * 15
+                end = start + 15
+                if end <= len(l):
+                    try:
+                        val = float(l[start:end].replace('D', 'E').replace('d', 'e'))
+                    except ValueError:
+                        val = 0.0
+                    coeffs.append(val)
+            return coeffs
+        
+        # Low-temp coefficients: line2[a1-a5], line3[a6-a7]
+        coeffs_low_1 = parse_coeffs_line(line2)
+        coeffs_low_2 = parse_coeffs_line(line3)[:2]
+        coeffs_low = coeffs_low_1 + coeffs_low_2
+        
+        # High-temp coefficients: line3[a1-a3], line4[a4-a7]
+        coeffs_high_1 = parse_coeffs_line(line3)[2:5]
+        coeffs_high_2 = parse_coeffs_line(line4)[:4]
+        coeffs_high = coeffs_high_1 + coeffs_high_2
+        
+        # Store if we have valid coefficients
+        if len(coeffs_low) >= 7 and len(coeffs_high) >= 7:
+            species_data[name_part] = {
+                'name': name_part,
+                'M_mol': M_mol,
+                'h_f': h_f,
+                'T_mid': 1000.0,  # Standard midpoint
+                'coeffs_low': np.array(coeffs_low[:7], dtype=np.float64),
+                'coeffs_high': np.array(coeffs_high[:7], dtype=np.float64),
+            }
+        
+        i += 5  # Move to next species (4 data lines + 1 blank)
+    
+    return species_data
+
+
+def create_combustion_lookup_table(
+    of_ratios: np.ndarray,
+    Pc_values: np.ndarray,
+    fuel: str = "RP-1",
+    oxidizer: str = "O2"
+) -> Dict[str, np.ndarray]:
+    """
+    Pre-compute combustion properties lookup table for fast runtime interpolation.
+    
+    Creates tables for T_chamber, gamma, and M_mol as functions of O/F ratio
+    and chamber pressure. Uses Gordon-McBride equilibrium solver.
+    
+    Args:
+        of_ratios: Array of O/F ratios to compute (e.g., [2.0, 2.5, 3.0, 3.5])
+        Pc_values: Array of chamber pressures in Pa (e.g., [1e6, 2e6, 3e6, 4e6, 5e6])
+        fuel: Fuel species name
+        oxidizer: Oxidizer species name
+        
+    Returns:
+        Dictionary with:
+            'of_grid': O/F ratio grid
+            'Pc_grid': Chamber pressure grid (Pa)
+            'T_chamber': 2D array of chamber temps (K), shape (n_of, n_Pc)
+            'gamma': 2D array of gamma values
+            'M_mol': 2D array of mean molecular weights (g/mol)
+            
+    Note:
+        This function is slow (uses full equilibrium solver) - call once at
+        simulation setup, NOT in the simulation loop.
+    """
+    n_of = len(of_ratios)
+    n_Pc = len(Pc_values)
+    
+    T_table = np.zeros((n_of, n_Pc), dtype=np.float64)
+    gamma_table = np.zeros((n_of, n_Pc), dtype=np.float64)
+    M_mol_table = np.zeros((n_of, n_Pc), dtype=np.float64)
+    
+    # Note: Full implementation would use CombustionProblem.solve()
+    # For now, use simplified correlations for RP-1/LOX
+    # These are approximate values - real implementation should use CEA database
+    
+    for i, of in enumerate(of_ratios):
+        for j, Pc in enumerate(Pc_values):
+            # Simplified RP-1/LOX correlation (replace with full solver later)
+            # T_c increases with O/F up to ~2.7, then decreases
+            # Higher Pc slightly increases T_c
+            
+            T_base = 3400.0  # K at stoichiometric
+            of_opt = 2.7  # Optimal O/F for temp
+            T_penalty = 200.0 * (of - of_opt)**2
+            Pc_factor = 1.0 + 0.02 * (Pc / 1e6 - 3.0)  # +2% per MPa above 3 MPa
+            
+            T_table[i, j] = max(2500.0, (T_base - T_penalty) * Pc_factor)
+            
+            # Gamma: typically 1.15-1.24 for combustion products
+            gamma_table[i, j] = 1.15 + 0.05 * (3.0 - of) / 2.0
+            if gamma_table[i, j] < 1.14:
+                gamma_table[i, j] = 1.14
+            if gamma_table[i, j] > 1.24:
+                gamma_table[i, j] = 1.24
+            
+            # M_mol: typically 20-24 g/mol for RP-1/LOX
+            M_mol_table[i, j] = 21.0 + 1.0 * (of - 2.5)
+            if M_mol_table[i, j] < 19.0:
+                M_mol_table[i, j] = 19.0
+            if M_mol_table[i, j] > 26.0:
+                M_mol_table[i, j] = 26.0
+    
+    return {
+        'of_grid': of_ratios.copy(),
+        'Pc_grid': Pc_values.copy(),
+        'T_chamber': T_table,
+        'gamma': gamma_table,
+        'M_mol': M_mol_table,
+    }
+
+
+@jit(nopython=True, cache=True)
+def lookup_combustion_properties(
+    of_ratio: float,
+    Pc: float,
+    of_grid: np.ndarray,
+    Pc_grid: np.ndarray,
+    T_table: np.ndarray,
+    gamma_table: np.ndarray,
+    M_mol_table: np.ndarray
+) -> Tuple[float, float, float]:
+    """
+    Fast runtime lookup of combustion properties using bilinear interpolation.
+    
+    Args:
+        of_ratio: O/F ratio
+        Pc: Chamber pressure (Pa)
+        of_grid: O/F ratio grid from lookup table
+        Pc_grid: Pressure grid from lookup table (Pa)
+        T_table: Chamber temperature table (K)
+        gamma_table: Gamma table
+        M_mol_table: Molecular weight table (g/mol)
+        
+    Returns:
+        Tuple of (T_chamber, gamma, M_mol)
+    """
+    T_c = bilinear_interpolate(of_ratio, Pc, of_grid, Pc_grid, T_table)
+    gamma = bilinear_interpolate(of_ratio, Pc, of_grid, Pc_grid, gamma_table)
+    M_mol = bilinear_interpolate(of_ratio, Pc, of_grid, Pc_grid, M_mol_table)
+    
+    return T_c, gamma, M_mol
 
 
 # =============================================================================

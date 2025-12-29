@@ -427,6 +427,55 @@ class NozzleView3D(QWidget):
         """Check if a mesh is available for export."""
         return self._mesh is not None
     
+    def update_attitude(self, q: np.ndarray):
+        """
+        Update the 3D model orientation based on quaternion.
+        
+        Args:
+            q: Quaternion [w, x, y, z] representing attitude
+        """
+        if not PYVISTA_AVAILABLE or not self._plotter or self._mesh is None:
+            return
+        
+        try:
+            # Convert quaternion to rotation matrix
+            # q = [w, x, y, z] format
+            w, x, y, z = q[0], q[1], q[2], q[3]
+            
+            # Normalize quaternion
+            norm = np.sqrt(w*w + x*x + y*y + z*z)
+            if norm < 1e-10:
+                return
+            w, x, y, z = w/norm, x/norm, y/norm, z/norm
+            
+            # Convert to rotation matrix (3x3)
+            rot_matrix = np.array([
+                [1 - 2*y*y - 2*z*z, 2*x*y - 2*w*z, 2*x*z + 2*w*y],
+                [2*x*y + 2*w*z, 1 - 2*x*x - 2*z*z, 2*y*z - 2*w*x],
+                [2*x*z - 2*w*y, 2*y*z + 2*w*x, 1 - 2*x*x - 2*y*y]
+            ])
+            
+            # Create 4x4 transformation matrix
+            transform = np.eye(4)
+            transform[:3, :3] = rot_matrix
+            
+            # Apply transformation to mesh copy
+            transformed_mesh = self._mesh.copy()
+            transformed_mesh.transform(transform, inplace=True)
+            
+            # Update display (clear and re-add)
+            self._plotter.clear()
+            self._plotter.add_axes(color='#888888')
+            self._plotter.add_mesh(
+                transformed_mesh,
+                color='#00d4ff',
+                show_edges=False,
+                smooth_shading=True
+            )
+            
+        except Exception as e:
+            print(f"Attitude update error: {e}")
+    
     def clear(self):
         """Clear the 3D view."""
         if self._plotter:
@@ -439,3 +488,4 @@ class NozzleView3D(QWidget):
         if self._plotter:
             self._plotter.close()
         super().closeEvent(event)
+
