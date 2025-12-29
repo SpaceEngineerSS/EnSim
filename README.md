@@ -15,22 +15,26 @@
 
 - 🔬 **Scientific Accuracy**: <0.1% error vs NIST reference data
 - ⚡ **Real-time Analysis**: Numba JIT-compiled solvers
+- 🚀 **6-DOF Simulation**: Full rigid-body flight dynamics with adaptive integration
+- 🎲 **Monte Carlo**: Landing dispersion analysis (CEP, 3-sigma ellipse)
 - 🎨 **Modern UI**: Dark-themed PyQt6 interface with interactive plots
 - 🌡️ **Dissociation Chemistry**: Accurate high-temperature equilibrium (H, O, OH)
-- 📊 **2D Visualization**: Matplotlib profiles (P, T, Mach vs Area)
-- 🎮 **3D Visualization**: PyVista nozzle mesh with temperature coloring
+- 🎮 **3D Visualization**: PyVista nozzle mesh and rocket attitude display
+- 📈 **Dense Output**: Fixed-rate sampling via Cubic Hermite interpolation
 
 ## Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/username/ensim.git
+git clone https://github.com/SpaceEngineerSS/ensim.git
 cd ensim
 
 # Create virtual environment (recommended)
 python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
+# Windows:
+venv\Scripts\activate  
+# Linux/Mac:
+source venv/bin/activate  
 
 # Install dependencies
 pip install -r requirements.txt
@@ -42,10 +46,10 @@ pip install -r requirements.txt
 # Launch GUI
 python main.py
 
-# Run validation tests
+# Run quick physics test
 python main.py --test
 
-# Full test suite
+# Run full test suite
 pytest tests/ -v
 ```
 
@@ -59,30 +63,32 @@ EnSim results are validated against NASA CEA and NIST data:
 | Vacuum Isp | 414.6 s | ~420 s | 1.3% |
 | Cp H2O @ 1000K | 41.29 J/(mol·K) | 41.29 J/(mol·K) | <0.01% |
 
-### Dissociation Products
-
-At 3600K, H2/O2 combustion products:
-```
-H2O: 68.1%  |  H2: 12.4%  |  OH: 9.9%
-H:    4.1%  |  O2:  3.8%  |  O:  1.8%
-```
+### 6-DOF Flight Core
+- **Integrator**: RK45 (Dormand-Prince) with adaptive step size.
+- **Interpolation**: Cubic Hermite Spline for smooth 0.01s dense output.
+- **Orientation**: Quaternion-based (W, X, Y, Z) to avoid gimbal lock.
 
 ## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a deep dive into the physics engine and numerical solvers.
 
 ```
 EnSim/
 ├── src/
-│   ├── core/           # Pure physics (no GUI dependencies)
+│   ├── core/           # Physics engine (Numba JIT)
+│   │   ├── flight_6dof.py    # 6-DOF flight dynamics
 │   │   ├── chemistry.py      # Gibbs equilibrium solver
-│   │   ├── propulsion.py     # 1-D isentropic nozzle flow
-│   │   └── thermodynamics.py # NASA 7-term polynomials
+│   │   ├── propulsion.py     # Nozzle flow physics
+│   │   ├── math_utils.py     # Quaternion & Vector math
+│   │   └── integrators.py    # RK45 & Interpolation
 │   ├── ui/             # PyQt6 interface
-│   │   ├── workers.py        # QThread calculations
-│   │   └── widgets/          # Input, Graph, 3D widgets
-│   └── utils/          # Parsers
-├── tests/              # Pytest suite (64 tests)
-└── assets/             # Stylesheets
+│   │   ├── workers.py        # QThread background tasks
+│   │   └── widgets/          # Flight control & Viz
+│   └── utils/          # Data exporters
+├── tests/              # Pytest suite
+└── data/               # NASA thermo database
 ```
+
 
 ## Core Physics
 

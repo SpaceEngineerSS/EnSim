@@ -113,6 +113,15 @@ else:
     thrust_loss_factor = 1.0
 ```
 
+#### 2.4 Shifting Equilibrium Model (Simplified)
+
+EnSim implements a shifting equilibrium model that captures recombination effects:
+1. **Base Expansion**: Uses chamber gamma ($\gamma_{ch}$) for isentropic ratios to ensure a fair " frozen versus shifting" comparison.
+2. **Recombination**: Extent of atomic recombination (H, O, OH) is estimated based on local $T, P$.
+3. **Energy Recovery**: Heat released from recombination is recovered directly into the kinetic energy of the stream: $V = \sqrt{V_{isen}^2 + 2\Delta h_{recomb}}$.
+
+This approach ensures $Isp_{shifting} \geq Isp_{frozen}$ consistently across all expansion ratios.
+
 **Physical Meaning:**
 - Pe/Pa < 0.4: Shock wave enters nozzle, flow detaches from wall
 - Thrust loss: 10-50% reduction due to asymmetric separation

@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont, QAction, QIcon, QKeySequence
+import numpy as np
 
 from ..widgets.input_panel import InputPanel
 from ..widgets.graph_widget import PerformanceGraph
@@ -983,7 +984,6 @@ class MainWindow(QMainWindow):
             return
         
         try:
-            import numpy as np
             from src.core.cooling import calculate_thermal_profile
             from src.core.materials import get_material
             

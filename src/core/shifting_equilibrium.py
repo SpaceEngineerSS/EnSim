@@ -139,7 +139,10 @@ def area_mach_function(M: float, gamma: float) -> float:
 def solve_mach_supersonic(area_ratio: float, gamma: float) -> float:
     """Solve for supersonic Mach from area ratio."""
     # Newton-Raphson
-    M = 2.0  # Initial guess
+    if area_ratio < 1.5:
+        M = 1.0 + 0.5 * (area_ratio - 1.0)**0.5
+    else:
+        M = 2.0  # Initial guess
     for _ in range(50):
         A = area_mach_function(M, gamma)
         if abs(A - area_ratio) < 1e-8:
@@ -294,18 +297,22 @@ def solve_shifting_equilibrium(
     mean_mw = mean_mw_chamber
     
     for eps in area_ratios:
-        # Solve for Mach number
+        # Use chamber gamma for the "base" isentropic expansion calculation
+        # to ensure we are comparing recombination effect fairly against 
+        # a frozen baseline using the same expansion physics.
+        gamma_eff = gamma_chamber
+
         if eps <= 1.001:
             M = 1.0
         else:
-            M = solve_mach_supersonic(eps, gamma)
+            M = solve_mach_supersonic(eps, gamma_eff)
         
         # Isentropic ratios
-        T_ratio = isentropic_temperature_ratio(M, gamma)
-        P_ratio = isentropic_pressure_ratio(M, gamma)
-        rho_ratio = isentropic_density_ratio(M, gamma)
+        T_ratio = isentropic_temperature_ratio(M, gamma_eff)
+        P_ratio = isentropic_pressure_ratio(M, gamma_eff)
+        rho_ratio = isentropic_density_ratio(M, gamma_eff)
         
-        # Local conditions
+        # Local conditions (Frozen baseline at this station)
         T = T0 * T_ratio
         P = P0 * P_ratio
         rho = rho0 * rho_ratio
@@ -317,21 +324,15 @@ def solve_shifting_equilibrium(
         total_recomb_heat += delta_heat
         current_composition = new_comp
         
-        # Update gamma for next iteration (simplified)
-        gamma = estimate_gamma_from_temperature(
-            T, T_chamber, gamma_chamber, mean_mw
-        )
-        
-        # Velocity including recombination heat recovery
-        a = np.sqrt(gamma * R * T)  # Local speed of sound
+        # Effective speed of sound for velocity calculation
+        a = np.sqrt(gamma_eff * R * T)  # Local speed of sound
         V = M * a
         
-        # Add recombination velocity boost (simplified energy balance)
-        # ΔV ≈ sqrt(2 * Δh / m_dot) (recovered as kinetic energy)
         if total_recomb_heat > 0:
-            # Approximate boost
-            V_boost = np.sqrt(2 * total_recomb_heat / (mean_mw / 1000) * 0.5)
-            V = V + V_boost * 0.01  # Small fraction recovered
+            # Recombination Recovery: 100% of heat goes into kinetic energy
+            # in this simplified shifting model.
+            h_recomb_kg = total_recomb_heat / (mean_mw / 1000.0)
+            V = np.sqrt(V**2 + 2 * h_recomb_kg)
         
         station = FlowStation(
             area_ratio=eps,
