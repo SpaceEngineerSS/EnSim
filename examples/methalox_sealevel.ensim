@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "created": "2024-12-21T00:00:00",
+  "modified": "2024-12-21T00:00:00",
+  "fuel": "CH4",
+  "oxidizer": "O2",
+  "of_ratio": 3.5,
+  "chamber_pressure_bar": 100.0,
+  "throat_area_cm2": 150.0,
+  "expansion_ratio": 30.0,
+  "ambient": "Sea Level (1.01 bar)",
+  "temperature": null,
+  "isp_vacuum": null,
+  "isp_sea_level": null,
+  "thrust": null,
+  "c_star": null,
+  "gamma": null,
+  "mean_mw": null
+}

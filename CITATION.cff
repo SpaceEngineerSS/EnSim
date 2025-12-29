@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: EnSim
+    given-names: Contributors
+title: "EnSim: Open Source Rocket Engine Simulation Suite"
+version: 1.0.0
+date-released: 2024-12-21
+url: "https://github.com/username/ensim"
+license: MIT
+keywords:
+  - rocket propulsion
+  - thermochemical equilibrium
+  - nozzle flow
+  - combustion
+  - aerospace engineering
+abstract: >-
+  EnSim is a desktop application for designing liquid rocket engines.
+  It solves thermochemical equilibrium equations using NASA CEA methodology
+  to calculate theoretical performance metrics (Isp, C*, T_comb) and
+  visualizes nozzle flow in 2D and 3D.
+references:
+  - type: book
+    authors:
+      - family-names: Gordon
+        given-names: Sanford
+      - family-names: McBride
+        given-names: Bonnie J.
+    title: "Computer Program for Calculation of Complex Chemical Equilibrium Compositions"
+    year: 1994
+    publisher: NASA RP-1311
+  - type: book
+    authors:
+      - family-names: Sutton
+        given-names: George P.
+      - family-names: Biblarz
+        given-names: Oscar
+    title: "Rocket Propulsion Elements"
+    edition: 9th
+    year: 2016
+    publisher: Wiley

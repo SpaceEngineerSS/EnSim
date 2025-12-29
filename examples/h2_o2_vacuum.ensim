@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "created": "2024-12-21T00:00:00",
+  "modified": "2024-12-21T00:00:00",
+  "fuel": "H2",
+  "oxidizer": "O2",
+  "of_ratio": 8.0,
+  "chamber_pressure_bar": 68.0,
+  "throat_area_cm2": 100.0,
+  "expansion_ratio": 50.0,
+  "ambient": "Vacuum (0 bar)",
+  "temperature": 3600.0,
+  "isp_vacuum": 414.6,
+  "isp_sea_level": 341.8,
+  "thrust": 131549.0,
+  "c_star": 2130.0,
+  "gamma": 1.2,
+  "mean_mw": 12.5
+}
