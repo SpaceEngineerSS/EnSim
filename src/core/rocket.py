@@ -95,7 +95,7 @@ class BodyTube:
 
 @dataclass
 class Fin:
-    """
+    r"""
     Single fin definition (trapezoidal planform).
     
               Tip Chord

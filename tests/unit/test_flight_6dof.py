@@ -195,10 +195,11 @@ class TestRK4Integration:
         """Test free fall against analytical solution: z = -½gt²."""
         # Initial state: stationary at 1000m
         state = np.array([
-            0.0, 0.0, 1000.0,  # Position
-            0.0, 0.0, 0.0,      # Velocity
-            1.0, 0.0, 0.0, 0.0, # Identity quaternion
-            0.0, 0.0, 0.0       # Angular velocity
+            0.0, 0.0, 1000.0,    # Position
+            0.0, 0.0, 0.0,       # Velocity
+            1.0, 0.0, 0.0, 0.0,  # Identity quaternion
+            0.0, 0.0, 0.0,       # Angular velocity
+            10.0                 # Propellant mass (14th element)
         ])
         
         mass = 10.0
@@ -231,7 +232,8 @@ class TestRK4Integration:
             0.0, 0.0, 1000.0,
             100.0, 0.0, 50.0,
             0.707, 0.707, 0.0, 0.0,  # Non-trivial quaternion
-            0.1, 0.2, 0.3            # Non-zero angular velocity
+            0.1, 0.2, 0.3,           # Non-zero angular velocity
+            10.0                     # Propellant mass
         ])
         
         mass = 10.0
