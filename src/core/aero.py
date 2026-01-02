@@ -17,7 +17,6 @@ References:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 from numba import jit
@@ -271,7 +270,7 @@ def calculate_total_cp(rocket: Rocket) -> tuple:
 
     # Calculate CP locations
     cp_nose = calculate_cp_nose(rocket.nose)
-    cp_body = rocket.nose.length + rocket.body.length / 2  # Mid-body (not used)
+    # Note: Body CP not used in weighted average (cn_body contribution is negligible)
     cp_fins = calculate_cp_fins(rocket.fins, rocket.fins.position, rocket.body.diameter)
 
     # Weighted average (body contribution is zero)
