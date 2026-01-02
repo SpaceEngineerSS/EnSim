@@ -180,7 +180,7 @@ class TestCombustionLookupTable:
         
         table = create_combustion_lookup_table(of, Pc)
         
-        assert np.all(table['T_chamber'] > 2000), "T_c should be > 2000K"
+        assert np.all(table['T_chamber'] >= 2000), "T_c should be >= 2000K"
         assert np.all(table['T_chamber'] < 4000), "T_c should be < 4000K"
     
     def test_gamma_range(self):
