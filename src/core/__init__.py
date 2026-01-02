@@ -1,67 +1,64 @@
 """Core physics engine - GUI independent."""
 
-from .constants import GAS_CONSTANT, G0, NASA_R
-from .types import (
-    SpeciesData,
-    SpeciesDatabase,
-    Element,
-    ELEMENTS,
-    Reactant,
-    SystemState,
-    EquilibriumResult,
-    CalculationError,
-    ConvergenceError,
-    SingularMatrixError,
-)
-from .thermodynamics import (
-    cp_over_r,
-    h_over_rt,
-    s_over_r,
-    get_thermo_properties,
-)
 from .chemistry import (
     CombustionProblem,
-    parse_formula,
     build_stoichiometry_matrix,
+    parse_formula,
+)
+from .constants import G0, GAS_CONSTANT, NASA_R
+from .instability import (
+    AcousticMode,
+    InstabilityResult,
+    analyze_combustion_instability,
+    quick_stability_check,
 )
 from .propulsion import (
     NozzleConditions,
     PerformanceResult,
-    calculate_performance,
     calculate_c_star,
     calculate_ideal_expansion_ratio,
+    calculate_performance,
+)
+from .shifting_equilibrium import (
+    FlowStation,
+    ShiftingFlowResult,
+    compare_frozen_vs_shifting,
+    solve_shifting_equilibrium,
+)
+from .terrain import (
+    AircraftState,
+    TerrainAwarenessSystem,
+    TerrainWarning,
+    create_gpws_for_flight_sim,
+)
+from .thermodynamics import (
+    cp_over_r,
+    get_thermo_properties,
+    h_over_rt,
+    s_over_r,
+)
+from .types import (
+    ELEMENTS,
+    CalculationError,
+    ConvergenceError,
+    Element,
+    EquilibriumResult,
+    Reactant,
+    SingularMatrixError,
+    SpeciesData,
+    SpeciesDatabase,
+    SystemState,
 )
 
 # New modules (v2.0)
 from .validation import (
-    ValidationResult,
     ValidationIssue,
+    ValidationResult,
     ValidationSeverity,
     validate_all_inputs,
     validate_chamber_pressure,
-    validate_of_ratio,
     validate_expansion_ratio,
-)
-
-from .instability import (
-    InstabilityResult,
-    AcousticMode,
-    analyze_combustion_instability,
-    quick_stability_check,
-)
-
-from .shifting_equilibrium import (
-    ShiftingFlowResult,
-    FlowStation,
-    solve_shifting_equilibrium,
-    compare_frozen_vs_shifting,
-)
-
-from .terrain import (
-    TerrainAwarenessSystem,
-    TerrainWarning,
-    AircraftState,
-    create_gpws_for_flight_sim,
+    validate_of_ratio,
 )
 
 __all__ = [
@@ -119,4 +116,3 @@ __all__ = [
     "AircraftState",
     "create_gpws_for_flight_sim",
 ]
-

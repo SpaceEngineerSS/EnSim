@@ -123,6 +123,9 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/project/ensim/
+    permissions:
+      id-token: write  # Required for trusted publishing
+      contents: read
     
     steps:
       - name: Download artifacts
@@ -135,7 +138,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-        # Requires PYPI_API_TOKEN secret to be configured
+          # For API token authentication instead of trusted publishing:
+          # password: ${{ secrets.PYPI_API_TOKEN }}
 
   # ============================================================================
   # Documentation Job - Build and publish docs
