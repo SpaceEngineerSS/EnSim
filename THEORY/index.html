@@ -934,7 +934,7 @@
 <h2 id="chemical-equilibrium">Chemical Equilibrium<a class="headerlink" href="#chemical-equilibrium" title="Permanent link">&para;</a></h2>
 <h3 id="gibbs-free-energy-minimization">Gibbs Free Energy Minimization<a class="headerlink" href="#gibbs-free-energy-minimization" title="Permanent link">&para;</a></h3>
 <p>The equilibrium composition is found by minimizing the total Gibbs free energy:</p>
-<div class="arithmatex">\[G = \sum_j n_j \left( \mu_j^0 + RT \ln \frac{n_j P}{n_{total} P^0} \right)\]</div>
+<div class="arithmatex">\[G = \sum_j n_j \left( \mu_j^{0} + RT \ln \frac{n_j P}{n_{total} P^{0}} \right)\]</div>
 <p>Subject to element conservation:</p>
 <div class="arithmatex">\[\sum_j a_{ij} n_j = b_i \quad \forall \text{ elements } i\]</div>
 <h3 id="gordon-mcbride-method">Gordon-McBride Method<a class="headerlink" href="#gordon-mcbride-method" title="Permanent link">&para;</a></h3>
@@ -943,18 +943,18 @@
 <li><strong>Initialize</strong>: Estimate species moles from stoichiometry</li>
 <li><strong>Iterate</strong>: Solve the linearized system:</li>
 </ol>
-<div class="arithmatex">\[\begin{bmatrix} \nabla^2 G &amp; A^T \\ A &amp; 0 \end{bmatrix} \begin{bmatrix} \Delta n \\ \lambda \end{bmatrix} = \begin{bmatrix} -\nabla G \\ b - An \end{bmatrix}\]</div>
+<div class="arithmatex">\[\begin{bmatrix} \nabla^{2} G &amp; A^{T} \\ A &amp; 0 \end{bmatrix} \begin{bmatrix} \Delta n \\ \lambda \end{bmatrix} = \begin{bmatrix} -\nabla G \\ b - An \end{bmatrix}\]</div>
 <ol>
 <li><strong>Convergence</strong>: Check <span class="arithmatex">\(\|\Delta n / n\| &lt; 10^{-7}\)</span></li>
 </ol>
 <h3 id="adiabatic-flame-temperature">Adiabatic Flame Temperature<a class="headerlink" href="#adiabatic-flame-temperature" title="Permanent link">&para;</a></h3>
 <p>Energy balance for adiabatic combustion:</p>
-<div class="arithmatex">\[\sum_j n_j H_j(T_{ad}) = \sum_i n_i^0 H_i(T_0)\]</div>
+<div class="arithmatex">\[\sum_j n_j H_j(T_{ad}) = \sum_i n_i^{0} H_i(T_0)\]</div>
 <p>Solved iteratively with equilibrium composition at each temperature.</p>
 <hr />
 <h2 id="propulsion-performance">Propulsion Performance<a class="headerlink" href="#propulsion-performance" title="Permanent link">&para;</a></h2>
 <h3 id="characteristic-velocity-c">Characteristic Velocity (C*)<a class="headerlink" href="#characteristic-velocity-c" title="Permanent link">&para;</a></h3>
-<div class="arithmatex">\[C^* = \frac{\sqrt{\gamma R T_c}}{\Gamma}\]</div>
+<div class="arithmatex">\[C^{*} = \frac{\sqrt{\gamma R T_c}}{\Gamma}\]</div>
 <p>where the vandenkerckhove function:</p>
 <div class="arithmatex">\[\Gamma = \sqrt{\gamma} \left( \frac{2}{\gamma + 1} \right)^{\frac{\gamma + 1}{2(\gamma - 1)}}\]</div>
 <h3 id="exit-velocity">Exit Velocity<a class="headerlink" href="#exit-velocity" title="Permanent link">&para;</a></h3>
@@ -963,15 +963,15 @@
 <h3 id="thrust-coefficient">Thrust Coefficient<a class="headerlink" href="#thrust-coefficient" title="Permanent link">&para;</a></h3>
 <div class="arithmatex">\[C_F = \Gamma \sqrt{\frac{2\gamma^2}{\gamma - 1} \left[ 1 - \left( \frac{P_e}{P_c} \right)^{\frac{\gamma - 1}{\gamma}} \right]} + \epsilon \frac{P_e - P_a}{P_c}\]</div>
 <h3 id="specific-impulse">Specific Impulse<a class="headerlink" href="#specific-impulse" title="Permanent link">&para;</a></h3>
-<div class="arithmatex">\[I_{sp} = \frac{C^* \cdot C_F}{g_0}\]</div>
+<div class="arithmatex">\[I_{sp} = \frac{C^{*} \cdot C_F}{g_0}\]</div>
 <h3 id="area-mach-relation">Area-Mach Relation<a class="headerlink" href="#area-mach-relation" title="Permanent link">&para;</a></h3>
-<div class="arithmatex">\[\frac{A}{A^*} = \frac{1}{M} \left[ \frac{2}{\gamma + 1} \left( 1 + \frac{\gamma - 1}{2} M^2 \right) \right]^{\frac{\gamma + 1}{2(\gamma - 1)}}\]</div>
+<div class="arithmatex">\[\frac{A}{A^{*}} = \frac{1}{M} \left[ \frac{2}{\gamma + 1} \left( 1 + \frac{\gamma - 1}{2} M^{2} \right) \right]^{\frac{\gamma + 1}{2(\gamma - 1)}}\]</div>
 <h3 id="efficiency-corrections">Efficiency Corrections<a class="headerlink" href="#efficiency-corrections" title="Permanent link">&para;</a></h3>
 <p>Real-world performance includes losses:</p>
-<div class="arithmatex">\[C^*_{actual} = \eta_{C^*} \cdot C^*_{ideal}\]</div>
+<div class="arithmatex">\[C^{*}_{actual} = \eta_{C^{*}} \cdot C^{*}_{ideal}\]</div>
 <div class="arithmatex">\[C_{F,actual} = \eta_{C_F} \cdot C_{F,ideal}\]</div>
 <p>Typical values:
-- <span class="arithmatex">\(\eta_{C^*}\)</span> = 0.94 - 0.99 (combustion efficiency)
+- <span class="arithmatex">\(\eta_{C^{*}}\)</span> = 0.94 - 0.99 (combustion efficiency)
 - <span class="arithmatex">\(\eta_{C_F}\)</span> = 0.96 - 0.99 (nozzle efficiency)</p>
 <hr />
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
