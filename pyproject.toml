@@ -77,11 +77,11 @@ docs = [
 all = ["ensim[dev,docs]"]
 
 [project.urls]
-Homepage = "https://github.com/ensim/ensim"
+Homepage = "https://github.com/SpaceEngineerSS/EnSim"
 Documentation = "https://ensim.io/docs"
-Repository = "https://github.com/ensim/ensim"
-Issues = "https://github.com/ensim/ensim/issues"
-Changelog = "https://github.com/ensim/ensim/blob/main/CHANGELOG.md"
+Repository = "https://github.com/SpaceEngineerSS/EnSim"
+Issues = "https://github.com/SpaceEngineerSS/EnSim/issues"
+Changelog = "https://github.com/SpaceEngineerSS/EnSim/blob/main/CHANGELOG.md"
 
 [project.scripts]
 ensim = "main:main"

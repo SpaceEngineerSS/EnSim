@@ -112,8 +112,8 @@ print(f"Mean MW: {result.mean_molecular_weight:.2f} g/mol")
 
 ## Getting Help
 
-- **Issues**: [GitHub Issues](https://github.com/ensim/ensim/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ensim/ensim/discussions)
+- **Issues**: [GitHub Issues](https://github.com/SpaceEngineerSS/EnSim/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/SpaceEngineerSS/EnSim/discussions)
 - **Email**: support@ensim.io
 
 ## License

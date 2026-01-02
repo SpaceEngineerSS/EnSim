@@ -24,11 +24,11 @@ Before installing EnSim, ensure you have:
 ### 2. Clone Repository
 
 ```bash
-git clone https://github.com/ensim/ensim.git
+git clone https://github.com/SpaceEngineerSS/EnSim.git
 cd ensim
 ```
 
-Or download the [latest release](https://github.com/ensim/ensim/releases/latest).
+Or download the [latest release](https://github.com/SpaceEngineerSS/EnSim/releases/latest).
 
 ### 3. Create Virtual Environment
 

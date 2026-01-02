@@ -11,7 +11,7 @@ site_description: >-
 
 # Repository
 repo_name: ensim/ensim
-repo_url: https://github.com/ensim/ensim
+repo_url: https://github.com/SpaceEngineerSS/EnSim
 edit_uri: edit/main/docs/
 
 # Copyright
@@ -105,7 +105,7 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ensim/ensim
+      link: https://github.com/SpaceEngineerSS/EnSim
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/ensim/
   

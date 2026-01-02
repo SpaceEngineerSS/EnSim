@@ -6,11 +6,11 @@
 <h3 align="center">🚀 Professional Rocket Engine & Flight Simulation Platform</h3>
 
 <p align="center">
-  <a href="https://github.com/ensim/ensim/actions/workflows/ci.yml">
-    <img src="https://github.com/ensim/ensim/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <a href="https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml">
+    <img src="https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
-  <a href="https://codecov.io/gh/ensim/ensim">
-    <img src="https://codecov.io/gh/ensim/ensim/branch/main/graph/badge.svg" alt="Coverage">
+  <a href="https://pypi.org/project/ensim/">
+    <img src="https://img.shields.io/pypi/v/ensim.svg" alt="PyPI Version">
   </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
@@ -84,10 +84,18 @@ Whether you're a student learning rocket science, a researcher exploring propuls
 
 ### Installation
 
+#### Option 1: Install from PyPI (Recommended)
+
+```bash
+pip install ensim
+```
+
+#### Option 2: Install from Source
+
 ```bash
 # Clone the repository
-git clone https://github.com/ensim/ensim.git
-cd ensim
+git clone https://github.com/SpaceEngineerSS/EnSim.git
+cd EnSim
 
 # Create virtual environment (recommended)
 python -m venv venv
