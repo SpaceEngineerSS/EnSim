@@ -12,14 +12,13 @@ Key Features:
     - Numba JIT compilation for performance
 
 References:
-    - Dormand, J.R. & Prince, P.J. (1980). "A family of embedded 
+    - Dormand, J.R. & Prince, P.J. (1980). "A family of embedded
       Runge-Kutta formulae." J. Comp. Appl. Math. 6(1): 19-26.
     - Hairer, Nørsett & Wanner (1993). "Solving ODEs I: Nonstiff Problems"
 """
 
 import numpy as np
 from numba import jit
-
 
 # =============================================================================
 # Dormand-Prince 5(4) Butcher Tableau Coefficients
@@ -104,13 +103,13 @@ def rk45_compute_stages(
 ) -> np.ndarray:
     """
     Compute intermediate state for RK45 stage evaluation.
-    
+
     Args:
         y: Current state vector (n elements)
         k: Array of k values computed so far, shape (7, n)
         h: Step size
         n: Dimension of state vector
-        
+
     Returns:
         State vector at current stage position
     """
@@ -129,33 +128,33 @@ def rk45_error_norm(
 ) -> float:
     """
     Compute scaled error norm for step acceptance.
-    
+
     Uses mixed absolute/relative tolerance scaling:
         scale_i = atol + rtol * max(|y_new_i|, |y_old_i|)
         err_scaled = sqrt(mean((error_i / scale_i)^2))
-    
+
     Args:
         y_new: New state estimate
         y_old: Previous state
         error: Error estimate (difference between 5th and 4th order)
         atol: Absolute tolerance
         rtol: Relative tolerance
-        
+
     Returns:
         Scaled RMS error norm
     """
     n = len(error)
     sum_sq = 0.0
-    
+
     for i in range(n):
         # Scale factor: tolerances weighted by solution magnitude
         scale = atol + rtol * max(abs(y_new[i]), abs(y_old[i]))
         if scale < 1e-30:
             scale = 1e-30
-        
+
         # Add scaled squared error
         sum_sq += (error[i] / scale) ** 2
-    
+
     # RMS norm
     return np.sqrt(sum_sq / n)
 
@@ -170,19 +169,19 @@ def compute_new_step_size(
 ) -> float:
     """
     Compute optimal new step size using PI controller.
-    
+
     Uses standard step-size formula with smoothing:
         h_new = h * SAFETY * (1/err)^ALPHA * (prev_err)^BETA
-    
+
     Clamped to [h_min, h_max] and limited by factor constraints.
-    
+
     Args:
         h: Current step size
         err_norm: Current scaled error norm
         prev_err_norm: Previous step's error norm (for smoothing)
         h_min: Minimum allowed step size
         h_max: Maximum allowed step size
-        
+
     Returns:
         New step size
     """
@@ -192,26 +191,26 @@ def compute_new_step_size(
     else:
         # PI controller formula
         factor = SAFETY * (1.0 / err_norm) ** ALPHA
-        
+
         # Add smoothing if we have previous error
         if prev_err_norm > 1e-30:
             factor *= (prev_err_norm / err_norm) ** BETA
-    
+
     # Clamp factor to prevent extreme changes
     if factor > MAX_FACTOR:
         factor = MAX_FACTOR
     if factor < MIN_FACTOR:
         factor = MIN_FACTOR
-    
+
     # Compute new step
     h_new = h * factor
-    
+
     # Clamp to absolute limits
     if h_new < h_min:
         h_new = h_min
     if h_new > h_max:
         h_new = h_max
-    
+
     return h_new
 
 
@@ -227,10 +226,10 @@ def cubic_hermite_interpolate(
 ) -> np.ndarray:
     """
     Cubic Hermite interpolation for dense output.
-    
+
     Interpolates state between two known points using cubic polynomials
     that match both value and derivative at endpoints.
-    
+
     Args:
         t_target: Time to interpolate to (t0 <= t_target <= t1)
         t0: Start time
@@ -239,31 +238,31 @@ def cubic_hermite_interpolate(
         y1: State at t1
         dy0: Derivative at t0
         dy1: Derivative at t1
-        
+
     Returns:
         Interpolated state at t_target
     """
     h = t1 - t0
     if h < 1e-30:
         return y0.copy()
-    
+
     # Normalized time [0, 1]
     s = (t_target - t0) / h
-    
+
     # Hermite basis functions
     h00 = 2*s*s*s - 3*s*s + 1      # y0 coefficient
     h10 = s*s*s - 2*s*s + s        # dy0 coefficient (scaled by h)
     h01 = -2*s*s*s + 3*s*s         # y1 coefficient
     h11 = s*s*s - s*s              # dy1 coefficient (scaled by h)
-    
+
     # Interpolated value
     n = len(y0)
     y_interp = np.zeros(n, dtype=np.float64)
-    
+
     for i in range(n):
         y_interp[i] = h00 * y0[i] + h10 * h * dy0[i] + \
                       h01 * y1[i] + h11 * h * dy1[i]
-    
+
     return y_interp
 
 
@@ -277,28 +276,28 @@ def linear_interpolate(
 ) -> np.ndarray:
     """
     Simple linear interpolation for dense output.
-    
+
     Faster than cubic Hermite but less accurate.
     Use when derivatives are expensive to compute.
-    
+
     Args:
         t_target: Time to interpolate to
         t0, t1: Endpoint times
         y0, y1: Endpoint states
-        
+
     Returns:
         Linearly interpolated state
     """
     h = t1 - t0
     if h < 1e-30:
         return y0.copy()
-    
+
     alpha = (t_target - t0) / h
-    
+
     n = len(y0)
     y_interp = np.zeros(n, dtype=np.float64)
-    
+
     for i in range(n):
         y_interp[i] = (1.0 - alpha) * y0[i] + alpha * y1[i]
-    
+
     return y_interp

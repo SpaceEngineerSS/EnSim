@@ -9,13 +9,12 @@ Saves and loads complete EnSim projects including:
 """
 
 import json
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
 
-from src.core.rocket import Rocket, NoseCone, BodyTube, FinSet, Fin, EngineMount, NoseShape
-from src.core.recovery import Parachute, DeployTrigger
+from src.core.recovery import DeployTrigger, Parachute
+from src.core.rocket import BodyTube, EngineMount, Fin, FinSet, NoseCone, NoseShape, Rocket
 
 
 @dataclass
@@ -88,45 +87,45 @@ class ProjectData:
     version: str = "3.0"
     created: str = ""
     modified: str = ""
-    
+
     # Components
     engine: EngineData = field(default_factory=EngineData)
     rocket: RocketData = field(default_factory=RocketData)
     recovery: RecoveryData = field(default_factory=RecoveryData)
     environment: EnvironmentData = field(default_factory=EnvironmentData)
-    
+
     # Cached results (optional)
-    last_isp_vacuum: Optional[float] = None
-    last_thrust: Optional[float] = None
-    last_apogee: Optional[float] = None
+    last_isp_vacuum: float | None = None
+    last_thrust: float | None = None
+    last_apogee: float | None = None
 
 
 class ProjectManagerV3:
     """
     Full project persistence manager (Version 3).
-    
+
     Saves/loads complete rocket projects including vehicle,
     recovery, and environment configuration.
     """
-    
+
     FILE_EXTENSION = ".ensim"
     FILE_FILTER = "EnSim Project (*.ensim);;All Files (*)"
-    
+
     def __init__(self):
-        self.current_path: Optional[Path] = None
+        self.current_path: Path | None = None
         self.data = ProjectData()
         self._modified = False
-    
+
     @property
     def is_modified(self) -> bool:
         return self._modified
-    
+
     @property
     def project_name(self) -> str:
         if self.current_path:
             return self.current_path.stem
         return "Untitled"
-    
+
     def new_project(self) -> ProjectData:
         """Create a new blank project."""
         self.current_path = None
@@ -136,20 +135,20 @@ class ProjectManagerV3:
         )
         self._modified = False
         return self.data
-    
-    def save(self, path: Optional[Path] = None) -> bool:
+
+    def save(self, path: Path | None = None) -> bool:
         """Save project to .ensim file."""
         if path:
             self.current_path = Path(path)
-        
+
         if not self.current_path:
             return False
-        
+
         if not self.current_path.suffix:
             self.current_path = self.current_path.with_suffix(self.FILE_EXTENSION)
-        
+
         self.data.modified = datetime.now().isoformat()
-        
+
         try:
             # Convert to nested dict
             project_dict = {
@@ -168,60 +167,60 @@ class ProjectManagerV3:
                     "apogee": self.data.last_apogee
                 }
             }
-            
+
             with open(self.current_path, 'w', encoding='utf-8') as f:
                 json.dump(project_dict, f, indent=2)
-            
+
             self._modified = False
             return True
-            
+
         except Exception as e:
             print(f"Error saving project: {e}")
             return False
-    
-    def load(self, path: Path) -> Optional[ProjectData]:
+
+    def load(self, path: Path) -> ProjectData | None:
         """Load project from .ensim file."""
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 data = json.load(f)
-            
+
             # Parse nested structure
             self.data = ProjectData(
                 version=data.get("meta", {}).get("version", "1.0"),
                 created=data.get("meta", {}).get("created", ""),
                 modified=data.get("meta", {}).get("modified", "")
             )
-            
+
             # Engine
             if "engine" in data:
                 self.data.engine = EngineData(**data["engine"])
-            
+
             # Rocket
             if "rocket" in data:
                 self.data.rocket = RocketData(**data["rocket"])
-            
+
             # Recovery
             if "recovery" in data:
                 self.data.recovery = RecoveryData(**data["recovery"])
-            
+
             # Environment
             if "environment" in data:
                 self.data.environment = EnvironmentData(**data["environment"])
-            
+
             # Results
             if "results" in data:
                 self.data.last_isp_vacuum = data["results"].get("isp_vacuum")
                 self.data.last_thrust = data["results"].get("thrust")
                 self.data.last_apogee = data["results"].get("apogee")
-            
+
             self.current_path = Path(path)
             self._modified = False
             return self.data
-            
+
         except Exception as e:
             print(f"Error loading project: {e}")
             return None
-    
+
     def update_from_ui(
         self,
         engine_params: dict,
@@ -234,28 +233,28 @@ class ProjectManagerV3:
         for key, value in engine_params.items():
             if hasattr(self.data.engine, key):
                 setattr(self.data.engine, key, value)
-        
+
         # Rocket
         for key, value in rocket_params.items():
             if hasattr(self.data.rocket, key):
                 setattr(self.data.rocket, key, value)
-        
+
         # Recovery
         for key, value in recovery_params.items():
             if hasattr(self.data.recovery, key):
                 setattr(self.data.recovery, key, value)
-        
+
         # Environment
         for key, value in environment_params.items():
             if hasattr(self.data.environment, key):
                 setattr(self.data.environment, key, value)
-        
+
         self._modified = True
-    
+
     def build_rocket(self) -> Rocket:
         """Construct Rocket object from saved data."""
         rd = self.data.rocket
-        
+
         # Map shape name to enum
         shape_map = {
             "ogive": NoseShape.OGIVE,
@@ -264,7 +263,7 @@ class ProjectManagerV3:
             "parabolic": NoseShape.PARABOLIC
         }
         nose_shape = shape_map.get(rd.nose_shape.lower(), NoseShape.OGIVE)
-        
+
         return Rocket(
             name=rd.name,
             nose=NoseCone(
@@ -295,11 +294,11 @@ class ProjectManagerV3:
                 tank_length=0.5
             )
         )
-    
+
     def build_recovery(self) -> tuple:
         """Construct recovery system from saved data."""
         rec = self.data.recovery
-        
+
         main = Parachute(
             name="Main",
             diameter=rec.main_diameter,
@@ -307,7 +306,7 @@ class ProjectManagerV3:
             deploy_trigger=DeployTrigger.AT_ALTITUDE if rec.dual_deploy else DeployTrigger.AT_APOGEE,
             deploy_altitude=rec.main_deploy_altitude
         )
-        
+
         drogue = None
         if rec.dual_deploy:
             drogue = Parachute(
@@ -316,9 +315,9 @@ class ProjectManagerV3:
                 cd=rec.drogue_cd,
                 deploy_trigger=DeployTrigger.AT_APOGEE
             )
-        
+
         return main, drogue
-    
+
     def mark_modified(self):
         """Mark project as modified."""
         self._modified = True

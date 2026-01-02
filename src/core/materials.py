@@ -5,7 +5,6 @@ Contains thermal properties of common rocket engine materials.
 """
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Material:
 
 
 # Material database
-MATERIALS: Dict[str, Material] = {
+MATERIALS: dict[str, Material] = {
     "Copper (OFHC)": Material(
         name="Copper (OFHC)",
         thermal_conductivity=385.0,

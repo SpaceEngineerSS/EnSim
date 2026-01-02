@@ -18,7 +18,6 @@ References:
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -30,19 +29,19 @@ class NASAParserError(Exception):
     pass
 
 
-def parse_nasa_file(filepath: Union[str, Path]) -> SpeciesDatabase:
+def parse_nasa_file(filepath: str | Path) -> SpeciesDatabase:
     """
     Parse a NASA-format thermodynamic data file.
-    
+
     This function auto-detects the format (old vs new NASA format) and
     parses accordingly.
-    
+
     Args:
         filepath: Path to the .dat, .thermo, or .inp file
-        
+
     Returns:
         Dictionary mapping species names to SpeciesData objects
-        
+
     Raises:
         NASAParserError: If file format is invalid
         FileNotFoundError: If file doesn't exist
@@ -50,10 +49,10 @@ def parse_nasa_file(filepath: Union[str, Path]) -> SpeciesDatabase:
     path = Path(filepath)
     if not path.exists():
         raise FileNotFoundError(f"Thermodynamic data file not found: {path}")
-    
-    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+
+    with open(path, encoding='utf-8', errors='replace') as f:
         content = f.read()
-    
+
     # Detect format and parse
     if _is_nasa9_format(content):
         return _parse_nasa9_format(content)
@@ -70,7 +69,7 @@ def _is_nasa9_format(content: str) -> bool:
 def _parse_nasa7_format(content: str) -> SpeciesDatabase:
     """
     Parse NASA 7-term polynomial format (McBride format).
-    
+
     Format specification:
     - Line 1: Species name (cols 1-18), date (19-24), formula (25-44),
               phase (45), T_low (46-55), T_high (56-65), T_mid (66-73),
@@ -78,34 +77,33 @@ def _parse_nasa7_format(content: str) -> SpeciesDatabase:
     - Line 2: Coefficients a1-a5 for high-T range (5 x 15 chars each)
     - Line 3: Coefficients a6-a7 high-T, a1-a3 low-T (5 x 15 chars)
     - Line 4: Coefficients a4-a7 low-T, H(298)/R (5 x 15 chars)
-    
+
     Each coefficient field is 15 characters wide in exponential format.
     """
     species_db: SpeciesDatabase = {}
     lines = content.split('\n')
-    
+
     # Find the THERMO section
     thermo_start = -1
     thermo_end = len(lines)
-    
+
     for i, line in enumerate(lines):
         if line.strip().upper().startswith('THERMO'):
             thermo_start = i + 1
-        elif line.strip().upper() == 'END':
-            if thermo_start >= 0:
-                thermo_end = i
-                break
-    
+        elif line.strip().upper() == 'END' and thermo_start >= 0:
+            thermo_end = i
+            break
+
     if thermo_start < 0:
         # No THERMO marker, try parsing entire file
         thermo_start = 0
-    
+
     # Skip temperature range line if present
     if thermo_start < len(lines):
         temp_line = lines[thermo_start].strip()
         if re.match(r'^[\d\s.]+$', temp_line):
             thermo_start += 1
-    
+
     # Parse species entries (each is 4 lines)
     i = thermo_start
     while i + 3 < thermo_end:
@@ -115,7 +113,7 @@ def _parse_nasa7_format(content: str) -> SpeciesDatabase:
             if len(header) < 45 or header.strip() == '' or header.startswith('!'):
                 i += 1
                 continue
-            
+
             # Check for line number markers (1, 2, 3, 4 in column 80)
             if len(header) >= 80 and header[79] == '1':
                 species = _parse_species_entry(
@@ -126,24 +124,24 @@ def _parse_nasa7_format(content: str) -> SpeciesDatabase:
                 i += 4
             else:
                 i += 1
-                
-        except (IndexError, ValueError) as e:
+
+        except (IndexError, ValueError):
             # Skip malformed entries
             i += 1
             continue
-    
+
     return species_db
 
 
 def _parse_species_entry(
-    line1: str, 
-    line2: str, 
-    line3: str, 
+    line1: str,
+    line2: str,
+    line3: str,
     line4: str
-) -> Optional[SpeciesData]:
+) -> SpeciesData | None:
     """
     Parse a single species entry from 4 lines of NASA-7 format data.
-    
+
     Returns None if parsing fails.
     """
     try:
@@ -152,21 +150,21 @@ def _parse_species_entry(
         line2 = line2.ljust(80)
         line3 = line3.ljust(80)
         line4 = line4.ljust(80)
-        
+
         # Line 1: Header information
         name = line1[0:18].strip()
         if not name:
             return None
-        
+
         # Clean up name - remove trailing numbers/markers
         name = re.sub(r'\s+\d+$', '', name).strip()
-        
+
         # Date and formula info (optional)
         # date = line1[18:24].strip()
-        
+
         # Phase (G=gas, L=liquid, S=solid)
         phase = line1[44] if len(line1) > 44 and line1[44] in 'GLS' else 'G'
-        
+
         # Temperature ranges
         try:
             t_low = float(line1[45:55].strip())
@@ -174,14 +172,14 @@ def _parse_species_entry(
             t_mid = float(line1[65:73].strip()) if line1[65:73].strip() else 1000.0
         except ValueError:
             t_low, t_mid, t_high = 200.0, 1000.0, 6000.0
-        
+
         # Molecular weight (if present in columns 73-80)
         try:
             mw_str = line1[73:79].strip()
             molecular_weight = float(mw_str) if mw_str else _calculate_mw_from_name(name)
         except ValueError:
             molecular_weight = _calculate_mw_from_name(name)
-        
+
         # Parse coefficients from lines 2-4
         # Line 2: a1-a5 (high T)
         coeffs_high = np.zeros(7, dtype=np.float64)
@@ -190,22 +188,22 @@ def _parse_species_entry(
         coeffs_high[2] = _parse_coefficient(line2[30:45])
         coeffs_high[3] = _parse_coefficient(line2[45:60])
         coeffs_high[4] = _parse_coefficient(line2[60:75])
-        
+
         # Line 3: a6, a7 (high T), a1, a2, a3 (low T)
         coeffs_high[5] = _parse_coefficient(line3[0:15])
         coeffs_high[6] = _parse_coefficient(line3[15:30])
-        
+
         coeffs_low = np.zeros(7, dtype=np.float64)
         coeffs_low[0] = _parse_coefficient(line3[30:45])
         coeffs_low[1] = _parse_coefficient(line3[45:60])
         coeffs_low[2] = _parse_coefficient(line3[60:75])
-        
+
         # Line 4: a4, a5, a6, a7 (low T)
         coeffs_low[3] = _parse_coefficient(line4[0:15])
         coeffs_low[4] = _parse_coefficient(line4[15:30])
         coeffs_low[5] = _parse_coefficient(line4[30:45])
         coeffs_low[6] = _parse_coefficient(line4[45:60])
-        
+
         return SpeciesData(
             name=name,
             molecular_weight=molecular_weight,
@@ -214,7 +212,7 @@ def _parse_species_entry(
             coeffs_high=coeffs_high,
             coeffs_low=coeffs_low
         )
-        
+
     except Exception:
         return None
 
@@ -222,7 +220,7 @@ def _parse_species_entry(
 def _parse_coefficient(field: str) -> float:
     """
     Parse a coefficient from NASA fixed-width format.
-    
+
     Handles various exponential notation formats:
     - Standard: 1.234E+01
     - D notation: 1.234D+01 (Fortran)
@@ -231,14 +229,14 @@ def _parse_coefficient(field: str) -> float:
     field = field.strip()
     if not field:
         return 0.0
-    
+
     # Replace Fortran 'D' exponent with 'E'
     field = field.replace('D', 'E').replace('d', 'e')
-    
+
     # Handle cases like "1.234+01" (missing E)
     if re.match(r'^-?\d+\.\d+[+-]\d+$', field):
         field = re.sub(r'([+-])(\d+)$', r'E\1\2', field)
-    
+
     try:
         return float(field)
     except ValueError:
@@ -248,7 +246,7 @@ def _parse_coefficient(field: str) -> float:
 def _parse_nasa9_format(content: str) -> SpeciesDatabase:
     """
     Parse NASA-9 polynomial format (newer 9-coefficient format).
-    
+
     Similar structure but with 9 coefficients per temperature range
     and potentially more temperature intervals.
     """
@@ -258,13 +256,13 @@ def _parse_nasa9_format(content: str) -> SpeciesDatabase:
     warnings.warn(
         "NASA-9 format detected but not fully supported. "
         "Falling back to NASA-7 parsing (may have reduced accuracy).",
-        UserWarning
+        UserWarning, stacklevel=2
     )
     return _parse_nasa7_format(content)
 
 
 # Atomic weights for molecular weight calculation (IUPAC 2021)
-ATOMIC_WEIGHTS: Dict[str, float] = {
+ATOMIC_WEIGHTS: dict[str, float] = {
     'H': 1.00794,
     'He': 4.002602,
     'C': 12.0107,
@@ -300,39 +298,39 @@ ATOMIC_WEIGHTS: Dict[str, float] = {
 def _calculate_mw_from_name(name: str) -> float:
     """
     Calculate molecular weight from species formula.
-    
+
     Parses formulas like "H2O", "CO2", "CH4", "N2H4".
     """
     # Remove phase indicators and charges
     formula = re.sub(r'\([GLSC]\)$', '', name)
     formula = re.sub(r'[+-]+$', '', formula)
-    
+
     mw = 0.0
-    
+
     # Parse element-count pairs
     pattern = r'([A-Z][a-z]?)(\d*)'
     for match in re.finditer(pattern, formula):
         element = match.group(1)
         count_str = match.group(2)
         count = int(count_str) if count_str else 1
-        
+
         if element in ATOMIC_WEIGHTS:
             mw += ATOMIC_WEIGHTS[element] * count
-    
+
     return mw if mw > 0 else 28.0  # Default to N2 MW if parsing fails
 
 
 def create_sample_database() -> SpeciesDatabase:
     """
     Create a small sample database with verified coefficients.
-    
+
     These coefficients match NASA CEA reference data for common species.
     Useful for testing when full database file is not available.
-    
+
     Reference: NASA/TP-2002-211556
     """
     db: SpeciesDatabase = {}
-    
+
     # H2O (Water vapor) - from NASA Glenn database
     db['H2O'] = SpeciesData(
         name='H2O',
@@ -359,7 +357,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-241826.0  # J/mol
     )
-    
+
     # O2 (Oxygen) - from NASA Glenn database
     db['O2'] = SpeciesData(
         name='O2',
@@ -386,7 +384,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=0.0
     )
-    
+
     # H2 (Hydrogen) - from NASA Glenn database
     db['H2'] = SpeciesData(
         name='H2',
@@ -413,8 +411,8 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=0.0
     )
-    
-    # N2 (Nitrogen) - from NASA Glenn database  
+
+    # N2 (Nitrogen) - from NASA Glenn database
     db['N2'] = SpeciesData(
         name='N2',
         molecular_weight=28.0134,
@@ -440,7 +438,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=0.0
     )
-    
+
     # CO2 (Carbon Dioxide) - from NASA Glenn database
     db['CO2'] = SpeciesData(
         name='CO2',
@@ -467,7 +465,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-393510.0  # J/mol
     )
-    
+
     # CO (Carbon Monoxide) - from NASA Glenn database
     db['CO'] = SpeciesData(
         name='CO',
@@ -494,7 +492,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-110530.0  # J/mol
     )
-    
+
     # OH (Hydroxyl radical) - from NASA Glenn database
     db['OH'] = SpeciesData(
         name='OH',
@@ -521,7 +519,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=38987.0  # J/mol
     )
-    
+
     # CH4 (Methane) - from NASA Glenn database
     db['CH4'] = SpeciesData(
         name='CH4',
@@ -548,7 +546,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-74600.0  # J/mol
     )
-    
+
     # H (Atomic Hydrogen) - from NASA Glenn database
     # Critical for high-temperature dissociation
     db['H'] = SpeciesData(
@@ -576,7 +574,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=217998.0  # J/mol (218 kJ/mol)
     )
-    
+
     # O (Atomic Oxygen) - from NASA Glenn database
     # Critical for high-temperature dissociation
     db['O'] = SpeciesData(
@@ -604,11 +602,11 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=249175.0  # J/mol (249 kJ/mol)
     )
-    
+
     # =========================================================================
     # Additional Propellants for Extended Simulation
     # =========================================================================
-    
+
     # N2O4 (Nitrogen Tetroxide) - Storable oxidizer
     # From NASA CEA database
     db['N2O4'] = SpeciesData(
@@ -636,7 +634,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=9160.0  # J/mol
     )
-    
+
     # NO2 (Nitrogen Dioxide) - Decomposition product
     db['NO2'] = SpeciesData(
         name='NO2',
@@ -663,7 +661,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=33100.0  # J/mol
     )
-    
+
     # NO (Nitric Oxide) - Combustion product
     db['NO'] = SpeciesData(
         name='NO',
@@ -690,7 +688,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=91290.0  # J/mol
     )
-    
+
     # N2H4 (Hydrazine) - Storable fuel
     db['N2H4'] = SpeciesData(
         name='N2H4',
@@ -717,7 +715,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=95350.0  # J/mol
     )
-    
+
     # C12H24 (RP-1 surrogate - n-Dodecane approximation)
     # RP-1 is approximated as C12H24 (average kerosene)
     db['RP1'] = SpeciesData(
@@ -745,7 +743,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-290900.0  # J/mol (liquid)
     )
-    
+
     # C (Solid carbon for soot calculations)
     db['C(s)'] = SpeciesData(
         name='C(s)',
@@ -772,12 +770,12 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=0.0  # J/mol (reference element)
     )
-    
+
     # =========================================================================
     # MMH, UDMH, H2O2, N2O - Storable Propellants (Market Requirement)
     # Reference: NASA CEA database, NIST, Thermodynamics of Organic Compounds
     # =========================================================================
-    
+
     # MMH (Monomethyl Hydrazine) - CH6N2
     # Used in Soyuz, Dragon, many spacecraft RCS
     db['MMH'] = SpeciesData(
@@ -805,7 +803,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=54840.0  # J/mol (liquid)
     )
-    
+
     # UDMH (Unsymmetrical Dimethyl Hydrazine) - C2H8N2
     # Used in Proton, Long March, historical US rockets
     db['UDMH'] = SpeciesData(
@@ -833,7 +831,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=48300.0  # J/mol (liquid)
     )
-    
+
     # H2O2 (Hydrogen Peroxide) - High concentration (90%+)
     # Used in RCS, hybrid rockets, monopropellant
     db['H2O2'] = SpeciesData(
@@ -861,7 +859,7 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=-187780.0  # J/mol (liquid)
     )
-    
+
     # N2O (Nitrous Oxide) - "Laughing Gas"
     # Popular hybrid oxidizer for amateur rocketry
     db['N2O'] = SpeciesData(
@@ -889,5 +887,5 @@ def create_sample_database() -> SpeciesDatabase:
         ], dtype=np.float64),
         h_formation_298=82050.0  # J/mol (gas)
     )
-    
+
     return db

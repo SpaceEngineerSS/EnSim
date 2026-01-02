@@ -6,7 +6,6 @@ to enable automatic mass calculation from geometry.
 """
 
 from dataclasses import dataclass
-from typing import Dict
 from enum import Enum
 
 
@@ -34,7 +33,7 @@ class MaterialProperties:
 
 
 # Airframe Materials Database
-AIRFRAME_MATERIALS: Dict[AirframeMaterial, MaterialProperties] = {
+AIRFRAME_MATERIALS: dict[AirframeMaterial, MaterialProperties] = {
     AirframeMaterial.CARDBOARD: MaterialProperties(
         name="Cardboard (Spiral Wound)",
         density=680.0,
@@ -116,28 +115,28 @@ def calculate_tube_mass(
 ) -> float:
     """
     Calculate mass of a cylindrical tube.
-    
+
     Uses thin-wall approximation:
     Volume ≈ π × D × L × t
     Mass = Volume × density
-    
+
     Args:
         length: Tube length (m)
         diameter: Outer diameter (m)
         material: Material type
         wall_thickness: Wall thickness (m), or use material default
-        
+
     Returns:
         Mass (kg)
     """
     import numpy as np
-    
+
     props = get_material(material)
     t = wall_thickness if wall_thickness else props.typical_thickness
-    
+
     volume = np.pi * diameter * length * t
     mass = volume * props.density
-    
+
     return mass
 
 
@@ -149,22 +148,22 @@ def calculate_nose_mass(
 ) -> float:
     """
     Calculate mass of a nose cone (hollow).
-    
+
     Approximation: half of equivalent tube
-    
+
     Args:
         length: Nose length (m)
         diameter: Base diameter (m)
         material: Material type
         wall_thickness: Wall thickness (m)
-        
+
     Returns:
         Mass (kg)
     """
     # Nose cone surface area is roughly half of a cylinder
     tube_mass = calculate_tube_mass(length, diameter, material, wall_thickness)
     nose_mass = tube_mass * 0.6  # Slightly more than half due to thickness
-    
+
     return nose_mass
 
 
@@ -178,24 +177,24 @@ def calculate_fin_mass(
 ) -> float:
     """
     Calculate total mass of fin set.
-    
+
     Fin area = (root + tip) × span / 2
     Volume = area × thickness
     Mass = volume × density × fin_count
-    
+
     Args:
         root_chord, tip_chord, span: Fin geometry (m)
         thickness: Fin thickness (m)
         material: Material type
         fin_count: Number of fins
-        
+
     Returns:
         Total mass of all fins (kg)
     """
     props = get_material(material)
-    
+
     area = (root_chord + tip_chord) * span / 2
     volume = area * thickness
     mass_single = volume * props.density
-    
+
     return mass_single * fin_count

@@ -4,11 +4,10 @@ Mission Analysis Module - Atmosphere Model and Flight Envelope.
 Implements US Standard Atmosphere 1976 and trajectory performance analysis.
 """
 
+from dataclasses import dataclass
+
 import numpy as np
 from numba import jit
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
-
 
 # US Standard Atmosphere 1976 Constants
 # Geopotential altitude layers (m)
@@ -57,11 +56,11 @@ class MissionProfile:
     thrust: np.ndarray  # N
     isp: np.ndarray  # s
     pressure_ratio: np.ndarray  # Pe/Pa
-    flow_status: List[str]  # 'attached', 'warning', 'separated'
-    
+    flow_status: list[str]  # 'attached', 'warning', 'separated'
+
     # Key altitudes
     optimal_altitude: float  # Where Pe = Pa
-    separation_altitude: Optional[float]  # Where separation begins
+    separation_altitude: float | None  # Where separation begins
     max_thrust_altitude: float
     max_isp_altitude: float
 
@@ -76,26 +75,26 @@ def _atmosphere_layer(h: float) -> int:
 
 
 @jit(nopython=True, cache=True)
-def _atmosphere_pressure(h: float) -> Tuple[float, float]:
+def _atmosphere_pressure(h: float) -> tuple[float, float]:
     """
     Calculate pressure and temperature at altitude using US Std Atm 1976.
-    
+
     Returns: (pressure, temperature)
     """
     if h < 0:
         h = 0
     if h > 84852:
         h = 84852
-    
+
     layer = _atmosphere_layer(h)
-    
+
     h_base = H_LAYERS[layer]
     T_base = T_LAYERS[layer]
     L = L_LAYERS[layer]
     P_base = P_LAYERS[layer]
-    
+
     dh = h - h_base
-    
+
     if abs(L) > 1e-10:
         # Non-isothermal layer
         T = T_base + L * dh
@@ -104,28 +103,28 @@ def _atmosphere_pressure(h: float) -> Tuple[float, float]:
         # Isothermal layer
         T = T_base
         P = P_base * np.exp(-G0 * dh / (R_AIR * T))
-    
+
     return P, T
 
 
 def get_atmosphere(altitude: float) -> AtmosphereState:
     """
     Get complete atmospheric state at altitude.
-    
+
     Args:
         altitude: Geometric altitude (m)
-        
+
     Returns:
         AtmosphereState object
     """
     P, T = _atmosphere_pressure(altitude)
-    
+
     rho = P / (R_AIR * T)
     a = np.sqrt(GAMMA_AIR * R_AIR * T)
-    
+
     # Sutherland's law for viscosity
     mu = 1.458e-6 * T**1.5 / (T + 110.4)
-    
+
     return AtmosphereState(
         altitude=altitude,
         temperature=T,
@@ -150,7 +149,7 @@ def calculate_altitude_performance(
 ) -> MissionPoint:
     """
     Calculate engine performance at a specific altitude.
-    
+
     Args:
         altitude: Flight altitude (m)
         T_chamber: Chamber temperature (K)
@@ -161,22 +160,21 @@ def calculate_altitude_performance(
         throat_area: Throat area (m²)
         eta_cstar, eta_cf: Efficiency factors
         alpha_deg: Nozzle half-angle (degrees)
-        
+
     Returns:
         MissionPoint with performance at this altitude
     """
     from src.core.propulsion import NozzleConditions, calculate_performance, check_flow_separation
-    from src.core.constants import GAS_CONSTANT
-    
+
     atm = get_atmosphere(altitude)
-    
+
     nozzle = NozzleConditions(
         area_ratio=expansion_ratio,
         chamber_pressure=P_chamber,
         ambient_pressure=atm.pressure,
         throat_area=throat_area
     )
-    
+
     perf = calculate_performance(
         T_chamber=T_chamber,
         P_chamber=P_chamber,
@@ -187,14 +185,14 @@ def calculate_altitude_performance(
         eta_cf=eta_cf,
         alpha_deg=alpha_deg
     )
-    
+
     # Check flow separation
     separated, margin, _ = check_flow_separation(perf.exit_pressure, atm.pressure)
-    
+
     # Check if optimally expanded
     Pe_Pa = perf.exit_pressure / atm.pressure if atm.pressure > 0 else float('inf')
     optimal = 0.9 < Pe_Pa < 1.1
-    
+
     return MissionPoint(
         altitude=altitude,
         atmosphere=atm,
@@ -222,26 +220,26 @@ def simulate_ascent(
 ) -> MissionProfile:
     """
     Simulate engine performance throughout ascent.
-    
+
     Args:
         Various engine parameters...
         max_altitude: Maximum altitude to simulate (m)
         step_size: Altitude step (m)
-        
+
     Returns:
         MissionProfile with full trajectory performance
     """
     altitudes = np.arange(0, max_altitude + step_size, step_size)
     n = len(altitudes)
-    
+
     thrust = np.zeros(n)
     isp = np.zeros(n)
     pressure_ratio = np.zeros(n)
     flow_status = []
-    
+
     separation_alt = None
     optimal_alt = None
-    
+
     for i, alt in enumerate(altitudes):
         point = calculate_altitude_performance(
             altitude=alt,
@@ -255,11 +253,11 @@ def simulate_ascent(
             eta_cf=eta_cf,
             alpha_deg=alpha_deg
         )
-        
+
         thrust[i] = point.thrust
         isp[i] = point.isp
         pressure_ratio[i] = point.separation_margin
-        
+
         if point.flow_separated:
             flow_status.append('separated')
             if separation_alt is None:
@@ -268,14 +266,14 @@ def simulate_ascent(
             flow_status.append('warning')
         else:
             flow_status.append('attached')
-        
+
         if point.optimal_expansion and optimal_alt is None:
             optimal_alt = alt
-    
+
     # Find peak values
     max_thrust_alt = altitudes[np.argmax(thrust)]
     max_isp_alt = altitudes[np.argmax(isp)]
-    
+
     return MissionProfile(
         altitudes=altitudes,
         thrust=thrust,
@@ -292,24 +290,24 @@ def simulate_ascent(
 def get_atmosphere_table(max_alt: float = 100000, step: float = 5000) -> dict:
     """
     Generate atmosphere property table.
-    
+
     Returns dict with arrays of altitude, P, T, rho, a.
     """
     alts = np.arange(0, max_alt + step, step)
     n = len(alts)
-    
+
     P = np.zeros(n)
     T = np.zeros(n)
     rho = np.zeros(n)
     a = np.zeros(n)
-    
+
     for i, alt in enumerate(alts):
         atm = get_atmosphere(alt)
         P[i] = atm.pressure
         T[i] = atm.temperature
         rho[i] = atm.density
         a[i] = atm.speed_of_sound
-    
+
     return {
         'altitude': alts,
         'pressure': P,

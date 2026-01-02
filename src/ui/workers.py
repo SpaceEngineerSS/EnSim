@@ -1,16 +1,15 @@
 """Worker threads for non-blocking calculations."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.core.chemistry import CombustionProblem
-from src.core.propulsion import NozzleConditions, calculate_performance, PerformanceResult
-from src.utils.nasa_parser import create_sample_database
+from src.core.flight_6dof import simulate_flight_6dof
+from src.core.monte_carlo import DispersionConfig, run_monte_carlo
+from src.core.propulsion import NozzleConditions, calculate_performance
 from src.core.rocket import Rocket
-from src.core.flight_6dof import simulate_flight_6dof, FlightResult6DOF
-from src.core.monte_carlo import run_monte_carlo, DispersionConfig, DispersionResult
+from src.utils.nasa_parser import create_sample_database
 
 
 @dataclass
@@ -23,11 +22,11 @@ class SimulationParams:
     chamber_pressure_bar: float = 10.0
     expansion_ratio: float = 50.0
     ambient_pressure_bar: float = 0.0  # 0 = vacuum
-    throat_area_cm2: Optional[float] = 100.0  # cm²
+    throat_area_cm2: float | None = 100.0  # cm²
     eta_cstar: float = 1.0  # Combustion efficiency
     eta_cf: float = 1.0  # Nozzle efficiency
     alpha_deg: float = 15.0  # Nozzle half-angle (degrees)
-    
+
     @property
     def of_ratio(self) -> float:
         """Calculate O/F mass ratio."""
@@ -46,7 +45,7 @@ class SimulationResult:
     gamma: float
     mean_mw: float
     species_fractions: dict
-    
+
     # Performance
     isp_vacuum: float
     isp_sea_level: float
@@ -54,8 +53,8 @@ class SimulationResult:
     exit_velocity: float
     thrust: float
     exit_mach: float
-    mass_flow_rate: Optional[float]
-    
+    mass_flow_rate: float | None
+
     # Status
     converged: bool
     iterations: int
@@ -64,67 +63,67 @@ class SimulationResult:
 class CalculationWorker(QThread):
     """
     Worker thread for running simulations.
-    
+
     Signals:
         log(str): Progress messages
         finished(SimulationResult): Emitted on success
         error(str): Emitted on failure
     """
-    
+
     log = pyqtSignal(str)
     finished = pyqtSignal(object)  # SimulationResult
     error = pyqtSignal(str)
-    
+
     def __init__(self, params: SimulationParams, parent=None):
         super().__init__(parent)
         self.params = params
         self._species_db = None
-    
+
     def run(self):
         """Execute the simulation in background thread."""
         try:
             # Step 1: Load database
             self.log.emit("Loading thermodynamic database...")
             self._species_db = create_sample_database()
-            
+
             # Step 2: Setup combustion problem
             self.log.emit(f"Setting up {self.params.fuel}/{self.params.oxidizer} combustion...")
             problem = CombustionProblem(self._species_db)
             problem.add_fuel(self.params.fuel, moles=self.params.fuel_moles)
             problem.add_oxidizer(self.params.oxidizer, moles=self.params.oxidizer_moles)
-            
+
             # Step 3: Solve equilibrium
             P_chamber = self.params.chamber_pressure_bar * 1e5  # bar to Pa
-            
+
             # HOTFIX: Pressure guard - prevent solver crash at extreme low pressure
             if self.params.chamber_pressure_bar < 0.5:
                 raise ValueError(f"Chamber pressure too low ({self.params.chamber_pressure_bar} bar). Minimum: 0.5 bar.")
-            
+
             self.log.emit(f"Solving chemical equilibrium at {self.params.chamber_pressure_bar:.1f} bar...")
-            
+
             eq_result = problem.solve(
                 pressure=P_chamber,
                 initial_temp_guess=3000.0,
                 max_iterations=50,
                 tolerance=1e-5
             )
-            
+
             self.log.emit(f"  T = {eq_result.temperature:.1f} K, γ = {eq_result.gamma:.3f}")
-            
+
             # Step 4: Calculate vacuum performance
             self.log.emit(f"Calculating nozzle performance (ε = {self.params.expansion_ratio:.0f})...")
-            
+
             throat_area = None
             if self.params.throat_area_cm2:
                 throat_area = self.params.throat_area_cm2 * 1e-4  # cm² to m²
-            
+
             nozzle_vac = NozzleConditions(
                 area_ratio=self.params.expansion_ratio,
                 chamber_pressure=P_chamber,
                 ambient_pressure=0.0,
                 throat_area=throat_area
             )
-            
+
             perf_vac = calculate_performance(
                 T_chamber=eq_result.temperature,
                 P_chamber=P_chamber,
@@ -135,19 +134,19 @@ class CalculationWorker(QThread):
                 eta_cf=self.params.eta_cf,
                 alpha_deg=self.params.alpha_deg
             )
-            
+
             self.log.emit(f"  Vacuum Isp = {perf_vac.isp:.1f} s")
-            
+
             # Step 5: Calculate sea-level performance
             self.log.emit("Calculating sea-level performance...")
-            
+
             nozzle_sl = NozzleConditions(
                 area_ratio=min(self.params.expansion_ratio, 15.0),  # Limit for SL
                 chamber_pressure=P_chamber,
                 ambient_pressure=101325.0,
                 throat_area=throat_area
             )
-            
+
             perf_sl = calculate_performance(
                 T_chamber=eq_result.temperature,
                 P_chamber=P_chamber,
@@ -158,15 +157,15 @@ class CalculationWorker(QThread):
                 eta_cf=self.params.eta_cf,
                 alpha_deg=self.params.alpha_deg
             )
-            
+
             self.log.emit(f"  Sea Level Isp = {perf_sl.isp:.1f} s")
-            
+
             # Build species fractions dict
             species_fractions = {}
-            for name, frac in zip(eq_result.species_names, eq_result.mole_fractions):
+            for name, frac in zip(eq_result.species_names, eq_result.mole_fractions, strict=False):
                 if frac > 0.001:
                     species_fractions[name] = frac
-            
+
             # Build result
             result = SimulationResult(
                 temperature=eq_result.temperature,
@@ -183,10 +182,10 @@ class CalculationWorker(QThread):
                 converged=eq_result.converged,
                 iterations=eq_result.iterations
             )
-            
+
             self.log.emit("Simulation complete!")
             self.finished.emit(result)
-            
+
         except Exception as e:
             self.error.emit(str(e))
 
@@ -202,26 +201,26 @@ class FlightParams:
     thrust_vac: float = 10000.0      # Vacuum thrust (N)
     isp_vac: float = 250.0           # Vacuum ISP (s)
     burn_time: float = 10.0          # Burn time (s)
-    
+
     # Rocket configuration
     fuel_mass: float = 5.0           # kg
     oxidizer_mass: float = 15.0      # kg
-    
+
     # Launch parameters
     launch_angle_deg: float = 85.0   # From horizontal
     launch_azimuth_deg: float = 0.0  # North = 0
-    
+
     # Simulation parameters
     dt: float = 0.01                 # Time step
     max_time: float = 300.0          # Max simulation time
     exit_area: float = 0.01          # Nozzle exit area (m²)
-    
+
     # Adaptive parameters
     use_adaptive: bool = True
     output_dt: float = 0.01          # Fixed output rate
     rtol: float = 1e-6
     atol: float = 1e-6
-    
+
     # Perturbation parameters (Monte Carlo)
     throttle: float = 1.0
     cd_factor: float = 1.0
@@ -231,40 +230,40 @@ class FlightParams:
 class FlightSimulationWorker(QThread):
     """
     Worker thread for 6-DOF flight simulation.
-    
+
     Signals:
         log(str): Progress messages
         progress(int): Progress percentage (0-100)
         finished(FlightResult6DOF): Emitted on success
         error(str): Emitted on failure
     """
-    
+
     log = pyqtSignal(str)
     progress = pyqtSignal(int)
     finished = pyqtSignal(object)  # FlightResult6DOF
     error = pyqtSignal(str)
-    
+
     def __init__(self, params: FlightParams, parent=None):
         super().__init__(parent)
         self.params = params
-    
+
     def run(self):
         """Execute 6-DOF flight simulation in background thread."""
         try:
             # Step 1: Create rocket
             self.log.emit("Creating rocket configuration...")
             self.progress.emit(10)
-            
+
             rocket = Rocket()
             rocket.engine.fuel_mass = self.params.fuel_mass
             rocket.engine.oxidizer_mass = self.params.oxidizer_mass
             rocket.engine.thrust_vac = self.params.thrust_vac
             rocket.engine.isp_vac = self.params.isp_vac
-            
+
             # Step 2: Run simulation
             self.log.emit(f"Running 6-DOF simulation (adaptive={self.params.use_adaptive})...")
             self.progress.emit(30)
-            
+
             result = simulate_flight_6dof(
                 rocket=rocket,
                 thrust_vac=self.params.thrust_vac,
@@ -283,13 +282,13 @@ class FlightSimulationWorker(QThread):
                 cd_factor=self.params.cd_factor,
                 fin_misalignment_deg=self.params.fin_misalignment_deg
             )
-            
+
             self.progress.emit(90)
             self.log.emit(f"Simulation complete! Apogee: {result.apogee_altitude:.1f}m")
             self.progress.emit(100)
-            
+
             self.finished.emit(result)
-            
+
         except Exception as e:
             self.error.emit(str(e))
 
@@ -307,7 +306,7 @@ class MonteCarloParams:
     burn_time: float = 10.0
     fuel_mass: float = 5.0
     oxidizer_mass: float = 15.0
-    
+
     # Monte Carlo config
     num_simulations: int = 100
     thrust_sigma: float = 0.02       # 2% thrust variation
@@ -315,44 +314,44 @@ class MonteCarloParams:
     cd_sigma: float = 0.05           # 5% drag variation
     wind_speed_mean: float = 3.0     # m/s
     wind_speed_sigma: float = 2.0    # m/s
-    seed: Optional[int] = None       # Reproducibility
+    seed: int | None = None       # Reproducibility
 
 
 class MonteCarloWorker(QThread):
     """
     Worker thread for Monte Carlo dispersion analysis.
-    
+
     Signals:
         log(str): Progress messages
         progress(int): Progress percentage (0-100)
         finished(DispersionResult): Emitted on success
         error(str): Emitted on failure
     """
-    
+
     log = pyqtSignal(str)
     progress = pyqtSignal(int)
     finished = pyqtSignal(object)  # DispersionResult
     error = pyqtSignal(str)
-    
+
     def __init__(self, params: MonteCarloParams, parent=None):
         super().__init__(parent)
         self.params = params
-    
+
     def run(self):
         """Execute Monte Carlo analysis in background thread."""
         try:
             # Step 1: Create rocket
             self.log.emit("Creating rocket configuration...")
             self.progress.emit(5)
-            
+
             rocket = Rocket()
             rocket.engine.fuel_mass = self.params.fuel_mass
             rocket.engine.oxidizer_mass = self.params.oxidizer_mass
-            
+
             # Step 2: Configure dispersion
             self.log.emit(f"Starting Monte Carlo ({self.params.num_simulations} simulations)...")
             self.progress.emit(10)
-            
+
             config = DispersionConfig(
                 num_simulations=self.params.num_simulations,
                 thrust_sigma=self.params.thrust_sigma,
@@ -362,7 +361,7 @@ class MonteCarloWorker(QThread):
                 wind_speed_sigma=self.params.wind_speed_sigma,
                 seed=self.params.seed
             )
-            
+
             # Step 3: Run Monte Carlo
             result = run_monte_carlo(
                 rocket=rocket,
@@ -374,12 +373,12 @@ class MonteCarloWorker(QThread):
                 max_time=120.0,
                 verbose=False
             )
-            
+
             self.progress.emit(95)
             self.log.emit(f"Monte Carlo complete! CEP: {result.cep_radius:.1f}m")
             self.progress.emit(100)
-            
+
             self.finished.emit(result)
-            
+
         except Exception as e:
             self.error.emit(str(e))

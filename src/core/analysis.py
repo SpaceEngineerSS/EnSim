@@ -134,7 +134,7 @@ def run_sweep(
     )
 
 
-def get_sweep_parameters() -> List[Tuple[str, str, str]]:
+def get_sweep_parameters() -> list[tuple[str, str, str]]:
     """
     Get available sweep parameters.
 

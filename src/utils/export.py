@@ -6,14 +6,13 @@ Export simulation data to various formats for external analysis.
 
 import csv
 import os
-from typing import Optional
 from datetime import datetime
 
 
 def export_flight_csv(flight_result, filepath: str) -> bool:
     """
     Export flight simulation data to CSV.
-    
+
     Columns:
     - Time (s)
     - Altitude (m)
@@ -25,20 +24,20 @@ def export_flight_csv(flight_result, filepath: str) -> bool:
     - AoA (deg)
     - Thrust (N)
     - Drag (N)
-    
+
     Args:
         flight_result: FlightResult object
         filepath: Output file path
-        
+
     Returns:
         True if export successful
     """
     try:
         os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
-        
+
         with open(filepath, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            
+
             # Header
             writer.writerow([
                 'Time (s)',
@@ -52,7 +51,7 @@ def export_flight_csv(flight_result, filepath: str) -> bool:
                 'Thrust (N)',
                 'Drag (N)'
             ])
-            
+
             # Data rows
             n = len(flight_result.time)
             for i in range(n):
@@ -68,9 +67,9 @@ def export_flight_csv(flight_result, filepath: str) -> bool:
                     f"{flight_result.thrust[i]:.2f}",
                     f"{flight_result.drag[i]:.2f}"
                 ])
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Export error: {e}")
         return False
@@ -79,12 +78,12 @@ def export_flight_csv(flight_result, filepath: str) -> bool:
 def export_summary_txt(flight_result, rocket, filepath: str) -> bool:
     """
     Export flight summary as text report.
-    
+
     Args:
         flight_result: FlightResult object
         rocket: Rocket configuration
         filepath: Output file path
-        
+
     Returns:
         True if export successful
     """
@@ -95,7 +94,7 @@ def export_summary_txt(flight_result, rocket, filepath: str) -> bool:
         lines.append("=" * 50)
         lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("")
-        
+
         # Rocket info
         lines.append("ROCKET CONFIGURATION")
         lines.append("-" * 30)
@@ -105,7 +104,7 @@ def export_summary_txt(flight_result, rocket, filepath: str) -> bool:
         lines.append(f"Dry Mass: {rocket.dry_mass:.2f} kg")
         lines.append(f"Wet Mass: {rocket.wet_mass:.2f} kg")
         lines.append("")
-        
+
         # Flight events
         lines.append("FLIGHT EVENTS")
         lines.append("-" * 30)
@@ -113,7 +112,7 @@ def export_summary_txt(flight_result, rocket, filepath: str) -> bool:
         lines.append(f"Burnout: {flight_result.burnout_time:.2f} s @ {flight_result.burnout_altitude:.0f} m")
         lines.append(f"Apogee: {flight_result.apogee_time:.2f} s @ {flight_result.apogee_altitude:.0f} m")
         lines.append("")
-        
+
         # Performance
         lines.append("PERFORMANCE")
         lines.append("-" * 30)
@@ -123,14 +122,14 @@ def export_summary_txt(flight_result, rocket, filepath: str) -> bool:
         lines.append(f"Max Dynamic Pressure: {flight_result.max_q:.0f} Pa")
         lines.append(f"Max Angle of Attack: {flight_result.max_aoa:.1f}°")
         lines.append("")
-        
+
         lines.append("=" * 50)
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write("\n".join(lines))
-        
+
         return True
-        
+
     except Exception as e:
         print(f"Export error: {e}")
         return False

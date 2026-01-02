@@ -1,7 +1,6 @@
 """Preset library of famous rocket engines."""
 
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 
 @dataclass
@@ -16,13 +15,13 @@ class EnginePreset:
     expansion_ratio: float
     throat_area_cm2: float
     description: str
-    reference_isp_vacuum: Optional[float] = None
-    reference_thrust_kn: Optional[float] = None
+    reference_isp_vacuum: float | None = None
+    reference_thrust_kn: float | None = None
 
 
 # Famous rocket engine presets
-ENGINE_PRESETS: Dict[str, EnginePreset] = {
-    
+ENGINE_PRESETS: dict[str, EnginePreset] = {
+
     "SpaceX Merlin 1D": EnginePreset(
         name="SpaceX Merlin 1D",
         manufacturer="SpaceX",
@@ -36,7 +35,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=311.0,
         reference_thrust_kn=914.0
     ),
-    
+
     "SpaceX Merlin 1D Vacuum": EnginePreset(
         name="SpaceX Merlin 1D Vacuum",
         manufacturer="SpaceX",
@@ -50,7 +49,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=348.0,
         reference_thrust_kn=981.0
     ),
-    
+
     "SpaceX Raptor 2": EnginePreset(
         name="SpaceX Raptor 2",
         manufacturer="SpaceX",
@@ -64,7 +63,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=350.0,
         reference_thrust_kn=2300.0
     ),
-    
+
     "SpaceX Raptor Vacuum": EnginePreset(
         name="SpaceX Raptor Vacuum",
         manufacturer="SpaceX",
@@ -78,7 +77,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=380.0,
         reference_thrust_kn=2500.0
     ),
-    
+
     "NASA RS-25 (SSME)": EnginePreset(
         name="NASA RS-25 (SSME)",
         manufacturer="Aerojet Rocketdyne",
@@ -92,7 +91,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=452.3,
         reference_thrust_kn=2279.0
     ),
-    
+
     "Rocket Lab Rutherford": EnginePreset(
         name="Rocket Lab Rutherford",
         manufacturer="Rocket Lab",
@@ -106,7 +105,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=311.0,
         reference_thrust_kn=25.8
     ),
-    
+
     "Blue Origin BE-4": EnginePreset(
         name="Blue Origin BE-4",
         manufacturer="Blue Origin",
@@ -120,7 +119,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=341.0,
         reference_thrust_kn=2400.0
     ),
-    
+
     "RD-180": EnginePreset(
         name="RD-180",
         manufacturer="NPO Energomash",
@@ -134,7 +133,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=338.4,
         reference_thrust_kn=4152.0
     ),
-    
+
     "RL-10B-2": EnginePreset(
         name="RL-10B-2",
         manufacturer="Aerojet Rocketdyne",
@@ -148,7 +147,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=465.5,
         reference_thrust_kn=110.0
     ),
-    
+
     "Aerojet AJ-26": EnginePreset(
         name="Aerojet AJ-26",
         manufacturer="Aerojet Rocketdyne",
@@ -162,7 +161,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
         reference_isp_vacuum=331.9,
         reference_thrust_kn=1815.0
     ),
-    
+
     # Hypothetical/Educational
     "H2/O2 Ideal (Educational)": EnginePreset(
         name="H2/O2 Ideal (Educational)",
@@ -180,7 +179,7 @@ ENGINE_PRESETS: Dict[str, EnginePreset] = {
 }
 
 
-def get_preset(name: str) -> Optional[EnginePreset]:
+def get_preset(name: str) -> EnginePreset | None:
     """Get an engine preset by name."""
     return ENGINE_PRESETS.get(name)
 
@@ -190,7 +189,7 @@ def get_preset_names() -> list:
     return list(ENGINE_PRESETS.keys())
 
 
-def get_presets_by_fuel(fuel: str) -> Dict[str, EnginePreset]:
+def get_presets_by_fuel(fuel: str) -> dict[str, EnginePreset]:
     """Get all presets using a specific fuel."""
-    return {name: preset for name, preset in ENGINE_PRESETS.items() 
+    return {name: preset for name, preset in ENGINE_PRESETS.items()
             if preset.fuel == fuel}

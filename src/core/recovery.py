@@ -9,11 +9,11 @@ References:
 - NAR Safety Code descent rate requirements
 """
 
+from dataclasses import dataclass, field
+from enum import Enum
+
 import numpy as np
 from numba import jit
-from dataclasses import dataclass, field
-from typing import Optional, Tuple
-from enum import Enum
 
 
 class DeployTrigger(Enum):
@@ -36,7 +36,7 @@ class FlightPhase(Enum):
 class Parachute:
     """
     Parachute configuration.
-    
+
     Typical Cd values:
     - Round (hemispherical): 1.5
     - Cross/cruciform: 1.0
@@ -47,44 +47,44 @@ class Parachute:
     cd: float = 1.5  # Drag coefficient
     deploy_trigger: DeployTrigger = DeployTrigger.AT_APOGEE
     deploy_altitude: float = 300.0  # m (for altitude trigger)
-    
+
     @property
     def area(self) -> float:
         """Parachute canopy area (m²)."""
         return np.pi * (self.diameter / 2) ** 2
-    
+
     @property
     def cda(self) -> float:
         """Effective drag area Cd × A (m²)."""
         return self.cd * self.area
-    
+
     def get_descent_rate(self, mass: float, rho: float = 1.225) -> float:
         """
         Calculate terminal descent velocity.
-        
+
         V = sqrt(2mg / (ρ × Cd × A))
-        
+
         Args:
             mass: Total suspended mass (kg)
             rho: Air density (kg/m³)
-            
+
         Returns:
             Descent rate (m/s), positive downward
         """
         if self.cda <= 0:
             return 100.0  # Very fast, no chute
-        
+
         g = 9.80665
         v_descent = np.sqrt(2 * mass * g / (rho * self.cda))
         return v_descent
-    
-    def is_safe_descent(self, mass: float, rho: float = 1.225) -> Tuple[float, bool]:
+
+    def is_safe_descent(self, mass: float, rho: float = 1.225) -> tuple[float, bool]:
         """
         Check if descent rate is safe.
-        
+
         NAR Safety Code: < 6.1 m/s (20 ft/s) for competition
         Hobby standard: < 9.1 m/s (30 ft/s)
-        
+
         Returns:
             Tuple of (descent_rate, is_safe)
         """
@@ -97,28 +97,28 @@ class Parachute:
 class RecoverySystem:
     """
     Complete recovery system configuration.
-    
+
     Supports single deployment (main only) or dual deployment
     (drogue at apogee + main at altitude).
     """
     main_chute: Parachute = field(default_factory=Parachute)
-    drogue_chute: Optional[Parachute] = None
+    drogue_chute: Parachute | None = None
     dual_deploy: bool = False
-    
-    def get_active_chute(self, altitude: float, at_apogee: bool) -> Optional[Parachute]:
+
+    def get_active_chute(self, altitude: float, at_apogee: bool) -> Parachute | None:
         """
         Get the currently active parachute based on flight state.
-        
+
         Args:
             altitude: Current altitude (m)
             at_apogee: True if at or past apogee
-            
+
         Returns:
             Active parachute or None if not deployed
         """
         if not at_apogee:
             return None
-        
+
         if self.dual_deploy and self.drogue_chute is not None:
             # Dual deployment: drogue first, then main
             if altitude > self.main_chute.deploy_altitude:
@@ -127,11 +127,9 @@ class RecoverySystem:
                 return self.main_chute
         else:
             # Single deployment
-            if self.main_chute.deploy_trigger == DeployTrigger.AT_APOGEE:
+            if self.main_chute.deploy_trigger == DeployTrigger.AT_APOGEE or altitude <= self.main_chute.deploy_altitude:
                 return self.main_chute
-            elif altitude <= self.main_chute.deploy_altitude:
-                return self.main_chute
-        
+
         return None
 
 
@@ -145,30 +143,30 @@ def calculate_descent_velocity(
 ) -> float:
     """
     Calculate velocity during parachute descent.
-    
+
     Uses quasi-steady approximation with gradual deployment.
-    
+
     Args:
         mass: Total mass (kg)
         rho: Air density (kg/m³)
         chute_cda: Parachute Cd×A (m²)
         current_velocity: Current vertical velocity (m/s, negative = down)
         dt: Time step (s)
-        
+
     Returns:
         New velocity (m/s)
     """
     g = 9.80665
-    
+
     # Terminal velocity under chute
     v_terminal = -np.sqrt(2 * mass * g / (rho * chute_cda))
-    
+
     # Exponential approach to terminal (simulates opening shock)
     tau = 0.5  # Time constant for opening
     alpha = 1 - np.exp(-dt / tau)
-    
+
     new_velocity = current_velocity + alpha * (v_terminal - current_velocity)
-    
+
     return new_velocity
 
 
@@ -176,17 +174,17 @@ def calculate_drift(
     descent_time: float,
     wind_speed: float,
     wind_direction: float = 0.0
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     Calculate landing drift from launch point.
-    
+
     Drift = Wind_speed × Descent_time
-    
+
     Args:
         descent_time: Time from apogee to ground (s)
         wind_speed: Average wind speed (m/s)
         wind_direction: Wind direction in degrees from North
-        
+
     Returns:
         Tuple of (drift_distance, drift_direction)
     """
@@ -202,20 +200,20 @@ def estimate_descent(
 ) -> dict:
     """
     Estimate descent parameters.
-    
+
     Args:
         apogee: Maximum altitude (m)
         mass: Rocket mass (kg)
         chute: Parachute configuration
         rho_avg: Average air density during descent
-        
+
     Returns:
         Dict with descent_rate, descent_time, kinetic_energy
     """
     v_descent = chute.get_descent_rate(mass, rho_avg)
     descent_time = apogee / v_descent if v_descent > 0 else 0
     kinetic_energy = 0.5 * mass * v_descent ** 2
-    
+
     return {
         'descent_rate': v_descent,
         'descent_time': descent_time,
@@ -232,15 +230,15 @@ def size_parachute(
 ) -> float:
     """
     Calculate required parachute diameter for target descent rate.
-    
+
     D = 2 × sqrt(2mg / (ρ × Cd × π × V²))
-    
+
     Args:
         mass: Suspended mass (kg)
         target_descent_rate: Desired descent velocity (m/s)
         cd: Parachute drag coefficient
         rho: Air density (kg/m³)
-        
+
     Returns:
         Required diameter (m)
     """

@@ -6,7 +6,6 @@ detailed error messages and warnings.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 from enum import Enum
 
 
@@ -23,9 +22,9 @@ class ValidationIssue:
     severity: ValidationSeverity
     field: str
     message: str
-    value: Optional[float] = None
-    valid_range: Optional[Tuple[float, float]] = None
-    
+    value: float | None = None
+    valid_range: tuple[float, float] | None = None
+
     def __str__(self) -> str:
         icon = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}[self.severity.value]
         return f"{icon} {self.field}: {self.message}"
@@ -35,24 +34,24 @@ class ValidationIssue:
 class ValidationResult:
     """Complete validation result."""
     is_valid: bool
-    issues: List[ValidationIssue] = field(default_factory=list)
-    
+    issues: list[ValidationIssue] = field(default_factory=list)
+
     @property
-    def errors(self) -> List[ValidationIssue]:
+    def errors(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity == ValidationSeverity.ERROR]
-    
+
     @property
-    def warnings(self) -> List[ValidationIssue]:
+    def warnings(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity == ValidationSeverity.WARNING]
-    
+
     @property
-    def infos(self) -> List[ValidationIssue]:
+    def infos(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity == ValidationSeverity.INFO]
-    
+
     def __str__(self) -> str:
         if self.is_valid and not self.warnings:
             return "✓ All inputs valid"
-        
+
         lines = []
         for issue in self.issues:
             lines.append(str(issue))
@@ -98,18 +97,18 @@ EFFICIENCY_TYPICAL_MIN = 0.85
 # Validation Functions
 # =============================================================================
 
-def validate_chamber_pressure(pressure_bar: float) -> List[ValidationIssue]:
+def validate_chamber_pressure(pressure_bar: float) -> list[ValidationIssue]:
     """
     Validate combustion chamber pressure.
-    
+
     Args:
         pressure_bar: Chamber pressure in bar
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     # Critical errors
     if pressure_bar <= 0:
         issues.append(ValidationIssue(
@@ -120,7 +119,7 @@ def validate_chamber_pressure(pressure_bar: float) -> List[ValidationIssue]:
             valid_range=(PRESSURE_MIN, PRESSURE_MAX_ABSOLUTE)
         ))
         return issues
-    
+
     if pressure_bar > PRESSURE_MAX_ABSOLUTE:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -130,7 +129,7 @@ def validate_chamber_pressure(pressure_bar: float) -> List[ValidationIssue]:
             valid_range=(PRESSURE_MIN, PRESSURE_MAX_ABSOLUTE)
         ))
         return issues
-    
+
     # Warnings
     if pressure_bar < 1.0:
         issues.append(ValidationIssue(
@@ -153,23 +152,23 @@ def validate_chamber_pressure(pressure_bar: float) -> List[ValidationIssue]:
             message=f"Low pressure ({pressure_bar:.1f} bar) - suitable for small thrusters",
             value=pressure_bar
         ))
-    
+
     return issues
 
 
-def validate_of_ratio(of_ratio: float, fuel_type: str = 'H2') -> List[ValidationIssue]:
+def validate_of_ratio(of_ratio: float, fuel_type: str = 'H2') -> list[ValidationIssue]:
     """
     Validate oxidizer-to-fuel mass ratio.
-    
+
     Args:
         of_ratio: O/F mass ratio
         fuel_type: Fuel identifier for optimal range lookup
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     # Critical errors
     if of_ratio <= 0:
         issues.append(ValidationIssue(
@@ -179,7 +178,7 @@ def validate_of_ratio(of_ratio: float, fuel_type: str = 'H2') -> List[Validation
             value=of_ratio
         ))
         return issues
-    
+
     if of_ratio > 100:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -188,10 +187,10 @@ def validate_of_ratio(of_ratio: float, fuel_type: str = 'H2') -> List[Validation
             value=of_ratio
         ))
         return issues
-    
+
     # Get optimal range for this fuel
     optimal_range = OF_RANGES.get(fuel_type, (1.0, 10.0))
-    
+
     # Warnings
     if of_ratio < 0.5:
         issues.append(ValidationIssue(
@@ -217,26 +216,26 @@ def validate_of_ratio(of_ratio: float, fuel_type: str = 'H2') -> List[Validation
             value=of_ratio,
             valid_range=optimal_range
         ))
-    
+
     return issues
 
 
 def validate_expansion_ratio(
-    expansion_ratio: float, 
+    expansion_ratio: float,
     ambient_pressure_bar: float = 0.0
-) -> List[ValidationIssue]:
+) -> list[ValidationIssue]:
     """
     Validate nozzle expansion ratio.
-    
+
     Args:
         expansion_ratio: Area ratio Ae/At
         ambient_pressure_bar: Ambient pressure for context
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     # Critical errors
     if expansion_ratio <= 1.0:
         issues.append(ValidationIssue(
@@ -247,7 +246,7 @@ def validate_expansion_ratio(
             valid_range=(EXPANSION_RATIO_MIN, EXPANSION_RATIO_MAX_VACUUM)
         ))
         return issues
-    
+
     if expansion_ratio > EXPANSION_RATIO_MAX_VACUUM:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -256,10 +255,10 @@ def validate_expansion_ratio(
             value=expansion_ratio
         ))
         return issues
-    
+
     # Context-aware warnings
     at_sea_level = ambient_pressure_bar > 0.5
-    
+
     if at_sea_level and expansion_ratio > EXPANSION_RATIO_MAX_SEA_LEVEL:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.WARNING,
@@ -268,7 +267,7 @@ def validate_expansion_ratio(
             value=expansion_ratio,
             valid_range=(EXPANSION_RATIO_MIN, EXPANSION_RATIO_MAX_SEA_LEVEL)
         ))
-    
+
     if expansion_ratio > 200:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.INFO,
@@ -276,22 +275,22 @@ def validate_expansion_ratio(
             message=f"Very large expansion (ε={expansion_ratio:.0f}) - typical for vacuum-optimized stages",
             value=expansion_ratio
         ))
-    
+
     return issues
 
 
-def validate_throat_area(throat_area_cm2: float) -> List[ValidationIssue]:
+def validate_throat_area(throat_area_cm2: float) -> list[ValidationIssue]:
     """
     Validate nozzle throat area.
-    
+
     Args:
         throat_area_cm2: Throat area in cm²
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     if throat_area_cm2 <= 0:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -300,7 +299,7 @@ def validate_throat_area(throat_area_cm2: float) -> List[ValidationIssue]:
             value=throat_area_cm2
         ))
         return issues
-    
+
     if throat_area_cm2 < 0.01:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.WARNING,
@@ -315,26 +314,26 @@ def validate_throat_area(throat_area_cm2: float) -> List[ValidationIssue]:
             message=f"Very large throat ({throat_area_cm2:.0f} cm²) - heavy-lift engine scale",
             value=throat_area_cm2
         ))
-    
+
     return issues
 
 
 def validate_efficiency(
-    eta: float, 
+    eta: float,
     efficiency_type: str = "C*"
-) -> List[ValidationIssue]:
+) -> list[ValidationIssue]:
     """
     Validate efficiency factor.
-    
+
     Args:
         eta: Efficiency value (0-1)
         efficiency_type: "C*" or "Cf" for context
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     if eta <= 0 or eta > 1.0:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -344,7 +343,7 @@ def validate_efficiency(
             valid_range=(EFFICIENCY_MIN, EFFICIENCY_MAX)
         ))
         return issues
-    
+
     if eta < EFFICIENCY_MIN:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.WARNING,
@@ -360,7 +359,7 @@ def validate_efficiency(
             message=f"Below-typical efficiency ({eta:.2f}) - prototype/experimental range",
             value=eta
         ))
-    
+
     return issues
 
 
@@ -376,7 +375,7 @@ def validate_all_inputs(
 ) -> ValidationResult:
     """
     Validate all simulation inputs comprehensively.
-    
+
     Args:
         pressure_bar: Chamber pressure (bar)
         of_ratio: O/F ratio
@@ -386,12 +385,12 @@ def validate_all_inputs(
         eta_cf: Nozzle efficiency
         fuel_type: Fuel identifier
         ambient_pressure_bar: Ambient pressure (bar)
-        
+
     Returns:
         ValidationResult with all issues
     """
     all_issues = []
-    
+
     # Collect all issues
     all_issues.extend(validate_chamber_pressure(pressure_bar))
     all_issues.extend(validate_of_ratio(of_ratio, fuel_type))
@@ -399,28 +398,28 @@ def validate_all_inputs(
     all_issues.extend(validate_throat_area(throat_area_cm2))
     all_issues.extend(validate_efficiency(eta_cstar, "C*"))
     all_issues.extend(validate_efficiency(eta_cf, "Cf"))
-    
+
     # Determine overall validity (any ERROR = invalid)
     has_errors = any(i.severity == ValidationSeverity.ERROR for i in all_issues)
-    
+
     return ValidationResult(
         is_valid=not has_errors,
         issues=all_issues
     )
 
 
-def validate_temperature(temperature_k: float) -> List[ValidationIssue]:
+def validate_temperature(temperature_k: float) -> list[ValidationIssue]:
     """
     Validate temperature value.
-    
+
     Args:
         temperature_k: Temperature in Kelvin
-        
+
     Returns:
         List of validation issues
     """
     issues = []
-    
+
     if temperature_k <= 0:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -429,7 +428,7 @@ def validate_temperature(temperature_k: float) -> List[ValidationIssue]:
             value=temperature_k
         ))
         return issues
-    
+
     if temperature_k < TEMPERATURE_MIN:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -438,7 +437,7 @@ def validate_temperature(temperature_k: float) -> List[ValidationIssue]:
             value=temperature_k,
             valid_range=(TEMPERATURE_MIN, TEMPERATURE_MAX_ABSOLUTE)
         ))
-    
+
     if temperature_k > TEMPERATURE_MAX_ABSOLUTE:
         issues.append(ValidationIssue(
             severity=ValidationSeverity.ERROR,
@@ -453,5 +452,5 @@ def validate_temperature(temperature_k: float) -> List[ValidationIssue]:
             message=f"Temperature exceeds typical material limits ({temperature_k:.0f} K)",
             value=temperature_k
         ))
-    
+
     return issues

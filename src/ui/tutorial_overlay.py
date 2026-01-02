@@ -5,17 +5,14 @@ Displays an interactive step-by-step guide for new users
 to understand the EnSim workflow.
 """
 
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QFrame, QApplication
-)
-from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QPainter, QColor
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 
 class TutorialStep:
     """A single step in the tutorial."""
-    
+
     def __init__(self, title: str, description: str, highlight_widget: str = None):
         self.title = title
         self.description = description
@@ -75,20 +72,20 @@ TUTORIAL_STEPS = [
 class TutorialOverlay(QWidget):
     """
     Semi-transparent overlay that guides new users.
-    
+
     Signals:
         completed: Emitted when user finishes or skips tutorial
     """
-    
+
     completed = pyqtSignal()
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._current_step = 0
         self._setup_ui()
-    
+
     def _setup_ui(self):
         """Build the tutorial UI."""
         self.setStyleSheet("""
@@ -96,13 +93,13 @@ class TutorialOverlay(QWidget):
                 background-color: rgba(0, 0, 0, 180);
             }
         """)
-        
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Spacer to center card
         layout.addStretch(1)
-        
+
         # Center container
         container = QFrame()
         container.setObjectName("tutorialCard")
@@ -116,11 +113,11 @@ class TutorialOverlay(QWidget):
             }
         """)
         container.setMaximumWidth(500)
-        
+
         card_layout = QVBoxLayout(container)
         card_layout.setContentsMargins(30, 25, 30, 25)
         card_layout.setSpacing(15)
-        
+
         # Step indicator
         self.step_label = QLabel()
         self.step_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -131,7 +128,7 @@ class TutorialOverlay(QWidget):
             letter-spacing: 1px;
         """)
         card_layout.addWidget(self.step_label)
-        
+
         # Title
         self.title_label = QLabel()
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -142,7 +139,7 @@ class TutorialOverlay(QWidget):
         """)
         self.title_label.setWordWrap(True)
         card_layout.addWidget(self.title_label)
-        
+
         # Description
         self.desc_label = QLabel()
         self.desc_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -153,11 +150,11 @@ class TutorialOverlay(QWidget):
         """)
         self.desc_label.setWordWrap(True)
         card_layout.addWidget(self.desc_label)
-        
+
         # Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
-        
+
         self.skip_btn = QPushButton("Skip Tutorial")
         self.skip_btn.setStyleSheet("""
             QPushButton {
@@ -175,9 +172,9 @@ class TutorialOverlay(QWidget):
         """)
         self.skip_btn.clicked.connect(self._skip)
         btn_layout.addWidget(self.skip_btn)
-        
+
         btn_layout.addStretch(1)
-        
+
         self.prev_btn = QPushButton("← Back")
         self.prev_btn.setStyleSheet("""
             QPushButton {
@@ -194,7 +191,7 @@ class TutorialOverlay(QWidget):
         """)
         self.prev_btn.clicked.connect(self._prev)
         btn_layout.addWidget(self.prev_btn)
-        
+
         self.next_btn = QPushButton("Next →")
         self.next_btn.setStyleSheet("""
             QPushButton {
@@ -212,37 +209,37 @@ class TutorialOverlay(QWidget):
         """)
         self.next_btn.clicked.connect(self._next)
         btn_layout.addWidget(self.next_btn)
-        
+
         card_layout.addLayout(btn_layout)
-        
+
         # Center the card
         h_layout = QHBoxLayout()
         h_layout.addStretch(1)
         h_layout.addWidget(container)
         h_layout.addStretch(1)
         layout.addLayout(h_layout)
-        
+
         layout.addStretch(1)
-        
+
         # Show first step
         self._update_step()
-    
+
     def _update_step(self):
         """Update UI for current step."""
         step = TUTORIAL_STEPS[self._current_step]
-        
+
         self.step_label.setText(f"STEP {self._current_step + 1} OF {len(TUTORIAL_STEPS)}")
         self.title_label.setText(step.title)
         self.desc_label.setText(step.description)
-        
+
         # Update button visibility
         self.prev_btn.setVisible(self._current_step > 0)
-        
+
         if self._current_step == len(TUTORIAL_STEPS) - 1:
             self.next_btn.setText("Get Started! →")
         else:
             self.next_btn.setText("Next →")
-    
+
     def _next(self):
         """Go to next step or finish."""
         if self._current_step < len(TUTORIAL_STEPS) - 1:
@@ -250,29 +247,29 @@ class TutorialOverlay(QWidget):
             self._update_step()
         else:
             self._finish()
-    
+
     def _prev(self):
         """Go to previous step."""
         if self._current_step > 0:
             self._current_step -= 1
             self._update_step()
-    
+
     def _skip(self):
         """Skip the tutorial."""
         self._finish()
-    
+
     def _finish(self):
         """Complete the tutorial."""
         self.completed.emit()
         self.hide()
         self.deleteLater()
-    
+
     def paintEvent(self, event):
         """Paint semi-transparent background."""
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(10, 14, 20, 200))
         super().paintEvent(event)
-    
+
     def showEvent(self, event):
         """Resize to match parent when shown."""
         if self.parent():
@@ -283,24 +280,24 @@ class TutorialOverlay(QWidget):
 def show_tutorial_if_first_run(parent, settings_key: str = "tutorial_shown") -> bool:
     """
     Show tutorial if it hasn't been shown before.
-    
+
     Args:
         parent: Parent widget (MainWindow)
         settings_key: QSettings key to track if tutorial was shown
-        
+
     Returns:
         True if tutorial was shown, False if skipped
     """
     from PyQt6.QtCore import QSettings
-    
+
     settings = QSettings("EnSim", "EnSim")
-    
+
     if settings.value(settings_key, False, type=bool):
         return False  # Already shown
-    
+
     overlay = TutorialOverlay(parent)
     overlay.completed.connect(lambda: settings.setValue(settings_key, True))
     overlay.show()
     overlay.raise_()
-    
+
     return True

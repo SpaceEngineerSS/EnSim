@@ -6,7 +6,6 @@ allowing Numba-compiled functions to work with raw numpy arrays.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,14 +15,14 @@ from numpy.typing import NDArray
 class SpeciesData:
     """
     Container for NASA 7-term polynomial thermodynamic data.
-    
+
     The NASA polynomial format uses two sets of 7 coefficients each:
     - High temperature range (typically 1000-6000 K)
     - Low temperature range (typically 200-1000 K)
-    
+
     Coefficients a1-a5 define Cp/R, H/RT, S/R polynomials.
     Coefficients a6, a7 are integration constants for H and S.
-    
+
     Attributes:
         name: Species chemical formula (e.g., "H2O", "CO2")
         molecular_weight: Molecular weight in g/mol (kg/kmol)
@@ -32,7 +31,7 @@ class SpeciesData:
         coeffs_high: High-T coefficients array [a1, a2, a3, a4, a5, a6, a7]
         coeffs_low: Low-T coefficients array [a1, a2, a3, a4, a5, a6, a7]
         h_formation_298: Heat of formation at 298.15 K in J/mol (optional)
-        
+
     Example:
         >>> h2o = SpeciesData(
         ...     name="H2O",
@@ -43,63 +42,63 @@ class SpeciesData:
         ...     coeffs_low=np.array([...])
         ... )
     """
-    
+
     name: str
     molecular_weight: float
     phase: str = "G"
-    temp_ranges: List[Tuple[float, float, float]] = field(default_factory=list)
+    temp_ranges: list[tuple[float, float, float]] = field(default_factory=list)
     coeffs_high: NDArray[np.float64] = field(
         default_factory=lambda: np.zeros(7, dtype=np.float64)
     )
     coeffs_low: NDArray[np.float64] = field(
         default_factory=lambda: np.zeros(7, dtype=np.float64)
     )
-    h_formation_298: Optional[float] = None
-    
+    h_formation_298: float | None = None
+
     @property
     def t_low(self) -> float:
         """Lowest valid temperature (K)."""
         if self.temp_ranges:
             return self.temp_ranges[0][0]
         return 200.0
-    
+
     @property
     def t_mid(self) -> float:
         """Temperature where coefficient sets switch (K)."""
         if self.temp_ranges:
             return self.temp_ranges[0][1]
         return 1000.0
-    
+
     @property
     def t_high(self) -> float:
         """Highest valid temperature (K)."""
         if self.temp_ranges:
             return self.temp_ranges[0][2]
         return 6000.0
-    
+
     def get_coeffs_for_temp(self, T: float) -> NDArray[np.float64]:
         """
         Return appropriate coefficient set for given temperature.
-        
+
         Args:
             T: Temperature in Kelvin
-            
+
         Returns:
             7-element coefficient array (high or low T set)
-            
+
         Raises:
             ValueError: If temperature is outside valid range
         """
-        if T < self.t_low or T > self.t_high:
+        if self.t_low > T or self.t_high < T:
             raise ValueError(
                 f"Temperature {T} K is outside valid range "
                 f"[{self.t_low}, {self.t_high}] K for species {self.name}"
             )
-        
-        if T >= self.t_mid:
+
+        if self.t_mid <= T:
             return self.coeffs_high
         return self.coeffs_low
-    
+
     def __repr__(self) -> str:
         return (
             f"SpeciesData(name='{self.name}', MW={self.molecular_weight:.4f}, "
@@ -111,24 +110,24 @@ class SpeciesData:
 class ThermoResult:
     """
     Results of thermodynamic property calculations.
-    
+
     All properties are per mole unless otherwise specified.
     """
-    
+
     temperature: float  # K
     pressure: float  # Pa
-    
+
     # Non-dimensional properties
     cp_over_r: float  # Cp/R (dimensionless)
     h_over_rt: float  # H/(R*T) (dimensionless)
     s_over_r: float  # S/R (dimensionless)
-    
+
     # Dimensional properties (SI units)
     cp: float  # J/(mol·K)
     h: float  # J/mol
     s: float  # J/(mol·K)
     g: float  # Gibbs free energy J/mol
-    
+
     @classmethod
     def from_dimensionless(
         cls,
@@ -144,7 +143,7 @@ class ThermoResult:
         h = h_rt * R * T
         s = s_r * R
         g = h - T * s
-        
+
         return cls(
             temperature=T,
             pressure=P,
@@ -159,7 +158,7 @@ class ThermoResult:
 
 
 # Type alias for species database
-SpeciesDatabase = Dict[str, SpeciesData]
+SpeciesDatabase = dict[str, SpeciesData]
 
 
 # =============================================================================
@@ -170,22 +169,22 @@ SpeciesDatabase = Dict[str, SpeciesData]
 class Element:
     """
     Chemical element with atomic properties.
-    
+
     Frozen dataclass for immutability and hashability.
-    
+
     Attributes:
         symbol: Element symbol (e.g., 'H', 'O', 'C', 'N')
         atomic_weight: Atomic weight in g/mol (kg/kmol)
     """
     symbol: str
     atomic_weight: float
-    
+
     def __repr__(self) -> str:
         return f"Element({self.symbol}, {self.atomic_weight:.4f})"
 
 
 # Standard atomic weights (IUPAC 2021)
-ELEMENTS: Dict[str, Element] = {
+ELEMENTS: dict[str, Element] = {
     'H': Element('H', 1.00794),
     'He': Element('He', 4.002602),
     'C': Element('C', 12.0107),
@@ -202,7 +201,7 @@ ELEMENTS: Dict[str, Element] = {
 class Reactant:
     """
     Input reactant (fuel or oxidizer) for combustion problem.
-    
+
     Attributes:
         species_name: Name matching species in database (e.g., 'H2', 'O2')
         moles: Number of moles of this reactant
@@ -213,7 +212,7 @@ class Reactant:
     moles: float
     temperature: float = 298.15
     enthalpy: float = 0.0  # Will be calculated during processing
-    
+
     def __repr__(self) -> str:
         return f"Reactant({self.species_name}, n={self.moles:.4f} mol, T={self.temperature:.1f} K)"
 
@@ -222,9 +221,9 @@ class Reactant:
 class SystemState:
     """
     Current state of the equilibrium iteration.
-    
+
     Stores all variables needed for Newton-Raphson iteration.
-    
+
     Attributes:
         temperature: Current temperature estimate (K)
         pressure: System pressure (Pa)
@@ -249,7 +248,7 @@ class SystemState:
     converged: bool = False
     iterations: int = 0
     max_correction: float = 1.0
-    
+
     @classmethod
     def create_initial(
         cls,
@@ -257,11 +256,11 @@ class SystemState:
         P: float,
         n_species: int,
         n_elements: int,
-        initial_moles: Optional[NDArray[np.float64]] = None
+        initial_moles: NDArray[np.float64] | None = None
     ) -> "SystemState":
         """
         Create initial system state for iteration.
-        
+
         Args:
             T_guess: Initial temperature guess (K)
             P: Pressure (Pa)
@@ -274,10 +273,10 @@ class SystemState:
             moles = np.full(n_species, 1e-10, dtype=np.float64)
         else:
             moles = initial_moles.copy()
-        
+
         # Clamp to minimum value
         moles = np.maximum(moles, 1e-30)
-        
+
         return cls(
             temperature=T_guess,
             pressure=P,
@@ -297,7 +296,7 @@ class SystemState:
 class EquilibriumResult:
     """
     Final result of equilibrium calculation.
-    
+
     Attributes:
         temperature: Adiabatic flame temperature (K)
         pressure: System pressure (Pa)
@@ -314,7 +313,7 @@ class EquilibriumResult:
     """
     temperature: float
     pressure: float
-    species_names: List[str]
+    species_names: list[str]
     mole_fractions: NDArray[np.float64]
     moles: NDArray[np.float64]
     total_moles: float
@@ -324,7 +323,7 @@ class EquilibriumResult:
     gamma: float = 1.2  # Will be calculated
     converged: bool = True
     iterations: int = 0
-    
+
     def get_mole_fraction(self, species_name: str) -> float:
         """Get mole fraction for a specific species."""
         try:
@@ -332,10 +331,10 @@ class EquilibriumResult:
             return float(self.mole_fractions[idx])
         except ValueError:
             return 0.0
-    
+
     def __repr__(self) -> str:
         top_species = sorted(
-            zip(self.species_names, self.mole_fractions),
+            zip(self.species_names, self.mole_fractions, strict=False),
             key=lambda x: x[1],
             reverse=True
         )[:5]
