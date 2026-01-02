@@ -113,32 +113,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================================
-  # Publish Job - Publish to PyPI (DISABLED - Enable when ready)
+  # Publish Job - Publish to PyPI
   # ============================================================================
-  # To enable PyPI publishing:
-  # 1. Create PyPI account at https://pypi.org
-  # 2. Set up Trusted Publishing or create API token
-  # 3. Uncomment the job below
-  #
-  # publish-pypi:
-  #   name: Publish to PyPI
-  #   runs-on: ubuntu-latest
-  #   needs: [build, release]
-  #   if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') }}
-  #   environment:
-  #     name: pypi
-  #     url: https://pypi.org/project/ensim/
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         name: packages
-  #         path: dist/
-  #     - uses: pypa/gh-action-pypi-publish@release/v1
-  #       with:
-  #         skip-existing: true
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [build, release]
+    if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') }}
+    environment:
+      name: pypi
+      url: https://pypi.org/project/ensim/
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
 
   # ============================================================================
   # Documentation Job - Build and publish docs
