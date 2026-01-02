@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="EnSim Logo" width="120" height="120">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/assets/logo.png" alt="EnSim Logo" width="120" height="120">
 </p>
 
 <h1 align="center">EnSim</h1>
@@ -40,7 +40,7 @@
 Whether you're a student learning rocket science, a researcher exploring propulsion concepts, or an engineer performing preliminary design analysis, EnSim provides the tools you need.
 
 <p align="center">
-  <img src="docs/screenshot_main.png" alt="EnSim Interface" width="800">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_main.png" alt="EnSim Interface" width="800">
 </p>
 
 ## ✨ Features

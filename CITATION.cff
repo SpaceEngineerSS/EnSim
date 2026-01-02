@@ -4,7 +4,7 @@ authors:
   - family-names: SpaceEngineerSS
     given-names: ""
 title: "EnSim: Open Source Rocket Engine Simulation Suite"
-version: 1.0.1
+version: 1.0.2
 date-released: 2026-01-02
 url: "https://github.com/SpaceEngineerSS/EnSim"
 repository-code: "https://github.com/SpaceEngineerSS/EnSim"
