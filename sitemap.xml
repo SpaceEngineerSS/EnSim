@@ -29,7 +29,27 @@
          <lastmod>2026-01-02</lastmod>
     </url>
     <url>
+         <loc>https://ensim.io/docs/api/core/cooling/</loc>
+         <lastmod>2026-01-02</lastmod>
+    </url>
+    <url>
+         <loc>https://ensim.io/docs/api/core/optimization/</loc>
+         <lastmod>2026-01-02</lastmod>
+    </url>
+    <url>
          <loc>https://ensim.io/docs/api/core/propulsion/</loc>
+         <lastmod>2026-01-02</lastmod>
+    </url>
+    <url>
+         <loc>https://ensim.io/docs/api/core/staging/</loc>
+         <lastmod>2026-01-02</lastmod>
+    </url>
+    <url>
+         <loc>https://ensim.io/docs/api/data/propellants/</loc>
+         <lastmod>2026-01-02</lastmod>
+    </url>
+    <url>
+         <loc>https://ensim.io/docs/api/utils/units/</loc>
          <lastmod>2026-01-02</lastmod>
     </url>
     <url>

@@ -12,31 +12,27 @@
         <meta name="author" content="EnSim Contributors">
       
       
-        <link rel="canonical" href="https://ensim.io/docs/user-guide/">
+        <link rel="canonical" href="https://ensim.io/docs/api/core/cooling/">
       
       
-        <link rel="prev" href="../getting-started/">
-      
-      
-        <link rel="next" href="../theory/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>User Guide - EnSim Documentation</title>
+        <title>Cooling Module - EnSim Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -92,7 +88,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#user-guide" class="md-skip">
+        <a href="#cooling-module" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +108,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="EnSim Documentation" class="md-header__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
+    <a href="../../.." title="EnSim Documentation" class="md-header__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.13 22.19-1.63-3.83c1.57-.58 3.04-1.36 4.4-2.27zM5.64 12.5l-3.83-1.63 6.1-2.77C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39S16.66.269 11 5.93c-2.19 2.19-3.5 4.6-4.35 6.71-.28.75-.09 1.57.46 2.13l2.13 2.12c.55.56 1.37.74 2.12.46A19.1 19.1 0 0 0 18.07 13c5.66-5.66 3.54-10.61 3.54-10.61m-7.07 7.07c-.78-.78-.78-2.05 0-2.83s2.05-.78 2.83 0c.77.78.78 2.05 0 2.83s-2.05.78-2.83 0m-5.66 7.07-1.41-1.41zM6.24 22l3.64-3.64c-.34-.09-.67-.24-.97-.45L4.83 22zM2 22h1.41l4.77-4.76-1.42-1.41L2 20.59zm0-2.83 4.09-4.08c-.21-.3-.36-.62-.45-.97L2 17.76z"/></svg>
@@ -132,7 +128,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              User Guide
+              Cooling Module
             
           </span>
         </div>
@@ -244,7 +240,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
   
@@ -263,7 +259,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../getting-started/" class="md-tabs__link">
+      <a href="../../../getting-started/" class="md-tabs__link">
         
   
   
@@ -280,11 +276,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../../user-guide/" class="md-tabs__link">
         
   
   
@@ -303,7 +297,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../theory/" class="md-tabs__link">
+      <a href="../../../theory/" class="md-tabs__link">
         
   
   
@@ -324,7 +318,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../api/" class="md-tabs__link">
+        <a href="../../" class="md-tabs__link">
           
   
   
@@ -344,7 +338,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../VALIDATION/" class="md-tabs__link">
+      <a href="../../../VALIDATION/" class="md-tabs__link">
         
   
   
@@ -385,7 +379,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="EnSim Documentation" class="md-nav__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
+    <a href="../../.." title="EnSim Documentation" class="md-nav__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.13 22.19-1.63-3.83c1.57-.58 3.04-1.36 4.4-2.27zM5.64 12.5l-3.83-1.63 6.1-2.77C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39S16.66.269 11 5.93c-2.19 2.19-3.5 4.6-4.35 6.71-.28.75-.09 1.57.46 2.13l2.13 2.12c.55.56 1.37.74 2.12.46A19.1 19.1 0 0 0 18.07 13c5.66-5.66 3.54-10.61 3.54-10.61m-7.07 7.07c-.78-.78-.78-2.05 0-2.83s2.05-.78 2.83 0c.77.78.78 2.05 0 2.83s-2.05.78-2.83 0m-5.66 7.07-1.41-1.41zM6.24 22l3.64-3.64c-.34-.09-.67-.24-.97-.45L4.83 22zM2 22h1.41l4.77-4.76-1.42-1.41L2 20.59zm0-2.83 4.09-4.08c-.21-.3-.36-.62-.45-.97L2 17.76z"/></svg>
@@ -415,7 +409,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -442,7 +436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../../../getting-started/" class="md-nav__link">
         
   
   
@@ -466,37 +460,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User Guide
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../user-guide/" class="md-nav__link">
         
   
   
@@ -512,137 +479,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#interface-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Interface Overview
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Interface Overview">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#main-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Components
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tab-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tab Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#guides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Guides
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Quick Reference">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#keyboard-shortcuts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Keyboard Shortcuts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#supported-propellants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Supported Propellants
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#typical-parameter-ranges" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical Parameter Ranges
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tips-best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tips &amp; Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -654,7 +490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../theory/" class="md-nav__link">
+      <a href="../../../theory/" class="md-nav__link">
         
   
   
@@ -710,7 +546,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/" class="md-nav__link ">
+            <a href="../../" class="md-nav__link ">
               
   
   
@@ -754,7 +590,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/core/chemistry/" class="md-nav__link">
+      <a href="../chemistry/" class="md-nav__link">
         
   
   
@@ -782,7 +618,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/core/propulsion/" class="md-nav__link">
+      <a href="../propulsion/" class="md-nav__link">
         
   
   
@@ -817,7 +653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../VALIDATION/" class="md-nav__link">
+      <a href="../../../VALIDATION/" class="md-nav__link">
         
   
   
@@ -864,22 +700,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#interface-overview" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Interface Overview
+        Overview
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Interface Overview">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Classes">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#main-components" class="md-nav__link">
+  <a href="#coolanttype" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Main Components
+        CoolantType
       
     </span>
   </a>
@@ -887,10 +745,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tab-overview" class="md-nav__link">
+  <a href="#coolingchannel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tab Overview
+        CoolingChannel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coolingsystemdesign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CoolingSystemDesign
       
     </span>
   </a>
@@ -903,33 +772,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#guides" class="md-nav__link">
+  <a href="#heat-transfer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Guides
+        Heat Transfer
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Quick Reference">
+    <nav class="md-nav" aria-label="Heat Transfer">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#keyboard-shortcuts" class="md-nav__link">
+  <a href="#bartz-correlation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Keyboard Shortcuts
+        Bartz Correlation
       
     </span>
   </a>
@@ -937,21 +795,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supported-propellants" class="md-nav__link">
+  <a href="#dittus-boelter-correlation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supported Propellants
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#typical-parameter-ranges" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical Parameter Ranges
+        Dittus-Boelter Correlation
       
     </span>
   </a>
@@ -964,10 +811,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tips-best-practices" class="md-nav__link">
+  <a href="#thermal-analysis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tips &amp; Best Practices
+        Thermal Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Thermal Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analyze_cooling_system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        analyze_cooling_system()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wall-materials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wall Materials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design Guidelines
       
     </span>
   </a>
@@ -1002,205 +888,274 @@
   
 
 
-<h1 id="user-guide">User Guide<a class="headerlink" href="#user-guide" title="Permanent link">&para;</a></h1>
-<p>Welcome to the EnSim User Guide! This comprehensive guide covers all features of the application.</p>
-<h2 id="interface-overview">Interface Overview<a class="headerlink" href="#interface-overview" title="Permanent link">&para;</a></h2>
-<p>EnSim features a modern "Mission Control" style interface with cyan and green neon accents:</p>
-<p><img alt="Main Interface" src="../screenshot_main.png" /></p>
-<h3 id="main-components">Main Components<a class="headerlink" href="#main-components" title="Permanent link">&para;</a></h3>
-<ol>
-<li><strong>Input Panel</strong> (Left): Propellant selection and engine parameters</li>
-<li><strong>KPI Dashboard</strong> (Top): Real-time performance metrics</li>
-<li><strong>Tab Navigation</strong> (Center): Output, Results, Engine, Vehicle, Advanced</li>
-<li><strong>Status Bar</strong> (Bottom): Simulation status and messages</li>
-</ol>
-<h3 id="tab-overview">Tab Overview<a class="headerlink" href="#tab-overview" title="Permanent link">&para;</a></h3>
+<h1 id="cooling-module">Cooling Module<a class="headerlink" href="#cooling-module" title="Permanent link">&para;</a></h1>
+<p>Regenerative cooling thermal analysis for rocket engines.</p>
+<p>::: src.core.cooling</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The cooling module provides detailed thermal modeling for rocket engine cooling:</p>
+<ul>
+<li><strong>Heat Transfer Correlations</strong>: Bartz (gas-side), Dittus-Boelter (coolant-side)</li>
+<li><strong>Channel Design</strong>: Sizing of regenerative cooling channels</li>
+<li><strong>Wall Temperature</strong>: Prediction of gas-side and coolant-side temperatures</li>
+<li><strong>Thermal Margins</strong>: Safety margins to melting and boiling</li>
+</ul>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.core.cooling</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">CoolantType</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">design_cooling_channels</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">analyze_cooling_system</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Design cooling channels for an engine</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">design</span> <span class="o">=</span> <span class="n">design_cooling_channels</span><span class="p">(</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">thrust</span><span class="o">=</span><span class="mf">1e6</span><span class="p">,</span>                 <span class="c1"># 1 MN thrust</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">chamber_pressure</span><span class="o">=</span><span class="mf">7e6</span><span class="p">,</span>       <span class="c1"># 70 bar</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">chamber_temp</span><span class="o">=</span><span class="mi">3500</span><span class="p">,</span>          <span class="c1"># K</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">coolant</span><span class="o">=</span><span class="n">CoolantType</span><span class="o">.</span><span class="n">RP1</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">wall_material</span><span class="o">=</span><span class="s2">&quot;Inconel 718&quot;</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of channels: </span><span class="si">{</span><span class="n">design</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">num_channels</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Channel width: </span><span class="si">{</span><span class="n">design</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">width</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> mm&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coolant mass flow: </span><span class="si">{</span><span class="n">design</span><span class="o">.</span><span class="n">coolant_mass_flow</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> kg/s&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="key-classes">Key Classes<a class="headerlink" href="#key-classes" title="Permanent link">&para;</a></h2>
+<h3 id="coolanttype">CoolantType<a class="headerlink" href="#coolanttype" title="Permanent link">&para;</a></h3>
+<p>Available coolant types:</p>
 <table>
 <thead>
 <tr>
-<th>Tab</th>
+<th>Coolant</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Output</strong></td>
-<td>Main simulation output and KPI dashboard</td>
+<td><code>RP1</code></td>
+<td>RP-1 Kerosene</td>
 </tr>
 <tr>
-<td><strong>Results</strong></td>
-<td>2D graphs and 3D visualization</td>
+<td><code>LH2</code></td>
+<td>Liquid Hydrogen</td>
 </tr>
 <tr>
-<td><strong>Engine</strong></td>
-<td>Thermal analysis, cooling design, optimization</td>
+<td><code>LOX</code></td>
+<td>Liquid Oxygen</td>
 </tr>
 <tr>
-<td><strong>Vehicle</strong></td>
-<td>Multi-stage configuration and flight simulation</td>
+<td><code>LCH4</code></td>
+<td>Liquid Methane</td>
 </tr>
 <tr>
-<td><strong>Advanced</strong></td>
-<td>MOC nozzle design, Monte Carlo analysis</td>
+<td><code>WATER</code></td>
+<td>Water (for testing)</td>
 </tr>
 </tbody>
 </table>
-<h4 id="results-tab">Results Tab<a class="headerlink" href="#results-tab" title="Permanent link">&para;</a></h4>
-<p><img alt="Results Tab" src="../screenshot_results.png" /></p>
-<h4 id="engine-tab-thermal-cooling">Engine Tab (Thermal &amp; Cooling)<a class="headerlink" href="#engine-tab-thermal-cooling" title="Permanent link">&para;</a></h4>
-<p><img alt="Engine Tab" src="../screenshot_engine.png" /></p>
-<h4 id="vehicle-tab-multi-stage">Vehicle Tab (Multi-Stage)<a class="headerlink" href="#vehicle-tab-multi-stage" title="Permanent link">&para;</a></h4>
-<p><img alt="Vehicle Tab" src="../screenshot_vehicle.png" /></p>
-<h4 id="3d-visualization">3D Visualization<a class="headerlink" href="#3d-visualization" title="Permanent link">&para;</a></h4>
-<p><img alt="3D View" src="../screenshot_3d.png" /></p>
-<h2 id="guides">Guides<a class="headerlink" href="#guides" title="Permanent link">&para;</a></h2>
-<div class="grid cards">
-<ul>
-<li>
-<p>:material-flask:{ .lg .middle } <strong>Propellant Selection</strong></p>
-<hr />
-<p>Choose and configure fuel/oxidizer combinations.</p>
-<p><a href="propellants.md">:octicons-arrow-right-24: Propellants</a></p>
-</li>
-<li>
-<p>:material-engine:{ .lg .middle } <strong>Engine Design</strong></p>
-<hr />
-<p>Configure chamber conditions and nozzle geometry.</p>
-<p><a href="engine-design.md">:octicons-arrow-right-24: Engine Design</a></p>
-</li>
-<li>
-<p>:material-airplane:{ .lg .middle } <strong>Flight Simulation</strong></p>
-<hr />
-<p>Run 6-DOF trajectory simulations.</p>
-<p><a href="flight-simulation.md">:octicons-arrow-right-24: Flight Simulation</a></p>
-</li>
-<li>
-<p>:material-dice-multiple:{ .lg .middle } <strong>Monte Carlo Analysis</strong></p>
-<hr />
-<p>Statistical dispersion analysis.</p>
-<p><a href="monte-carlo.md">:octicons-arrow-right-24: Monte Carlo</a></p>
-</li>
-<li>
-<p>:material-export:{ .lg .middle } <strong>Data Export</strong></p>
-<hr />
-<p>Export results to CSV, reports, and 3D models.</p>
-<p><a href="export.md">:octicons-arrow-right-24: Export</a></p>
-</li>
-</ul>
-</div>
-<h2 id="quick-reference">Quick Reference<a class="headerlink" href="#quick-reference" title="Permanent link">&para;</a></h2>
-<h3 id="keyboard-shortcuts">Keyboard Shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Shortcut</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Ctrl+N</code></td>
-<td>New Project</td>
-</tr>
-<tr>
-<td><code>Ctrl+O</code></td>
-<td>Open Project</td>
-</tr>
-<tr>
-<td><code>Ctrl+S</code></td>
-<td>Save Project</td>
-</tr>
-<tr>
-<td><code>Ctrl+R</code></td>
-<td>Run Simulation</td>
-</tr>
-<tr>
-<td><code>F5</code></td>
-<td>Run Simulation</td>
-</tr>
-<tr>
-<td><code>Ctrl+E</code></td>
-<td>Export Results</td>
-</tr>
-</tbody>
-</table>
-<h3 id="supported-propellants">Supported Propellants<a class="headerlink" href="#supported-propellants" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Fuel</th>
-<th>Oxidizer</th>
-<th>Application</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>H₂</td>
-<td>O₂</td>
-<td>High-performance upper stages</td>
-</tr>
-<tr>
-<td>CH₄</td>
-<td>O₂</td>
-<td>Reusable rockets (Raptor-style)</td>
-</tr>
-<tr>
-<td>RP-1</td>
-<td>O₂</td>
-<td>First stages (Merlin-style)</td>
-</tr>
-<tr>
-<td>N₂H₄</td>
-<td>N₂O₄</td>
-<td>Storable propellants (spacecraft)</td>
-</tr>
-<tr>
-<td>MMH</td>
-<td>N₂O₄</td>
-<td>Reaction control systems</td>
-</tr>
-</tbody>
-</table>
-<h3 id="typical-parameter-ranges">Typical Parameter Ranges<a class="headerlink" href="#typical-parameter-ranges" title="Permanent link">&para;</a></h3>
+<h3 id="coolingchannel">CoolingChannel<a class="headerlink" href="#coolingchannel" title="Permanent link">&para;</a></h3>
+<p>Channel geometry definition:</p>
 <table>
 <thead>
 <tr>
 <th>Parameter</th>
-<th>Typical Range</th>
+<th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Chamber Pressure</td>
-<td>1-30 MPa</td>
+<td><code>width</code></td>
+<td>float</td>
+<td>Channel width (m)</td>
 </tr>
 <tr>
-<td>O/F Ratio</td>
-<td>1.5-8.0</td>
+<td><code>height</code></td>
+<td>float</td>
+<td>Channel height (m)</td>
 </tr>
 <tr>
-<td>Expansion Ratio</td>
-<td>10-300</td>
+<td><code>wall_thickness</code></td>
+<td>float</td>
+<td>Inner wall thickness (m)</td>
 </tr>
 <tr>
-<td>Chamber Temperature</td>
-<td>2500-3700 K</td>
+<td><code>land_width</code></td>
+<td>float</td>
+<td>Width between channels (m)</td>
+</tr>
+<tr>
+<td><code>num_channels</code></td>
+<td>int</td>
+<td>Number of channels</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>float</td>
+<td>Total channel length (m)</td>
 </tr>
 </tbody>
 </table>
-<h2 id="tips-best-practices">Tips &amp; Best Practices<a class="headerlink" href="#tips-best-practices" title="Permanent link">&para;</a></h2>
-<div class="admonition tip">
-<p class="admonition-title">Start Simple</p>
-<p>Begin with standard propellant combinations (LOX/LH₂, LOX/RP-1) before exploring exotic options.</p>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Validate Results</p>
-<p>Compare your results against NASA CEA for verification.</p>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">High Expansion Ratios</p>
-<p>Very high expansion ratios (&gt;100) are sensitive to numerical precision. Consider sea-level flow separation.</p>
-</div>
+<h3 id="coolingsystemdesign">CoolingSystemDesign<a class="headerlink" href="#coolingsystemdesign" title="Permanent link">&para;</a></h3>
+<p>Complete system specification:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>channels</code></td>
+<td>CoolingChannel</td>
+<td>Channel geometry</td>
+</tr>
+<tr>
+<td><code>coolant</code></td>
+<td>CoolantType</td>
+<td>Coolant type</td>
+</tr>
+<tr>
+<td><code>coolant_inlet_temp</code></td>
+<td>float</td>
+<td>Inlet temperature (K)</td>
+</tr>
+<tr>
+<td><code>coolant_inlet_pressure</code></td>
+<td>float</td>
+<td>Inlet pressure (Pa)</td>
+</tr>
+<tr>
+<td><code>coolant_mass_flow</code></td>
+<td>float</td>
+<td>Mass flow rate (kg/s)</td>
+</tr>
+<tr>
+<td><code>wall_material</code></td>
+<td>str</td>
+<td>Wall material name</td>
+</tr>
+<tr>
+<td><code>wall_thermal_conductivity</code></td>
+<td>float</td>
+<td>k (W/(m·K))</td>
+</tr>
+<tr>
+<td><code>wall_melting_point</code></td>
+<td>float</td>
+<td>Melting point (K)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="heat-transfer">Heat Transfer<a class="headerlink" href="#heat-transfer" title="Permanent link">&para;</a></h2>
+<h3 id="bartz-correlation">Bartz Correlation<a class="headerlink" href="#bartz-correlation" title="Permanent link">&para;</a></h3>
+<p>Gas-side heat transfer coefficient:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.core.cooling</span><span class="w"> </span><span class="kn">import</span> <span class="n">bartz_heat_transfer_coefficient</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">h_g</span> <span class="o">=</span> <span class="n">bartz_heat_transfer_coefficient</span><span class="p">(</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">D_throat</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>           <span class="c1"># Throat diameter (m)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">P_chamber</span><span class="o">=</span><span class="mf">7e6</span><span class="p">,</span>          <span class="c1"># Chamber pressure (Pa)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">c_star</span><span class="o">=</span><span class="mi">1800</span><span class="p">,</span>            <span class="c1"># Characteristic velocity (m/s)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">T_chamber</span><span class="o">=</span><span class="mi">3500</span><span class="p">,</span>         <span class="c1"># Chamber temperature (K)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">gamma</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span>              <span class="c1"># Specific heat ratio</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">Pr</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>                 <span class="c1"># Prandtl number</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">mu_ref</span><span class="o">=</span><span class="mf">5e-5</span><span class="p">,</span>            <span class="c1"># Reference viscosity (Pa·s)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">area_ratio</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>          <span class="c1"># Local A/At</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">local_diameter</span><span class="o">=</span><span class="mf">0.3</span>      <span class="c1"># Local diameter (m)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="dittus-boelter-correlation">Dittus-Boelter Correlation<a class="headerlink" href="#dittus-boelter-correlation" title="Permanent link">&para;</a></h3>
+<p>Coolant-side heat transfer coefficient:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.core.cooling</span><span class="w"> </span><span class="kn">import</span> <span class="n">dittus_boelter_coefficient</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">h_c</span> <span class="o">=</span> <span class="n">dittus_boelter_coefficient</span><span class="p">(</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">Re</span><span class="o">=</span><span class="mf">1e6</span><span class="p">,</span>                 <span class="c1"># Reynolds number</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">Pr</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>                 <span class="c1"># Prandtl number</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">k</span><span class="o">=</span><span class="mf">0.13</span><span class="p">,</span>                 <span class="c1"># Thermal conductivity (W/(m·K))</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">D_h</span><span class="o">=</span><span class="mf">0.003</span><span class="p">,</span>              <span class="c1"># Hydraulic diameter (m)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">heating</span><span class="o">=</span><span class="kc">True</span>            <span class="c1"># Fluid is being heated</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="thermal-analysis">Thermal Analysis<a class="headerlink" href="#thermal-analysis" title="Permanent link">&para;</a></h2>
+<h3 id="analyze_cooling_system">analyze_cooling_system()<a class="headerlink" href="#analyze_cooling_system" title="Permanent link">&para;</a></h3>
+<p>Perform thermal analysis along the nozzle:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Define nozzle profile as (x, diameter) points</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">nozzle_profile</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">),</span>      <span class="c1"># Chamber</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">),</span>      <span class="c1"># Throat</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>       <span class="c1"># Exit</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">]</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Chamber conditions</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">chamber</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="s1">&#39;T_chamber&#39;</span><span class="p">:</span> <span class="mi">3500</span><span class="p">,</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="s1">&#39;P_chamber&#39;</span><span class="p">:</span> <span class="mf">7e6</span><span class="p">,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="s1">&#39;gamma&#39;</span><span class="p">:</span> <span class="mf">1.2</span><span class="p">,</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="s1">&#39;c_star&#39;</span><span class="p">:</span> <span class="mi">1800</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="p">}</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="c1"># Run analysis</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="n">results</span> <span class="o">=</span> <span class="n">analyze_cooling_system</span><span class="p">(</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="n">design</span><span class="o">=</span><span class="n">design</span><span class="p">,</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="n">nozzle_profile</span><span class="o">=</span><span class="n">nozzle_profile</span><span class="p">,</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">chamber_conditions</span><span class="o">=</span><span class="n">chamber</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="n">num_stations</span><span class="o">=</span><span class="mi">50</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="p">)</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="c1"># Check results at throat (station ~10)</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">throat</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Throat gas-side wall: </span><span class="si">{</span><span class="n">throat</span><span class="o">.</span><span class="n">wall_temp_gas_side</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> K&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Heat flux: </span><span class="si">{</span><span class="n">throat</span><span class="o">.</span><span class="n">heat_flux</span><span class="o">/</span><span class="mf">1e6</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MW/m²&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Margin to melting: </span><span class="si">{</span><span class="n">throat</span><span class="o">.</span><span class="n">margin_to_melting</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> K&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="wall-materials">Wall Materials<a class="headerlink" href="#wall-materials" title="Permanent link">&para;</a></h2>
+<p>Available wall materials:</p>
+<table>
+<thead>
+<tr>
+<th>Material</th>
+<th>k (W/(m·K))</th>
+<th>T_melt (K)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inconel 718</td>
+<td>11.4</td>
+<td>1533</td>
+</tr>
+<tr>
+<td>OFHC Copper</td>
+<td>385.0</td>
+<td>1356</td>
+</tr>
+<tr>
+<td>GRCop-84</td>
+<td>300.0</td>
+<td>1356</td>
+</tr>
+<tr>
+<td>Haynes 230</td>
+<td>8.9</td>
+<td>1573</td>
+</tr>
+<tr>
+<td>Monel 400</td>
+<td>21.8</td>
+<td>1573</td>
+</tr>
+</tbody>
+</table>
+<h2 id="design-guidelines">Design Guidelines<a class="headerlink" href="#design-guidelines" title="Permanent link">&para;</a></h2>
+<p>Typical regenerative cooling design parameters:</p>
+<ul>
+<li><strong>Channel velocity</strong>: 15-30 m/s for good heat transfer</li>
+<li><strong>Wall thickness</strong>: 1-2 mm for thermal and structural requirements</li>
+<li><strong>Channel aspect ratio</strong>: height/width ≈ 2-4</li>
+<li><strong>Number of channels</strong>: ~100-200 for medium engines</li>
+<li><strong>Coolant ΔT</strong>: Keep below saturation to avoid boiling</li>
+</ul>
 
 
 
@@ -1235,44 +1190,6 @@
       
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Getting Started
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../theory/" class="md-footer__link md-footer__link--next" aria-label="Next: Theory">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Theory
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
   
   <div class="md-footer-meta md-typeset">
@@ -1331,12 +1248,12 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="../javascripts/mathjax.js"></script>
+        <script src="../../../javascripts/mathjax.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

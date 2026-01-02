@@ -12,31 +12,27 @@
         <meta name="author" content="EnSim Contributors">
       
       
-        <link rel="canonical" href="https://ensim.io/docs/user-guide/">
+        <link rel="canonical" href="https://ensim.io/docs/api/utils/units/">
       
       
-        <link rel="prev" href="../getting-started/">
-      
-      
-        <link rel="next" href="../theory/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>User Guide - EnSim Documentation</title>
+        <title>Units Module - EnSim Documentation</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
   
@@ -92,7 +88,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#user-guide" class="md-skip">
+        <a href="#units-module" class="md-skip">
           Skip to content
         </a>
       
@@ -112,7 +108,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="EnSim Documentation" class="md-header__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
+    <a href="../../.." title="EnSim Documentation" class="md-header__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.13 22.19-1.63-3.83c1.57-.58 3.04-1.36 4.4-2.27zM5.64 12.5l-3.83-1.63 6.1-2.77C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39S16.66.269 11 5.93c-2.19 2.19-3.5 4.6-4.35 6.71-.28.75-.09 1.57.46 2.13l2.13 2.12c.55.56 1.37.74 2.12.46A19.1 19.1 0 0 0 18.07 13c5.66-5.66 3.54-10.61 3.54-10.61m-7.07 7.07c-.78-.78-.78-2.05 0-2.83s2.05-.78 2.83 0c.77.78.78 2.05 0 2.83s-2.05.78-2.83 0m-5.66 7.07-1.41-1.41zM6.24 22l3.64-3.64c-.34-.09-.67-.24-.97-.45L4.83 22zM2 22h1.41l4.77-4.76-1.42-1.41L2 20.59zm0-2.83 4.09-4.08c-.21-.3-.36-.62-.45-.97L2 17.76z"/></svg>
@@ -132,7 +128,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              User Guide
+              Units Module
             
           </span>
         </div>
@@ -244,7 +240,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
   
@@ -263,7 +259,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../getting-started/" class="md-tabs__link">
+      <a href="../../../getting-started/" class="md-tabs__link">
         
   
   
@@ -280,11 +276,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../../user-guide/" class="md-tabs__link">
         
   
   
@@ -303,7 +297,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../theory/" class="md-tabs__link">
+      <a href="../../../theory/" class="md-tabs__link">
         
   
   
@@ -324,7 +318,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../api/" class="md-tabs__link">
+        <a href="../../" class="md-tabs__link">
           
   
   
@@ -344,7 +338,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../VALIDATION/" class="md-tabs__link">
+      <a href="../../../VALIDATION/" class="md-tabs__link">
         
   
   
@@ -385,7 +379,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="EnSim Documentation" class="md-nav__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
+    <a href="../../.." title="EnSim Documentation" class="md-nav__button md-logo" aria-label="EnSim Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13.13 22.19-1.63-3.83c1.57-.58 3.04-1.36 4.4-2.27zM5.64 12.5l-3.83-1.63 6.1-2.77C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39S16.66.269 11 5.93c-2.19 2.19-3.5 4.6-4.35 6.71-.28.75-.09 1.57.46 2.13l2.13 2.12c.55.56 1.37.74 2.12.46A19.1 19.1 0 0 0 18.07 13c5.66-5.66 3.54-10.61 3.54-10.61m-7.07 7.07c-.78-.78-.78-2.05 0-2.83s2.05-.78 2.83 0c.77.78.78 2.05 0 2.83s-2.05.78-2.83 0m-5.66 7.07-1.41-1.41zM6.24 22l3.64-3.64c-.34-.09-.67-.24-.97-.45L4.83 22zM2 22h1.41l4.77-4.76-1.42-1.41L2 20.59zm0-2.83 4.09-4.08c-.21-.3-.36-.62-.45-.97L2 17.76z"/></svg>
@@ -415,7 +409,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -442,7 +436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../../../getting-started/" class="md-nav__link">
         
   
   
@@ -466,37 +460,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User Guide
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../user-guide/" class="md-nav__link">
         
   
   
@@ -512,137 +479,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#interface-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Interface Overview
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Interface Overview">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#main-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Components
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tab-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tab Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#guides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Guides
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quick Reference
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Quick Reference">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#keyboard-shortcuts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Keyboard Shortcuts
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#supported-propellants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Supported Propellants
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#typical-parameter-ranges" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical Parameter Ranges
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tips-best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tips &amp; Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -654,7 +490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../theory/" class="md-nav__link">
+      <a href="../../../theory/" class="md-nav__link">
         
   
   
@@ -710,7 +546,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/" class="md-nav__link ">
+            <a href="../../" class="md-nav__link ">
               
   
   
@@ -754,7 +590,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/core/chemistry/" class="md-nav__link">
+      <a href="../../core/chemistry/" class="md-nav__link">
         
   
   
@@ -782,7 +618,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/core/propulsion/" class="md-nav__link">
+      <a href="../../core/propulsion/" class="md-nav__link">
         
   
   
@@ -817,7 +653,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../VALIDATION/" class="md-nav__link">
+      <a href="../../../VALIDATION/" class="md-nav__link">
         
   
   
@@ -864,22 +700,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#interface-overview" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Interface Overview
+        Overview
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Interface Overview">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Categories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conversion-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conversion Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Conversion Functions">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#main-components" class="md-nav__link">
+  <a href="#convert" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Main Components
+        convert()
       
     </span>
   </a>
@@ -887,10 +756,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tab-overview" class="md-nav__link">
+  <a href="#to_si" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tab Overview
+        to_si()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from_si" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_si()
       
     </span>
   </a>
@@ -903,10 +783,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#guides" class="md-nav__link">
+  <a href="#temperature-conversions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Guides
+        Temperature Conversions
       
     </span>
   </a>
@@ -914,22 +794,33 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-reference" class="md-nav__link">
+  <a href="#unitconverter-class" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quick Reference
+        UnitConverter Class
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Quick Reference">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-unit-symbols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Unit Symbols
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Unit Symbols">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#keyboard-shortcuts" class="md-nav__link">
+  <a href="#pressure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Keyboard Shortcuts
+        Pressure
       
     </span>
   </a>
@@ -937,10 +828,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#supported-propellants" class="md-nav__link">
+  <a href="#force" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Supported Propellants
+        Force
       
     </span>
   </a>
@@ -948,10 +839,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#typical-parameter-ranges" class="md-nav__link">
+  <a href="#mass-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Typical Parameter Ranges
+        Mass Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#energy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy
       
     </span>
   </a>
@@ -964,10 +866,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tips-best-practices" class="md-nav__link">
+  <a href="#extending-units" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tips &amp; Best Practices
+        Extending Units
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
       
     </span>
   </a>
@@ -1002,205 +915,219 @@
   
 
 
-<h1 id="user-guide">User Guide<a class="headerlink" href="#user-guide" title="Permanent link">&para;</a></h1>
-<p>Welcome to the EnSim User Guide! This comprehensive guide covers all features of the application.</p>
-<h2 id="interface-overview">Interface Overview<a class="headerlink" href="#interface-overview" title="Permanent link">&para;</a></h2>
-<p>EnSim features a modern "Mission Control" style interface with cyan and green neon accents:</p>
-<p><img alt="Main Interface" src="../screenshot_main.png" /></p>
-<h3 id="main-components">Main Components<a class="headerlink" href="#main-components" title="Permanent link">&para;</a></h3>
-<ol>
-<li><strong>Input Panel</strong> (Left): Propellant selection and engine parameters</li>
-<li><strong>KPI Dashboard</strong> (Top): Real-time performance metrics</li>
-<li><strong>Tab Navigation</strong> (Center): Output, Results, Engine, Vehicle, Advanced</li>
-<li><strong>Status Bar</strong> (Bottom): Simulation status and messages</li>
-</ol>
-<h3 id="tab-overview">Tab Overview<a class="headerlink" href="#tab-overview" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Tab</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Output</strong></td>
-<td>Main simulation output and KPI dashboard</td>
-</tr>
-<tr>
-<td><strong>Results</strong></td>
-<td>2D graphs and 3D visualization</td>
-</tr>
-<tr>
-<td><strong>Engine</strong></td>
-<td>Thermal analysis, cooling design, optimization</td>
-</tr>
-<tr>
-<td><strong>Vehicle</strong></td>
-<td>Multi-stage configuration and flight simulation</td>
-</tr>
-<tr>
-<td><strong>Advanced</strong></td>
-<td>MOC nozzle design, Monte Carlo analysis</td>
-</tr>
-</tbody>
-</table>
-<h4 id="results-tab">Results Tab<a class="headerlink" href="#results-tab" title="Permanent link">&para;</a></h4>
-<p><img alt="Results Tab" src="../screenshot_results.png" /></p>
-<h4 id="engine-tab-thermal-cooling">Engine Tab (Thermal &amp; Cooling)<a class="headerlink" href="#engine-tab-thermal-cooling" title="Permanent link">&para;</a></h4>
-<p><img alt="Engine Tab" src="../screenshot_engine.png" /></p>
-<h4 id="vehicle-tab-multi-stage">Vehicle Tab (Multi-Stage)<a class="headerlink" href="#vehicle-tab-multi-stage" title="Permanent link">&para;</a></h4>
-<p><img alt="Vehicle Tab" src="../screenshot_vehicle.png" /></p>
-<h4 id="3d-visualization">3D Visualization<a class="headerlink" href="#3d-visualization" title="Permanent link">&para;</a></h4>
-<p><img alt="3D View" src="../screenshot_3d.png" /></p>
-<h2 id="guides">Guides<a class="headerlink" href="#guides" title="Permanent link">&para;</a></h2>
-<div class="grid cards">
+<h1 id="units-module">Units Module<a class="headerlink" href="#units-module" title="Permanent link">&para;</a></h1>
+<p>Comprehensive unit conversion system for rocket propulsion.</p>
+<p>::: src.utils.units</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The units module provides complete SI/Imperial unit conversion with:</p>
 <ul>
-<li>
-<p>:material-flask:{ .lg .middle } <strong>Propellant Selection</strong></p>
-<hr />
-<p>Choose and configure fuel/oxidizer combinations.</p>
-<p><a href="propellants.md">:octicons-arrow-right-24: Propellants</a></p>
-</li>
-<li>
-<p>:material-engine:{ .lg .middle } <strong>Engine Design</strong></p>
-<hr />
-<p>Configure chamber conditions and nozzle geometry.</p>
-<p><a href="engine-design.md">:octicons-arrow-right-24: Engine Design</a></p>
-</li>
-<li>
-<p>:material-airplane:{ .lg .middle } <strong>Flight Simulation</strong></p>
-<hr />
-<p>Run 6-DOF trajectory simulations.</p>
-<p><a href="flight-simulation.md">:octicons-arrow-right-24: Flight Simulation</a></p>
-</li>
-<li>
-<p>:material-dice-multiple:{ .lg .middle } <strong>Monte Carlo Analysis</strong></p>
-<hr />
-<p>Statistical dispersion analysis.</p>
-<p><a href="monte-carlo.md">:octicons-arrow-right-24: Monte Carlo</a></p>
-</li>
-<li>
-<p>:material-export:{ .lg .middle } <strong>Data Export</strong></p>
-<hr />
-<p>Export results to CSV, reports, and 3D models.</p>
-<p><a href="export.md">:octicons-arrow-right-24: Export</a></p>
-</li>
+<li><strong>17 Unit Categories</strong>: Length, mass, force, pressure, temperature, etc.</li>
+<li><strong>100+ Unit Definitions</strong>: Comprehensive coverage of engineering units</li>
+<li><strong>Temperature Handling</strong>: Proper offset conversions (K, °C, °F, °R)</li>
+<li><strong>Unit System Presets</strong>: SI and Imperial default configurations</li>
 </ul>
-</div>
-<h2 id="quick-reference">Quick Reference<a class="headerlink" href="#quick-reference" title="Permanent link">&para;</a></h2>
-<h3 id="keyboard-shortcuts">Keyboard Shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h3>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.utils.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">convert</span><span class="p">,</span> <span class="n">to_si</span><span class="p">,</span> <span class="n">from_si</span><span class="p">,</span> <span class="n">UnitConverter</span><span class="p">,</span> <span class="n">UnitSystem</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Simple conversion</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">thrust_lbf</span> <span class="o">=</span> <span class="mi">100000</span>  <span class="c1"># lbf</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">thrust_N</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">thrust_lbf</span><span class="p">,</span> <span class="s2">&quot;lbf&quot;</span><span class="p">,</span> <span class="s2">&quot;N&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">thrust_lbf</span><span class="si">}</span><span class="s2"> lbf = </span><span class="si">{</span><span class="n">thrust_N</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> N&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Temperature conversion</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">temp_F</span> <span class="o">=</span> <span class="mi">6000</span>  <span class="c1"># °F</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">temp_K</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">temp_F</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">temp_F</span><span class="si">}</span><span class="s2">°F = </span><span class="si">{</span><span class="n">temp_K</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> K&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Using UnitConverter for display</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">converter</span> <span class="o">=</span> <span class="n">UnitConverter</span><span class="p">(</span><span class="n">UnitSystem</span><span class="o">.</span><span class="n">IMPERIAL</span><span class="p">)</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.utils.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitCategory</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">converter</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="mf">7e6</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="o">.</span><span class="n">PRESSURE</span><span class="p">))</span>  <span class="c1"># &quot;1015.3 psi&quot;</span>
+</code></pre></div>
+<h2 id="unit-categories">Unit Categories<a class="headerlink" href="#unit-categories" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Shortcut</th>
-<th>Action</th>
+<th>Category</th>
+<th>SI Base</th>
+<th>Imperial</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>Ctrl+N</code></td>
-<td>New Project</td>
+<td>LENGTH</td>
+<td>m</td>
+<td>ft</td>
 </tr>
 <tr>
-<td><code>Ctrl+O</code></td>
-<td>Open Project</td>
+<td>MASS</td>
+<td>kg</td>
+<td>lb</td>
 </tr>
 <tr>
-<td><code>Ctrl+S</code></td>
-<td>Save Project</td>
+<td>TIME</td>
+<td>s</td>
+<td>s</td>
 </tr>
 <tr>
-<td><code>Ctrl+R</code></td>
-<td>Run Simulation</td>
+<td>FORCE</td>
+<td>N</td>
+<td>lbf</td>
 </tr>
 <tr>
-<td><code>F5</code></td>
-<td>Run Simulation</td>
+<td>PRESSURE</td>
+<td>Pa</td>
+<td>psi</td>
 </tr>
 <tr>
-<td><code>Ctrl+E</code></td>
-<td>Export Results</td>
+<td>TEMPERATURE</td>
+<td>K</td>
+<td>°R</td>
+</tr>
+<tr>
+<td>VELOCITY</td>
+<td>m/s</td>
+<td>ft/s</td>
+</tr>
+<tr>
+<td>ACCELERATION</td>
+<td>m/s²</td>
+<td>ft/s²</td>
+</tr>
+<tr>
+<td>DENSITY</td>
+<td>kg/m³</td>
+<td>lb/ft³</td>
+</tr>
+<tr>
+<td>MASS_FLOW</td>
+<td>kg/s</td>
+<td>lbm/s</td>
+</tr>
+<tr>
+<td>SPECIFIC_IMPULSE</td>
+<td>s</td>
+<td>s</td>
+</tr>
+<tr>
+<td>AREA</td>
+<td>m²</td>
+<td>ft²</td>
+</tr>
+<tr>
+<td>VOLUME</td>
+<td>m³</td>
+<td>ft³</td>
+</tr>
+<tr>
+<td>ENERGY</td>
+<td>J</td>
+<td>BTU</td>
+</tr>
+<tr>
+<td>POWER</td>
+<td>W</td>
+<td>hp</td>
+</tr>
+<tr>
+<td>HEAT_FLUX</td>
+<td>W/m²</td>
+<td>BTU/(h·ft²)</td>
 </tr>
 </tbody>
 </table>
-<h3 id="supported-propellants">Supported Propellants<a class="headerlink" href="#supported-propellants" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Fuel</th>
-<th>Oxidizer</th>
-<th>Application</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>H₂</td>
-<td>O₂</td>
-<td>High-performance upper stages</td>
-</tr>
-<tr>
-<td>CH₄</td>
-<td>O₂</td>
-<td>Reusable rockets (Raptor-style)</td>
-</tr>
-<tr>
-<td>RP-1</td>
-<td>O₂</td>
-<td>First stages (Merlin-style)</td>
-</tr>
-<tr>
-<td>N₂H₄</td>
-<td>N₂O₄</td>
-<td>Storable propellants (spacecraft)</td>
-</tr>
-<tr>
-<td>MMH</td>
-<td>N₂O₄</td>
-<td>Reaction control systems</td>
-</tr>
-</tbody>
-</table>
-<h3 id="typical-parameter-ranges">Typical Parameter Ranges<a class="headerlink" href="#typical-parameter-ranges" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Typical Range</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Chamber Pressure</td>
-<td>1-30 MPa</td>
-</tr>
-<tr>
-<td>O/F Ratio</td>
-<td>1.5-8.0</td>
-</tr>
-<tr>
-<td>Expansion Ratio</td>
-<td>10-300</td>
-</tr>
-<tr>
-<td>Chamber Temperature</td>
-<td>2500-3700 K</td>
-</tr>
-</tbody>
-</table>
-<h2 id="tips-best-practices">Tips &amp; Best Practices<a class="headerlink" href="#tips-best-practices" title="Permanent link">&para;</a></h2>
-<div class="admonition tip">
-<p class="admonition-title">Start Simple</p>
-<p>Begin with standard propellant combinations (LOX/LH₂, LOX/RP-1) before exploring exotic options.</p>
-</div>
-<div class="admonition tip">
-<p class="admonition-title">Validate Results</p>
-<p>Compare your results against NASA CEA for verification.</p>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">High Expansion Ratios</p>
-<p>Very high expansion ratios (&gt;100) are sensitive to numerical precision. Consider sea-level flow separation.</p>
-</div>
+<h2 id="conversion-functions">Conversion Functions<a class="headerlink" href="#conversion-functions" title="Permanent link">&para;</a></h2>
+<h3 id="convert">convert()<a class="headerlink" href="#convert" title="Permanent link">&para;</a></h3>
+<p>Convert between any compatible units:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Pressure conversion</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">pressure_mpa</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;psi&quot;</span><span class="p">,</span> <span class="s2">&quot;MPa&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Force conversion</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">force_kn</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="mi">225000</span><span class="p">,</span> <span class="s2">&quot;lbf&quot;</span><span class="p">,</span> <span class="s2">&quot;kN&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Velocity conversion</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">velocity_ms</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="mi">25000</span><span class="p">,</span> <span class="s2">&quot;ft/s&quot;</span><span class="p">,</span> <span class="s2">&quot;m/s&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="to_si">to_si()<a class="headerlink" href="#to_si" title="Permanent link">&para;</a></h3>
+<p>Convert any unit to SI base:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">pressure_pa</span> <span class="o">=</span> <span class="n">to_si</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;psi&quot;</span><span class="p">)</span>      <span class="c1"># → Pa</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">temperature_k</span> <span class="o">=</span> <span class="n">to_si</span><span class="p">(</span><span class="mi">6000</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">)</span>       <span class="c1"># → K</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">mass_kg</span> <span class="o">=</span> <span class="n">to_si</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="s2">&quot;lb&quot;</span><span class="p">)</span>           <span class="c1"># → kg</span>
+</code></pre></div>
+<h3 id="from_si">from_si()<a class="headerlink" href="#from_si" title="Permanent link">&para;</a></h3>
+<p>Convert from SI to any unit:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">pressure_psi</span> <span class="o">=</span> <span class="n">from_si</span><span class="p">(</span><span class="mf">6.89e6</span><span class="p">,</span> <span class="s2">&quot;psi&quot;</span><span class="p">)</span>  <span class="c1"># Pa → psi</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">temperature_f</span> <span class="o">=</span> <span class="n">from_si</span><span class="p">(</span><span class="mi">3500</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">)</span>      <span class="c1"># K → °F</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">mass_lb</span> <span class="o">=</span> <span class="n">from_si</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="s2">&quot;lb&quot;</span><span class="p">)</span>           <span class="c1"># kg → lb</span>
+</code></pre></div>
+<h2 id="temperature-conversions">Temperature Conversions<a class="headerlink" href="#temperature-conversions" title="Permanent link">&para;</a></h2>
+<p>Temperature has offset conversions handled properly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># All equivalent temperatures</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">temp_k</span> <span class="o">=</span> <span class="mi">3500</span>                           <span class="c1"># Kelvin</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">temp_c</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">temp_k</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">)</span>      <span class="c1"># 3226.85 °C</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">temp_f</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">temp_k</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">)</span>      <span class="c1"># 5840.33 °F</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">temp_r</span> <span class="o">=</span> <span class="n">convert</span><span class="p">(</span><span class="n">temp_k</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span> <span class="s2">&quot;R&quot;</span><span class="p">)</span>      <span class="c1"># 6300 °R</span>
+</code></pre></div>
+<h2 id="unitconverter-class">UnitConverter Class<a class="headerlink" href="#unitconverter-class" title="Permanent link">&para;</a></h2>
+<p>For UI integration with system selection:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.utils.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitConverter</span><span class="p">,</span> <span class="n">UnitSystem</span><span class="p">,</span> <span class="n">UnitCategory</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Create converter for Imperial units</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">conv</span> <span class="o">=</span> <span class="n">UnitConverter</span><span class="p">(</span><span class="n">UnitSystem</span><span class="o">.</span><span class="n">IMPERIAL</span><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Display values in current system</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">conv</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="mf">7e6</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="o">.</span><span class="n">PRESSURE</span><span class="p">))</span>     <span class="c1"># &quot;1015.3 psi&quot;</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">conv</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="mi">3500</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="o">.</span><span class="n">TEMPERATURE</span><span class="p">))</span> <span class="c1"># &quot;6300 °R&quot;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">conv</span><span class="o">.</span><span class="n">display</span><span class="p">(</span><span class="mi">450</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="o">.</span><span class="n">VELOCITY</span><span class="p">))</span>     <span class="c1"># &quot;1476.4 ft/s&quot;</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Convert user input to SI</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">user_thrust</span> <span class="o">=</span> <span class="mi">225000</span>  <span class="c1"># lbf entered by user</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">thrust_si</span> <span class="o">=</span> <span class="n">conv</span><span class="o">.</span><span class="n">input_to_si</span><span class="p">(</span><span class="n">user_thrust</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="o">.</span><span class="n">FORCE</span><span class="p">)</span>  <span class="c1"># → N</span>
+</code></pre></div>
+<h2 id="common-unit-symbols">Common Unit Symbols<a class="headerlink" href="#common-unit-symbols" title="Permanent link">&para;</a></h2>
+<h3 id="pressure">Pressure<a class="headerlink" href="#pressure" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>Pa</code>, <code>kPa</code>, <code>MPa</code>, <code>bar</code>, <code>atm</code></li>
+<li><code>psi</code>, <code>psia</code>, <code>psig</code></li>
+<li><code>torr</code>, <code>mmHg</code>, <code>inHg</code></li>
+</ul>
+<h3 id="force">Force<a class="headerlink" href="#force" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>N</code>, <code>kN</code>, <code>MN</code></li>
+<li><code>lbf</code>, <code>klbf</code></li>
+<li><code>kgf</code>, <code>dyn</code></li>
+</ul>
+<h3 id="mass-flow">Mass Flow<a class="headerlink" href="#mass-flow" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>kg/s</code>, <code>g/s</code>, <code>kg/h</code></li>
+<li><code>lb/s</code>, <code>lbm/s</code>, <code>slug/s</code></li>
+</ul>
+<h3 id="energy">Energy<a class="headerlink" href="#energy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>J</code>, <code>kJ</code>, <code>MJ</code></li>
+<li><code>cal</code>, <code>kcal</code></li>
+<li><code>BTU</code>, <code>ft·lbf</code></li>
+</ul>
+<h2 id="extending-units">Extending Units<a class="headerlink" href="#extending-units" title="Permanent link">&para;</a></h2>
+<p>Add custom units:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">src.utils.units</span><span class="w"> </span><span class="kn">import</span> <span class="n">UnitDefinition</span><span class="p">,</span> <span class="n">UnitCategory</span><span class="p">,</span> <span class="n">ALL_UNITS</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># Add custom unit</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">ALL_UNITS</span><span class="p">[</span><span class="s2">&quot;my_unit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UnitDefinition</span><span class="p">(</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Unit&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">symbol</span><span class="o">=</span><span class="s2">&quot;mu&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">category</span><span class="o">=</span><span class="n">UnitCategory</span><span class="o">.</span><span class="n">LENGTH</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">to_si</span><span class="o">=</span><span class="mf">1.234</span><span class="p">,</span>        <span class="c1"># my_unit → m</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">from_si</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="mf">1.234</span>     <span class="c1"># m → my_unit</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Store in SI</strong>: All internal calculations use SI units</li>
+<li><strong>Convert at boundaries</strong>: Convert input from user, convert output for display</li>
+<li><strong>Use UnitConverter</strong>: For consistent UI unit system handling</li>
+<li><strong>Check categories</strong>: <code>convert()</code> raises error for incompatible units</li>
+</ol>
 
 
 
@@ -1235,44 +1162,6 @@
       
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Getting Started
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../theory/" class="md-footer__link md-footer__link--next" aria-label="Next: Theory">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Theory
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
   
   <div class="md-footer-meta md-typeset">
@@ -1331,12 +1220,12 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="../javascripts/mathjax.js"></script>
+        <script src="../../../javascripts/mathjax.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       
