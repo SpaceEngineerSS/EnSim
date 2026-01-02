@@ -1,0 +1,108 @@
+name: 🔬 Scientific Issue
+description: Report a scientific accuracy concern or validation discrepancy
+title: "[Science]: "
+labels: ["science", "validation", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping ensure EnSim's scientific accuracy! 
+        
+        Please provide detailed information about the scientific issue, including reference data if available.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      options:
+        - Validation discrepancy (vs. CEA/literature)
+        - Incorrect physical model
+        - Missing physics
+        - Numerical accuracy issue
+        - Unit conversion error
+        - Database/coefficient error
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Describe the scientific issue in detail
+      placeholder: "The calculated chamber temperature for H2/O2 at O/F=6 is 5% lower than NASA CEA..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: conditions
+    attributes:
+      label: Test Conditions
+      description: Specify the exact conditions used for your calculation
+      placeholder: |
+        - Propellants: H2/O2
+        - O/F Ratio: 6.0
+        - Chamber Pressure: 10 MPa
+        - Expansion Ratio: 40:1
+        - Initial Temperature: 298.15 K
+    validations:
+      required: true
+
+  - type: textarea
+    id: ensim-results
+    attributes:
+      label: EnSim Results
+      description: What values did EnSim calculate?
+      placeholder: |
+        - T_chamber: 3350 K
+        - γ (gamma): 1.145
+        - C*: 2340 m/s
+        - Isp_vac: 442 s
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference-results
+    attributes:
+      label: Reference / Expected Results
+      description: What are the correct or expected values?
+      placeholder: |
+        - T_chamber: 3528 K (NASA CEA)
+        - γ (gamma): 1.141
+        - C*: 2390 m/s
+        - Isp_vac: 455 s
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference-source
+    attributes:
+      label: Reference Source
+      description: Where did you get the reference data?
+      placeholder: |
+        - NASA CEA Online Calculator (cearun.grc.nasa.gov)
+        - Sutton & Biblarz, 9th Ed., Table 5-5
+        - Experimental data from [paper citation]
+    validations:
+      required: true
+
+  - type: textarea
+    id: analysis
+    attributes:
+      label: Your Analysis (Optional)
+      description: If you've investigated the cause, please share your findings
+      placeholder: "I think this might be due to missing HO2 species in the product set..."
+
+  - type: checkboxes
+    id: validation
+    attributes:
+      label: Validation Checklist
+      options:
+        - label: I have used consistent units (SI)
+          required: true
+        - label: I have verified the input parameters match
+          required: true
+        - label: I have checked with the latest EnSim version
+          required: false
+

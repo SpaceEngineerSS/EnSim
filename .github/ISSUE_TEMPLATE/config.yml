@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/ensim/ensim/wiki
+    about: Check out the documentation and wiki for guides and API reference
+  - name: 💬 Discussions
+    url: https://github.com/ensim/ensim/discussions
+    about: Ask questions, share ideas, and connect with the community
+  - name: 🔬 NASA CEA
+    url: https://cearun.grc.nasa.gov/
+    about: Compare your results with NASA CEA for validation
+

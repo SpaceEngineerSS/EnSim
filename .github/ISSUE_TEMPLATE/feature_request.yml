@@ -1,0 +1,82 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving EnSim! Please describe your feature request in detail.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Why is it needed?
+      placeholder: "Currently, I can't simulate hybrid rocket engines because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like
+      placeholder: "Add a new 'Hybrid Engine' mode that allows..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: "I tried using external tools but..."
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      options:
+        - Physics / Thermodynamics
+        - Flight Simulation
+        - User Interface
+        - Visualization (2D/3D)
+        - Data Export / Import
+        - Documentation
+        - Performance / Optimization
+        - Integration (API, plugins)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (from your perspective)
+      options:
+        - Nice to have
+        - Important
+        - Critical for my use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any papers, tools, or examples that demonstrate this feature?
+      placeholder: "NASA CEA has this feature: [link]..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to contribute to implementing this feature
+          required: false
+        - label: I can provide test data or validation cases
+          required: false
+

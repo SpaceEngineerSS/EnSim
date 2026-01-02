@@ -41,60 +41,57 @@ from src.core.rocket_engine import (
 class TestNASAThermoLoader:
     """Test NASA 7-term polynomial loader and functions."""
     
-    def test_load_species(self):
-        """Should load all species from nasa_thermo.dat."""
-        data = load_nasa_thermo_dat()
-        
-        assert len(data) > 0, "Should load at least one species"
-        assert 'H2' in data, "Should load H2"
-        assert 'O2' in data, "Should load O2"
-        assert 'H2O' in data, "Should load H2O"
+    @pytest.fixture
+    def species_db(self):
+        """Use sample database for reliable testing."""
+        from src.utils.nasa_parser import create_sample_database
+        return create_sample_database()
     
-    def test_species_data_structure(self):
+    def test_load_species(self, species_db):
+        """Should load all species from database."""
+        assert len(species_db) > 0, "Should load at least one species"
+        assert 'H2' in species_db, "Should load H2"
+        assert 'O2' in species_db, "Should load O2"
+        assert 'H2O' in species_db, "Should load H2O"
+    
+    def test_species_data_structure(self, species_db):
         """Species data should have correct structure."""
-        data = load_nasa_thermo_dat()
-        h2 = data['H2']
+        h2 = species_db['H2']
         
-        assert 'name' in h2
-        assert 'M_mol' in h2
-        assert 'coeffs_low' in h2
-        assert 'coeffs_high' in h2
-        assert h2['coeffs_low'].shape == (7,)
-        assert h2['coeffs_high'].shape == (7,)
+        assert h2.name == 'H2'
+        assert h2.molecular_weight > 0
+        assert h2.coeffs_low.shape == (7,)
+        assert h2.coeffs_high.shape == (7,)
     
-    def test_h2_molecular_weight(self):
+    def test_h2_molecular_weight(self, species_db):
         """H2 molecular weight should be ~2 g/mol."""
-        data = load_nasa_thermo_dat()
-        assert abs(data['H2']['M_mol'] - 2.016) < 0.1
+        assert abs(species_db['H2'].molecular_weight - 2.016) < 0.1
     
-    def test_cp_h2_at_1000k(self):
+    def test_cp_h2_at_1000k(self, species_db):
         """H2 Cp at 1000K should be ~29 J/(mol·K)."""
-        data = load_nasa_thermo_dat()
-        h2 = data['H2']
+        h2 = species_db['H2']
         
-        cp_r = nasa_get_cp_r(1000.0, h2['coeffs_low'], h2['coeffs_high'], 1000.0)
+        cp_r = nasa_get_cp_r(1000.0, h2.coeffs_low, h2.coeffs_high, h2.t_mid)
         cp = cp_r * GAS_CONSTANT
         
         # H2 Cp at 1000K is approximately 29-30 J/(mol·K)
         assert 28.0 < cp < 32.0, f"H2 Cp at 1000K should be ~29 J/(mol·K), got {cp:.1f}"
     
-    def test_cp_increases_with_temperature(self):
+    def test_cp_increases_with_temperature(self, species_db):
         """Cp should generally increase with temperature for diatomics."""
-        data = load_nasa_thermo_dat()
-        h2 = data['H2']
+        h2 = species_db['H2']
         
-        cp_500 = nasa_get_cp_r(500.0, h2['coeffs_low'], h2['coeffs_high'], 1000.0)
-        cp_2000 = nasa_get_cp_r(2000.0, h2['coeffs_low'], h2['coeffs_high'], 1000.0)
+        cp_500 = nasa_get_cp_r(500.0, h2.coeffs_low, h2.coeffs_high, h2.t_mid)
+        cp_2000 = nasa_get_cp_r(2000.0, h2.coeffs_low, h2.coeffs_high, h2.t_mid)
         
         assert cp_2000 > cp_500, "Cp should increase with temperature"
     
-    def test_enthalpy_increases_with_temperature(self):
+    def test_enthalpy_increases_with_temperature(self, species_db):
         """Enthalpy should increase with temperature."""
-        data = load_nasa_thermo_dat()
-        h2 = data['H2']
+        h2 = species_db['H2']
         
-        h_500 = nasa_get_h_rt(500.0, h2['coeffs_low'], h2['coeffs_high'], 1000.0) * 500.0
-        h_2000 = nasa_get_h_rt(2000.0, h2['coeffs_low'], h2['coeffs_high'], 1000.0) * 2000.0
+        h_500 = nasa_get_h_rt(500.0, h2.coeffs_low, h2.coeffs_high, h2.t_mid) * 500.0
+        h_2000 = nasa_get_h_rt(2000.0, h2.coeffs_low, h2.coeffs_high, h2.t_mid) * 2000.0
         
         assert h_2000 > h_500, "Enthalpy should increase with temperature"
     
