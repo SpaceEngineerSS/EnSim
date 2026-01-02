@@ -35,7 +35,7 @@ Where:
 
 The equilibrium composition is found by minimizing the total Gibbs free energy:
 
-$$G = \sum_j n_j \left( \mu_j^0 + RT \ln \frac{n_j P}{n_{total} P^0} \right)$$
+$$G = \sum_j n_j \left( \mu_j^{0} + RT \ln \frac{n_j P}{n_{total} P^{0}} \right)$$
 
 Subject to element conservation:
 
@@ -48,7 +48,7 @@ EnSim uses the Newton-Raphson iteration method described by Gordon & McBride (NA
 1. **Initialize**: Estimate species moles from stoichiometry
 2. **Iterate**: Solve the linearized system:
 
-$$\begin{bmatrix} \nabla^2 G & A^T \\ A & 0 \end{bmatrix} \begin{bmatrix} \Delta n \\ \lambda \end{bmatrix} = \begin{bmatrix} -\nabla G \\ b - An \end{bmatrix}$$
+$$\begin{bmatrix} \nabla^{2} G & A^{T} \\ A & 0 \end{bmatrix} \begin{bmatrix} \Delta n \\ \lambda \end{bmatrix} = \begin{bmatrix} -\nabla G \\ b - An \end{bmatrix}$$
 
 3. **Convergence**: Check $\|\Delta n / n\| < 10^{-7}$
 
@@ -56,7 +56,7 @@ $$\begin{bmatrix} \nabla^2 G & A^T \\ A & 0 \end{bmatrix} \begin{bmatrix} \Delta
 
 Energy balance for adiabatic combustion:
 
-$$\sum_j n_j H_j(T_{ad}) = \sum_i n_i^0 H_i(T_0)$$
+$$\sum_j n_j H_j(T_{ad}) = \sum_i n_i^{0} H_i(T_0)$$
 
 Solved iteratively with equilibrium composition at each temperature.
 
@@ -66,7 +66,7 @@ Solved iteratively with equilibrium composition at each temperature.
 
 ### Characteristic Velocity (C*)
 
-$$C^* = \frac{\sqrt{\gamma R T_c}}{\Gamma}$$
+$$C^{*} = \frac{\sqrt{\gamma R T_c}}{\Gamma}$$
 
 where the vandenkerckhove function:
 
@@ -84,22 +84,22 @@ $$C_F = \Gamma \sqrt{\frac{2\gamma^2}{\gamma - 1} \left[ 1 - \left( \frac{P_e}{P
 
 ### Specific Impulse
 
-$$I_{sp} = \frac{C^* \cdot C_F}{g_0}$$
+$$I_{sp} = \frac{C^{*} \cdot C_F}{g_0}$$
 
 ### Area-Mach Relation
 
-$$\frac{A}{A^*} = \frac{1}{M} \left[ \frac{2}{\gamma + 1} \left( 1 + \frac{\gamma - 1}{2} M^2 \right) \right]^{\frac{\gamma + 1}{2(\gamma - 1)}}$$
+$$\frac{A}{A^{*}} = \frac{1}{M} \left[ \frac{2}{\gamma + 1} \left( 1 + \frac{\gamma - 1}{2} M^{2} \right) \right]^{\frac{\gamma + 1}{2(\gamma - 1)}}$$
 
 ### Efficiency Corrections
 
 Real-world performance includes losses:
 
-$$C^*_{actual} = \eta_{C^*} \cdot C^*_{ideal}$$
+$$C^{*}_{actual} = \eta_{C^{*}} \cdot C^{*}_{ideal}$$
 
 $$C_{F,actual} = \eta_{C_F} \cdot C_{F,ideal}$$
 
 Typical values:
-- $\eta_{C^*}$ = 0.94 - 0.99 (combustion efficiency)
+- $\eta_{C^{*}}$ = 0.94 - 0.99 (combustion efficiency)
 - $\eta_{C_F}$ = 0.96 - 0.99 (nozzle efficiency)
 
 ---
