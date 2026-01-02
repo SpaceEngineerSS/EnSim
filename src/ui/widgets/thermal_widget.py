@@ -4,7 +4,7 @@ Thermal Analysis Widget - Heat flux and wall temperature visualization.
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
@@ -38,30 +38,44 @@ class ThermalAnalysisWidget(QWidget):
         layout = QHBoxLayout(self)
 
         # Left panel - inputs
+        from PyQt6.QtWidgets import QScrollArea, QFrame
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setMaximumWidth(340)
+        scroll_area.setMinimumWidth(300)
+
         input_panel = QWidget()
         input_layout = QVBoxLayout(input_panel)
-        input_panel.setMaximumWidth(280)
+        input_layout.setContentsMargins(10, 10, 10, 10)
+        input_layout.setSpacing(12)
 
         # Material selection
         mat_group = QGroupBox("Wall Material")
         mat_layout = QFormLayout(mat_group)
+        mat_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        mat_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.material_combo = QComboBox()
         from src.core.materials import get_material, list_materials
         for mat_name in list_materials():
             mat = get_material(mat_name)
-            self.material_combo.addItem(f"{mat_name} ({mat.max_service_temp:.0f}K)")
+            self.material_combo.addItem(f"{mat_name}") # Simpler name
         self.material_combo.currentIndexChanged.connect(self._on_material_changed)
         mat_layout.addRow("Material:", self.material_combo)
 
         # Conductivity display
-        self.k_label = QLabel("385 W/(m·K)")
+        self.k_label = QLabel("--")
+        self.k_label.setObjectName("calcValue")
         mat_layout.addRow("Conductivity:", self.k_label)
 
-        self.t_melt_label = QLabel("1358 K")
+        self.t_melt_label = QLabel("--")
+        self.t_melt_label.setObjectName("calcValue")
         mat_layout.addRow("Melt Point:", self.t_melt_label)
 
-        self.t_limit_label = QLabel("700 K")
+        self.t_limit_label = QLabel("--")
+        self.t_limit_label.setObjectName("calcValue")
         mat_layout.addRow("Service Limit:", self.t_limit_label)
 
         input_layout.addWidget(mat_group)
@@ -69,39 +83,46 @@ class ThermalAnalysisWidget(QWidget):
         # Cooling parameters
         cool_group = QGroupBox("Cooling Parameters")
         cool_layout = QFormLayout(cool_group)
+        cool_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        cool_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.wall_thick_spin = QDoubleSpinBox()
-        self.wall_thick_spin.setRange(0.5, 10.0)
+        self.wall_thick_spin.setRange(0.5, 20.0)
         self.wall_thick_spin.setValue(3.0)
         self.wall_thick_spin.setSuffix(" mm")
         cool_layout.addRow("Wall Thickness:", self.wall_thick_spin)
 
         self.coolant_temp_spin = QDoubleSpinBox()
-        self.coolant_temp_spin.setRange(100, 500)
+        self.coolant_temp_spin.setRange(20, 1000)
         self.coolant_temp_spin.setValue(300)
         self.coolant_temp_spin.setSuffix(" K")
         cool_layout.addRow("Coolant Temp:", self.coolant_temp_spin)
 
         self.coolant_htc_spin = QDoubleSpinBox()
-        self.coolant_htc_spin.setRange(1000, 50000)
+        self.coolant_htc_spin.setRange(100, 200000)
         self.coolant_htc_spin.setValue(10000)
-        self.coolant_htc_spin.setSuffix(" W/(m²·K)")
+        self.coolant_htc_spin.setSuffix(" W/(m²K)")
         cool_layout.addRow("Coolant HTC:", self.coolant_htc_spin)
 
         input_layout.addWidget(cool_group)
 
         # Analysis button
-        self.analyze_btn = QPushButton("🔥 Run Thermal Analysis")
+        self.analyze_btn = QPushButton("🚀 Run Thermal Analysis") # Updated icon
+        self.analyze_btn.setObjectName("analyzeBtn")
+        self.analyze_btn.setMinimumHeight(36)
         self.analyze_btn.clicked.connect(self.analysis_requested.emit)
         input_layout.addWidget(self.analyze_btn)
 
         # Status
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel("System Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setWordWrap(True)
+        self.status_label.setObjectName("notesText")
         input_layout.addWidget(self.status_label)
 
         input_layout.addStretch()
-        layout.addWidget(input_panel)
+        scroll_area.setWidget(input_panel)
+        layout.addWidget(scroll_area)
 
         # Right panel - plots
         plot_panel = QWidget()

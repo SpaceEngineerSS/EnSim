@@ -39,8 +39,8 @@ class VehicleCard(QGroupBox):
 
         self.layout = QFormLayout(self)
         self.layout.setSpacing(12)
-        self.layout.setContentsMargins(16, 28, 16, 16)
-        self.layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.layout.setContentsMargins(16, 20, 16, 16)
+        self.layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
     def add_row(self, label: str, widget: QWidget):
@@ -92,9 +92,8 @@ class VehicleDesignerWidget(QWidget):
 
         # === Left Panel - Configuration ===
         left_frame = QFrame()
-        left_frame.setMaximumWidth(420)
+        left_frame.setMaximumWidth(500)  # Relaxed for wider screens
         left_frame.setMinimumWidth(380)
-        left_frame.setStyleSheet("background: #0a0e14;")
         left_main = QVBoxLayout(left_frame)
         left_main.setContentsMargins(0, 0, 0, 0)
         left_main.setSpacing(0)
@@ -213,19 +212,14 @@ class VehicleDesignerWidget(QWidget):
 
         # === Bottom fixed section ===
         bottom_frame = QFrame()
-        bottom_frame.setStyleSheet("background: #141b22; border-top: 1px solid #2a3a4a;")
+        bottom_frame.setObjectName("unitSystemBar") # Reuse bar style
         bottom_layout = QVBoxLayout(bottom_frame)
         bottom_layout.setContentsMargins(16, 12, 16, 12)
         bottom_layout.setSpacing(12)
 
         # Stability indicator
         self.stability_label = QLabel("Stability Margin: -- cal")
-        self.stability_label.setStyleSheet("""
-            color: #00d4ff;
-            font-size: 14pt;
-            font-weight: bold;
-            font-family: 'Consolas', 'Courier New', monospace;
-        """)
+        self.stability_label.setObjectName("summaryValue")
         self.stability_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bottom_layout.addWidget(self.stability_label)
 
@@ -420,12 +414,11 @@ class VehicleDesignerWidget(QWidget):
         ax.set_title(status, color=color, fontsize=16, fontweight='bold', pad=20)
 
         self.stability_label.setText(f"Margin: {margin_cal:.2f} cal")
-        self.stability_label.setStyleSheet(f"""
-            color: {label_color};
-            font-size: 14pt;
-            font-weight: bold;
-            font-family: 'Consolas', 'Courier New', monospace;
-        """)
+        # Keep internal color feedback but let QSS handle the rest
+        if margin_cal < 1.0:
+            self.stability_label.setStyleSheet("color: #ff3366;")
+        else:
+            self.stability_label.setStyleSheet("color: #00ff9d;")
 
         self.diagram_figure.tight_layout()
         self.diagram_canvas.draw()

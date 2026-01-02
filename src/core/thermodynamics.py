@@ -266,3 +266,287 @@ def calculate_gibbs(T: float, species, P: float = 101325.0) -> float:
     h = calculate_enthalpy(T, species)
     s = calculate_entropy(T, species, P)
     return h - T * s
+
+
+# =============================================================================
+# Real Gas Corrections
+# =============================================================================
+
+@jit(nopython=True, cache=True)
+def calculate_compressibility_factor_virial(
+    T: float,
+    P: float,
+    Tc: float,
+    Pc: float,
+    omega: float = 0.0
+) -> float:
+    """
+    Calculate compressibility factor Z using truncated virial equation.
+
+    Z = PV/(nRT) = 1 + B*P/(RT) + C*(P/(RT))² + ...
+
+    Uses Pitzer correlation for second virial coefficient B.
+
+    Args:
+        T: Temperature (K)
+        P: Pressure (Pa)
+        Tc: Critical temperature (K)
+        Pc: Critical pressure (Pa)
+        omega: Acentric factor (dimensionless, 0 for simple molecules)
+
+    Returns:
+        Compressibility factor Z (dimensionless)
+        Z = 1.0 for ideal gas
+        Z < 1.0 indicates attractive forces dominate
+        Z > 1.0 indicates repulsive forces dominate
+
+    Reference:
+        Pitzer, K.S. (1955). "The Volumetric and Thermodynamic Properties
+        of Fluids. I. Theoretical Basis and Virial Coefficients"
+        J. Am. Chem. Soc. 77(13): 3427-3433.
+    """
+    if Tc <= 0 or Pc <= 0:
+        return 1.0  # No critical data, assume ideal
+
+    # Reduced temperature and pressure
+    Tr = T / Tc
+    Pr = P / Pc
+
+    # Pitzer correlation for B*Pc/(R*Tc)
+    # B0 = 0.083 - 0.422/Tr^1.6
+    # B1 = 0.139 - 0.172/Tr^4.2
+    # B*Pc/(R*Tc) = B0 + omega*B1
+
+    if Tr > 0.1:
+        B0 = 0.083 - 0.422 / (Tr ** 1.6)
+        B1 = 0.139 - 0.172 / (Tr ** 4.2)
+    else:
+        # Very low reduced temperature - use limiting behavior
+        B0 = -0.422 / (0.1 ** 1.6)
+        B1 = -0.172 / (0.1 ** 4.2)
+
+    B_reduced = B0 + omega * B1
+
+    # Z = 1 + B*P/(RT) = 1 + B*Pc/(R*Tc) * Pr/Tr
+    Z = 1.0 + B_reduced * Pr / Tr
+
+    # Clamp to physical range (0.1 to 2.0)
+    return max(0.1, min(2.0, Z))
+
+
+@jit(nopython=True, cache=True)
+def calculate_compressibility_factor_rk(
+    T: float,
+    P: float,
+    Tc: float,
+    Pc: float
+) -> float:
+    """
+    Calculate compressibility factor using Redlich-Kwong equation of state.
+
+    P = RT/(V-b) - a/(T^0.5 * V(V+b))
+
+    More accurate than virial for higher pressures.
+
+    Args:
+        T: Temperature (K)
+        P: Pressure (Pa)
+        Tc: Critical temperature (K)
+        Pc: Critical pressure (Pa)
+
+    Returns:
+        Compressibility factor Z
+
+    Reference:
+        Redlich, O. & Kwong, J.N.S. (1949). "On the Thermodynamics of Solutions"
+        Chem. Rev. 44(1): 233-244.
+    """
+    if Tc <= 0 or Pc <= 0 or T <= 0 or P <= 0:
+        return 1.0
+
+    R = 8.314462  # J/(mol·K)
+
+    # RK parameters
+    a = 0.42748 * R * R * (Tc ** 2.5) / Pc
+    b = 0.08664 * R * Tc / Pc
+
+    # Reduced form
+    A = a * P / (R * R * T ** 2.5)
+    B = b * P / (R * T)
+
+    # Solve cubic: Z³ - Z² + (A - B - B²)Z - AB = 0
+    # Using Newton-Raphson iteration starting from ideal gas
+
+    Z = 1.0  # Initial guess (ideal gas)
+
+    for _ in range(50):
+        f = Z**3 - Z**2 + (A - B - B*B) * Z - A * B
+        df = 3*Z**2 - 2*Z + (A - B - B*B)
+
+        if abs(df) < 1e-30:
+            break
+
+        dZ = -f / df
+        Z_new = Z + dZ
+
+        # Clamp to physical range
+        Z_new = max(0.1, min(3.0, Z_new))
+
+        if abs(dZ) < 1e-8:
+            break
+
+        Z = Z_new
+
+    return Z
+
+
+# Critical properties for common combustion species
+# Format: (Tc [K], Pc [Pa], omega)
+CRITICAL_PROPERTIES = {
+    'H2': (33.19, 1.313e6, -0.216),
+    'O2': (154.58, 5.043e6, 0.022),
+    'N2': (126.20, 3.398e6, 0.037),
+    'H2O': (647.14, 22.064e6, 0.344),
+    'CO2': (304.13, 7.375e6, 0.224),
+    'CO': (132.86, 3.499e6, 0.045),
+    'CH4': (190.56, 4.599e6, 0.011),
+    'C2H6': (305.32, 4.872e6, 0.099),
+    'C3H8': (369.83, 4.248e6, 0.152),
+    'NH3': (405.40, 11.333e6, 0.257),
+    'N2O': (309.60, 7.245e6, 0.160),
+    'NO': (180.00, 6.480e6, 0.582),
+    'NO2': (431.35, 10.132e6, 0.851),
+    'OH': (400.00, 8.000e6, 0.100),  # Estimated
+    'H': (33.00, 1.300e6, 0.000),    # Estimated (similar to H2)
+    'O': (155.00, 5.000e6, 0.000),   # Estimated (similar to O2)
+}
+
+
+def get_mixture_compressibility(
+    T: float,
+    P: float,
+    composition: dict[str, float],
+    method: str = "virial"
+) -> float:
+    """
+    Calculate compressibility factor for a gas mixture.
+
+    Uses Kay's mixing rules for pseudo-critical properties.
+
+    Args:
+        T: Temperature (K)
+        P: Pressure (Pa)
+        composition: Dictionary of species name to mole fraction
+        method: "virial" or "rk" (Redlich-Kwong)
+
+    Returns:
+        Mixture compressibility factor Z
+
+    Reference:
+        Kay, W.B. (1936). "Density of Hydrocarbon Gases and Vapors
+        at High Temperature and Pressure"
+    """
+    # Kay's mixing rules for pseudo-critical properties
+    Tc_mix = 0.0
+    Pc_mix = 0.0
+    omega_mix = 0.0
+    total_fraction = 0.0
+
+    for species, mole_frac in composition.items():
+        if species in CRITICAL_PROPERTIES:
+            Tc, Pc, omega = CRITICAL_PROPERTIES[species]
+            Tc_mix += mole_frac * Tc
+            Pc_mix += mole_frac * Pc
+            omega_mix += mole_frac * omega
+            total_fraction += mole_frac
+
+    # Normalize if not all species have critical data
+    if total_fraction > 0 and total_fraction < 0.99:
+        # Scale up pseudo-critical properties
+        Tc_mix /= total_fraction
+        Pc_mix /= total_fraction
+        omega_mix /= total_fraction
+    elif total_fraction < 0.01:
+        # No critical data available, assume ideal gas
+        return 1.0
+
+    # Calculate Z using selected method
+    if method == "rk":
+        return calculate_compressibility_factor_rk(T, P, Tc_mix, Pc_mix)
+    else:
+        return calculate_compressibility_factor_virial(T, P, Tc_mix, Pc_mix, omega_mix)
+
+
+@jit(nopython=True, cache=True)
+def correct_density_for_real_gas(
+    rho_ideal: float,
+    Z: float
+) -> float:
+    """
+    Correct ideal gas density for real gas effects.
+
+    For ideal gas: ρ = PM/(RT)
+    For real gas:  ρ = PM/(ZRT)
+
+    Args:
+        rho_ideal: Ideal gas density (kg/m³)
+        Z: Compressibility factor
+
+    Returns:
+        Real gas density (kg/m³)
+    """
+    if Z <= 0:
+        return rho_ideal
+    return rho_ideal / Z
+
+
+@jit(nopython=True, cache=True)
+def correct_enthalpy_departure(
+    T: float,
+    P: float,
+    Tc: float,
+    Pc: float,
+    omega: float = 0.0
+) -> float:
+    """
+    Calculate enthalpy departure from ideal gas behavior.
+
+    ΔH = H_real - H_ideal
+
+    Uses generalized correlation based on Pitzer's acentric factor.
+
+    Args:
+        T: Temperature (K)
+        P: Pressure (Pa)
+        Tc: Critical temperature (K)
+        Pc: Critical pressure (Pa)
+        omega: Acentric factor
+
+    Returns:
+        Enthalpy departure (J/mol)
+
+    Reference:
+        Lee, B.I. & Kesler, M.G. (1975). "A Generalized Thermodynamic
+        Correlation Based on Three-Parameter Corresponding States"
+    """
+    if Tc <= 0 or Pc <= 0:
+        return 0.0
+
+    R = 8.314462  # J/(mol·K)
+
+    Tr = T / Tc
+    Pr = P / Pc
+
+    if Tr < 0.1:
+        Tr = 0.1
+
+    # Simple correlation for enthalpy departure
+    # (H - H_ig)/(R*Tc) = Pr/Tr * (0.083 - 1.097/Tr^1.6 + omega*(0.139 - 0.894/Tr^4.2))
+
+    term0 = 0.083 - 1.097 / (Tr ** 1.6)
+    term1 = 0.139 - 0.894 / (Tr ** 4.2)
+
+    H_departure_reduced = Pr / Tr * (term0 + omega * term1)
+    H_departure = H_departure_reduced * R * Tc
+
+    return H_departure

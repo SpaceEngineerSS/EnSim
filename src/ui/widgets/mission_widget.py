@@ -5,7 +5,7 @@ Mission Analysis Widget - Thrust and Isp vs altitude visualization.
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
@@ -39,11 +39,14 @@ class MissionAnalysisWidget(QWidget):
         # Left panel - inputs
         input_panel = QWidget()
         input_layout = QVBoxLayout(input_panel)
-        input_panel.setMaximumWidth(280)
+        input_panel.setMaximumWidth(320)  # Increased for better label visibility
+        input_panel.setMinimumWidth(300)
 
         # Mission parameters
         mission_group = QGroupBox("Mission Parameters")
         mission_layout = QFormLayout(mission_group)
+        mission_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        mission_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.max_alt_spin = QDoubleSpinBox()
         self.max_alt_spin.setRange(10, 200)
@@ -67,6 +70,8 @@ class MissionAnalysisWidget(QWidget):
         # Results summary
         result_group = QGroupBox("Key Altitudes")
         result_layout = QFormLayout(result_group)
+        result_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        result_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.opt_alt_label = QLabel("--")
         result_layout.addRow("Optimal Expansion:", self.opt_alt_label)
@@ -85,6 +90,8 @@ class MissionAnalysisWidget(QWidget):
         # Atmosphere info
         atm_group = QGroupBox("Atmosphere (Sample)")
         atm_layout = QFormLayout(atm_group)
+        atm_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+        atm_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.sl_p_label = QLabel("101.3 kPa")
         atm_layout.addRow("Sea Level P:", self.sl_p_label)

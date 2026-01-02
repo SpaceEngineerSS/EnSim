@@ -47,8 +47,8 @@ class NozzleView3D(QWidget):
         if PYVISTA_AVAILABLE:
             # Create PyVista Qt interactor
             self._plotter = QtInteractor(self)
-            self._plotter.set_background('#1e1e1e')
-            self._plotter.add_axes(color='#888888')
+            self._plotter.set_background('#0a0e14')
+            self._plotter.add_axes(color='#2a3a4a')
             layout.addWidget(self._plotter.interactor)
 
             # Add initial placeholder text
@@ -58,8 +58,8 @@ class NozzleView3D(QWidget):
             placeholder = QFrame()
             placeholder.setStyleSheet("""
                 QFrame {
-                    background-color: #252525;
-                    border: 1px solid #3d3d3d;
+                    background-color: #0a0e14;
+                    border: 1px solid #1e2830;
                     border-radius: 8px;
                 }
             """)
@@ -113,7 +113,7 @@ class NozzleView3D(QWidget):
 
         # Clear previous mesh
         self._plotter.clear()
-        self._plotter.add_axes(color='#888888')
+        self._plotter.add_axes(color='#2a3a4a')
 
         # Use Rao Bell nozzle contour (V2.0)
         from src.core.geometry import generate_bell_contour

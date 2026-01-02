@@ -61,6 +61,39 @@ from .validation import (
     validate_of_ratio,
 )
 
+# Multi-stage and optimization (v2.1)
+from .staging import (
+    MultiStageVehicle,
+    Stage,
+    StageEngine,
+    StagingEvent,
+    StagingTrigger,
+    StageStatus,
+    create_falcon_9_like,
+    create_saturn_v_like,
+    create_custom_vehicle,
+)
+from .optimization import (
+    OptimizationResult,
+    TrajectoryConstraints,
+    optimize_gravity_turn,
+    optimize_nozzle_expansion_ratio,
+    optimize_stage_mass_allocation,
+    optimize_engine_parameters,
+    optimize_propellant_load,
+)
+from .cooling import (
+    CoolingType,
+    CoolantType,
+    CoolingChannel,
+    CoolingSystemDesign,
+    ThermalAnalysisResult,
+    analyze_cooling_system,
+    design_cooling_channels,
+    bartz_heat_transfer_coefficient,
+    dittus_boelter_coefficient,
+)
+
 __all__ = [
     # Constants
     "GAS_CONSTANT",
@@ -115,4 +148,32 @@ __all__ = [
     "TerrainWarning",
     "AircraftState",
     "create_gpws_for_flight_sim",
+    # Multi-stage (v2.1)
+    "MultiStageVehicle",
+    "Stage",
+    "StageEngine",
+    "StagingEvent",
+    "StagingTrigger",
+    "StageStatus",
+    "create_falcon_9_like",
+    "create_saturn_v_like",
+    "create_custom_vehicle",
+    # Optimization (v2.1)
+    "OptimizationResult",
+    "TrajectoryConstraints",
+    "optimize_gravity_turn",
+    "optimize_nozzle_expansion_ratio",
+    "optimize_stage_mass_allocation",
+    "optimize_engine_parameters",
+    "optimize_propellant_load",
+    # Cooling (v2.1)
+    "CoolingType",
+    "CoolantType",
+    "CoolingChannel",
+    "CoolingSystemDesign",
+    "ThermalAnalysisResult",
+    "analyze_cooling_system",
+    "design_cooling_channels",
+    "bartz_heat_transfer_coefficient",
+    "dittus_boelter_coefficient",
 ]

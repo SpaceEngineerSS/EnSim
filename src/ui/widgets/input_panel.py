@@ -31,9 +31,9 @@ class InputCard(QGroupBox):
             self.setTitle(title)
 
         self.layout = QFormLayout(self)
-        self.layout.setSpacing(14)
-        self.layout.setContentsMargins(16, 28, 16, 16)
-        self.layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.layout.setSpacing(12)
+        self.layout.setContentsMargins(16, 20, 16, 16)
+        self.layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
     def add_row(self, label: str, widget: QWidget):
@@ -205,7 +205,7 @@ class InputPanel(QWidget):
 
         # === RUN BUTTON (Fixed at bottom) ===
         button_frame = QFrame()
-        button_frame.setStyleSheet("background: #141b22; border-top: 1px solid #2a3a4a;")
+        button_frame.setObjectName("runButtonFrame")
         button_layout = QVBoxLayout(button_frame)
         button_layout.setContentsMargins(16, 16, 16, 16)
 

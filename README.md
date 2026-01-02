@@ -43,6 +43,38 @@ Whether you're a student learning rocket science, a researcher exploring propuls
   <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_main.png" alt="EnSim Interface" width="800">
 </p>
 
+## 📸 Screenshots
+
+<details>
+<summary><b>Click to expand screenshots</b></summary>
+
+### Results & Graphs
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_results.png" alt="Results Tab" width="800">
+</p>
+
+### Engine Analysis (Thermal & Cooling)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_engine.png" alt="Engine Tab" width="800">
+</p>
+
+### Vehicle Configuration (Multi-Stage)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_vehicle.png" alt="Vehicle Tab" width="800">
+</p>
+
+### 3D Nozzle Visualization
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_3d.png" alt="3D Visualization" width="800">
+</p>
+
+### Advanced Engineering
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_advanced.png" alt="Advanced Tab" width="800">
+</p>
+
+</details>
+
 ## ✨ Features
 
 ### 🔬 Thermochemical Analysis
@@ -69,10 +101,18 @@ Whether you're a student learning rocket science, a researcher exploring propuls
 - **Parallel Processing**: Multi-core execution for thousands of runs
 - **Visualization**: Scatter plots, histograms, and probability contours
 
+### 🔧 Advanced Engineering Tools
+- **Multi-Stage Vehicles**: Full staging simulation with preset rockets (Falcon 9, Saturn V)
+- **Regenerative Cooling**: Bartz correlation thermal analysis with channel design
+- **Trajectory Optimization**: Nozzle expansion ratio and stage mass allocation
+- **Materials Database**: 10 aerospace materials with thermal properties
+- **17 Propellant Presets**: Ready-to-use fuel/oxidizer combinations
+
 ### 🎨 Modern User Interface
-- **Mission Control Aesthetic**: SpaceX-inspired dark theme with neon accents
+- **Mission Control Aesthetic**: SpaceX-inspired dark theme with cyan/green neon accents
 - **Real-time KPI Dashboard**: Live display of key performance metrics
 - **Interactive 3D Visualization**: PyVista-powered nozzle and trajectory display
+- **SI/Imperial Units**: One-click unit system toggle
 - **Professional Exports**: CSV data, Markdown reports, STL/OBJ/PLY 3D models
 
 ## 🚀 Quick Start

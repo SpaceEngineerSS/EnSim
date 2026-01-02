@@ -29,6 +29,11 @@ from ..widgets.advanced_engineering import AdvancedEngineeringWidget
 from ..widgets.graph_widget import PerformanceGraph
 from ..widgets.input_panel import InputPanel
 from ..widgets.view3d_widget import NozzleView3D
+from ..widgets.staging_widget import MultiStageWidget
+from ..widgets.optimization_widget import OptimizationWidget
+from ..widgets.cooling_widget import CoolingAnalysisWidget
+from ..widgets.propellant_presets_widget import PropellantPresetWidget
+from ..widgets.unit_toggle_widget import UnitSystemBar
 from ..workers import (
     CalculationWorker,
     MonteCarloParams,
@@ -47,7 +52,8 @@ class KPICard(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(4)
 
         # Title
         self.title_label = QLabel(title)
@@ -57,16 +63,12 @@ class KPICard(QFrame):
         # Value
         self.value_label = QLabel("---")
         self.value_label.setObjectName("kpiValue")
-        font = QFont()
-        font.setPointSize(28)
-        font.setBold(True)
-        self.value_label.setFont(font)
         layout.addWidget(self.value_label)
 
         # Unit
         self.unit_label = QLabel(unit)
         self.unit_label.setObjectName("kpiUnit")
-        layout.addWidget(self.unit_label)
+        layout.addWidget(self.unit_label, 0, Qt.AlignmentFlag.AlignRight)
 
     def set_value(self, value: float, decimals: int = 1):
         """Update the displayed value."""
@@ -105,14 +107,15 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(12)
 
         # === Top: KPI Dashboard ===
         kpi_frame = QFrame()
         kpi_frame.setObjectName("kpiFrame")
         kpi_layout = QHBoxLayout(kpi_frame)
-        kpi_layout.setSpacing(15)
+        kpi_layout.setContentsMargins(0, 0, 0, 0)
+        kpi_layout.setSpacing(12)
 
         self.kpi_isp = KPICard("Vacuum Isp", "seconds")
         self.kpi_thrust = KPICard("Thrust", "kN")
@@ -143,54 +146,111 @@ class MainWindow(QMainWindow):
         self.input_panel.run_clicked.connect(self._start_simulation)
         splitter.addWidget(scroll_area)
 
-        # Right: Tabs
+        # Right: Main Tabs - Organized into logical groups
         self.tabs = QTabWidget()
+        self.tabs.setTabPosition(QTabWidget.TabPosition.North)
+        self.tabs.setDocumentMode(True)
+        self.tabs.setUsesScrollButtons(True)
 
-        # Output Log tab
+        # === TAB 1: OUTPUT (Log + Composition) ===
+        output_tab = QWidget()
+        output_layout = QVBoxLayout(output_tab)
+        output_layout.setContentsMargins(0, 0, 0, 0)
+        output_layout.setSpacing(0)
+        
+        output_tabs = QTabWidget()
+        output_tabs.setObjectName("subTabs")
+        
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
         self.log_output.setPlaceholderText("Simulation output will appear here...")
         self.log_output.setObjectName("logOutput")
-        self.tabs.addTab(self.log_output, "Output Log")
-
-        # Composition tab
+        output_tabs.addTab(self.log_output, "Log")
+        
         self.composition_output = QTextEdit()
         self.composition_output.setReadOnly(True)
-        self.tabs.addTab(self.composition_output, "Composition")
+        output_tabs.addTab(self.composition_output, "Composition")
+        
+        output_layout.addWidget(output_tabs)
+        self.tabs.addTab(output_tab, "Output")
 
-        # Graphs tab - real widget
+        # === TAB 2: RESULTS (Graphs + 3D) ===
+        results_tab = QWidget()
+        results_layout = QVBoxLayout(results_tab)
+        results_layout.setContentsMargins(0, 0, 0, 0)
+        results_layout.setSpacing(0)
+        
+        results_tabs = QTabWidget()
+        results_tabs.setObjectName("subTabs")
+        
         self.graph_widget = PerformanceGraph()
-        self.tabs.addTab(self.graph_widget, "Graphs")
-
-        # 3D View tab - real widget
+        results_tabs.addTab(self.graph_widget, "Graphs")
+        
         self.view3d_widget = NozzleView3D()
-        self.tabs.addTab(self.view3d_widget, "3D View")
+        results_tabs.addTab(self.view3d_widget, "3D View")
+        
+        results_layout.addWidget(results_tabs)
+        self.tabs.addTab(results_tab, "Results")
 
-        # Thermal Analysis tab (V2.0)
+        # === TAB 3: ENGINE (Thermal + Cooling + Propellants) ===
+        engine_tab = QWidget()
+        engine_layout = QVBoxLayout(engine_tab)
+        engine_layout.setContentsMargins(0, 0, 0, 0)
+        engine_layout.setSpacing(0)
+        
+        engine_tabs = QTabWidget()
+        engine_tabs.setObjectName("subTabs")
+        
         from src.ui.widgets.thermal_widget import ThermalAnalysisWidget
         self.thermal_widget = ThermalAnalysisWidget()
         self.thermal_widget.analysis_requested.connect(self._run_thermal_analysis)
-        self.tabs.addTab(self.thermal_widget, "🔥 Thermal")
+        engine_tabs.addTab(self.thermal_widget, "Thermal")
+        
+        self.cooling_widget = CoolingAnalysisWidget()
+        engine_tabs.addTab(self.cooling_widget, "Cooling")
+        
+        self.propellant_widget = PropellantPresetWidget()
+        self.propellant_widget.preset_selected.connect(self._on_preset_selected)
+        engine_tabs.addTab(self.propellant_widget, "Propellants")
+        
+        self.optimization_widget = OptimizationWidget()
+        engine_tabs.addTab(self.optimization_widget, "Optimize")
+        
+        engine_layout.addWidget(engine_tabs)
+        self.tabs.addTab(engine_tab, "Engine")
 
-        # Mission Analysis tab (V2.0)
+        # === TAB 4: VEHICLE (Mission + Vehicle + Multi-Stage) ===
+        vehicle_tab = QWidget()
+        vehicle_layout = QVBoxLayout(vehicle_tab)
+        vehicle_layout.setContentsMargins(0, 0, 0, 0)
+        vehicle_layout.setSpacing(0)
+        
+        vehicle_tabs = QTabWidget()
+        vehicle_tabs.setObjectName("subTabs")
+        
         from src.ui.widgets.mission_widget import MissionAnalysisWidget
         self.mission_widget = MissionAnalysisWidget()
         self.mission_widget.analysis_requested.connect(self._run_mission_analysis)
-        self.tabs.addTab(self.mission_widget, "🚀 Mission")
-
-        # Vehicle Designer tab (Phase 3)
+        vehicle_tabs.addTab(self.mission_widget, "Mission")
+        
         from src.ui.widgets.vehicle_widget import VehicleDesignerWidget
         self.vehicle_widget = VehicleDesignerWidget()
         self.vehicle_widget.launch_requested.connect(self._run_flight_simulation)
-        self.tabs.addTab(self.vehicle_widget, "🛸 Vehicle")
+        vehicle_tabs.addTab(self.vehicle_widget, "Design")
+        
+        self.staging_widget = MultiStageWidget()
+        self.staging_widget.vehicle_changed.connect(self._on_vehicle_changed)
+        vehicle_tabs.addTab(self.staging_widget, "Stages")
+        
+        vehicle_layout.addWidget(vehicle_tabs)
+        self.tabs.addTab(vehicle_tab, "Vehicle")
 
-        # Advanced Engineering tab (Phase 6)
+        # === TAB 5: ADVANCED ===
         self.advanced_widget = AdvancedEngineeringWidget()
-        self.tabs.addTab(self.advanced_widget, "⚡ Advanced")
-
+        self.tabs.addTab(self.advanced_widget, "Advanced")
 
         splitter.addWidget(self.tabs)
-        splitter.setSizes([300, 900])
+        splitter.setSizes([320, 880])
 
         main_layout.addWidget(splitter, stretch=1)
 
@@ -202,11 +262,44 @@ class MainWindow(QMainWindow):
         self.replay_bar.playback_toggled.connect(self._on_replay_toggle)
         main_layout.addWidget(self.replay_bar)
 
+        # Unit System Bar (above status bar)
+        self.unit_bar = UnitSystemBar()
+        self.unit_bar.unit_system_changed.connect(self._on_unit_system_changed)
+        main_layout.addWidget(self.unit_bar)
+        
         # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready")
 
+    # === NEW MODULE CALLBACKS (v2.1) ===
+    
+    def _on_vehicle_changed(self, vehicle):
+        """Handle multi-stage vehicle configuration change."""
+        if vehicle:
+            self.status_bar.showMessage(
+                f"Vehicle updated: {len(vehicle.stages)} stages, "
+                f"ΔV = {vehicle.get_total_delta_v():,.0f} m/s",
+                3000
+            )
+    
+    def _on_preset_selected(self, preset):
+        """Handle propellant preset selection."""
+        if preset and hasattr(self, 'input_panel'):
+            # Auto-fill O/F ratio in input panel
+            if hasattr(self.input_panel, 'of_ratio_spin'):
+                self.input_panel.of_ratio_spin.setValue(preset.of_ratio_optimal)
+            self.status_bar.showMessage(
+                f"Propellant preset applied: {preset.name} (Isp={preset.isp_vacuum:.0f}s)",
+                3000
+            )
+    
+    def _on_unit_system_changed(self, system):
+        """Handle unit system change."""
+        from ...utils.units import UnitSystem
+        system_name = "SI (Metric)" if system == UnitSystem.SI else "Imperial (US)"
+        self.status_bar.showMessage(f"Unit system changed to {system_name}", 3000)
+    
     def _on_replay_seek(self, position: float):
         """Handle replay position change from timeline scrubber."""
         # position is 0.0 - 1.0

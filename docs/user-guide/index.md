@@ -4,7 +4,7 @@ Welcome to the EnSim User Guide! This comprehensive guide covers all features of
 
 ## Interface Overview
 
-EnSim features a modern "Mission Control" style interface:
+EnSim features a modern "Mission Control" style interface with cyan and green neon accents:
 
 ![Main Interface](../screenshot_main.png)
 
@@ -12,8 +12,30 @@ EnSim features a modern "Mission Control" style interface:
 
 1. **Input Panel** (Left): Propellant selection and engine parameters
 2. **KPI Dashboard** (Top): Real-time performance metrics
-3. **Visualization Tabs** (Center): Graphs, 3D view, results
+3. **Tab Navigation** (Center): Output, Results, Engine, Vehicle, Advanced
 4. **Status Bar** (Bottom): Simulation status and messages
+
+### Tab Overview
+
+| Tab | Description |
+|-----|-------------|
+| **Output** | Main simulation output and KPI dashboard |
+| **Results** | 2D graphs and 3D visualization |
+| **Engine** | Thermal analysis, cooling design, optimization |
+| **Vehicle** | Multi-stage configuration and flight simulation |
+| **Advanced** | MOC nozzle design, Monte Carlo analysis |
+
+#### Results Tab
+![Results Tab](../screenshot_results.png)
+
+#### Engine Tab (Thermal & Cooling)
+![Engine Tab](../screenshot_engine.png)
+
+#### Vehicle Tab (Multi-Stage)
+![Vehicle Tab](../screenshot_vehicle.png)
+
+#### 3D Visualization
+![3D View](../screenshot_3d.png)
 
 ## Guides
 

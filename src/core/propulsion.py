@@ -271,6 +271,196 @@ def calculate_thrust_coefficient(
 
 
 # =============================================================================
+# Boundary Layer Loss Corrections
+# =============================================================================
+
+@jit(nopython=True, cache=True)
+def calculate_boundary_layer_displacement_thickness(
+    Re_throat: float,
+    throat_radius: float,
+    x_position: float,
+    M_local: float,
+    T_wall_ratio: float = 0.5
+) -> float:
+    """
+    Calculate boundary layer displacement thickness using flat plate correlation.
+
+    Based on compressible turbulent boundary layer theory with reference
+    temperature method for high-speed flows.
+
+    Args:
+        Re_throat: Reynolds number at throat (based on throat diameter)
+        throat_radius: Throat radius (m)
+        x_position: Distance from throat (m)
+        M_local: Local Mach number
+        T_wall_ratio: T_wall/T_recovery ratio (typically 0.3-0.7)
+
+    Returns:
+        Displacement thickness δ* (m)
+
+    Reference:
+        Van Driest (1951). "Turbulent Boundary Layer in Compressible Fluids"
+        Journal of Aeronautical Sciences
+    """
+    if Re_throat <= 0 or x_position <= 0:
+        return 0.0
+
+    # Reference temperature method for compressible flow
+    # T*/T_e = 0.5 + 0.5*T_w/T_e + 0.22*r*(γ-1)/2*M²
+    # where r = Pr^(1/3) ≈ 0.89 for air/combustion products
+    gamma = 1.2  # Typical combustion product gamma
+    r = 0.89  # Recovery factor
+
+    T_star_ratio = 0.5 + 0.5 * T_wall_ratio + 0.22 * r * (gamma - 1.0) / 2.0 * M_local * M_local
+
+    # Density ratio ρ*/ρ_e ≈ T_e/T* for ideal gas
+    rho_star_ratio = 1.0 / T_star_ratio
+
+    # Viscosity ratio using Sutherland's law approximation
+    # μ*/μ_e ≈ (T*/T_e)^0.7
+    mu_star_ratio = T_star_ratio ** 0.7
+
+    # Reference Reynolds number
+    Re_star = Re_throat * rho_star_ratio / mu_star_ratio
+
+    # Turbulent flat plate correlation: δ*/x = 0.046 * Re_x^(-0.2)
+    # Modified for axisymmetric nozzle flow
+    if Re_star > 1e4:
+        Re_x = Re_star * x_position / (2.0 * throat_radius)
+        delta_star_x = 0.046 * Re_x ** (-0.2)
+        delta_star = delta_star_x * x_position
+    else:
+        # Laminar regime
+        Re_x = Re_star * x_position / (2.0 * throat_radius)
+        if Re_x > 0:
+            delta_star = 1.72 * x_position / np.sqrt(Re_x)
+        else:
+            delta_star = 0.0
+
+    # Compressibility correction: δ* increases with Mach number
+    compressibility_factor = 1.0 + 0.2 * M_local * M_local
+    delta_star *= compressibility_factor
+
+    return delta_star
+
+
+@jit(nopython=True, cache=True)
+def calculate_boundary_layer_loss_factor(
+    Re_throat: float,
+    area_ratio: float,
+    throat_radius: float,
+    nozzle_length: float,
+    gamma: float = 1.2
+) -> float:
+    """
+    Calculate overall thrust loss due to boundary layer effects.
+
+    The boundary layer reduces effective flow area and adds viscous drag,
+    resulting in Isp loss of typically 0.5-2% for well-designed nozzles.
+
+    Args:
+        Re_throat: Reynolds number at throat
+        area_ratio: Nozzle expansion ratio (Ae/At)
+        throat_radius: Throat radius (m)
+        nozzle_length: Divergent section length (m)
+        gamma: Ratio of specific heats
+
+    Returns:
+        Boundary layer loss factor (0.98-1.0 typically)
+        Multiply ideal Cf by this factor.
+
+    Reference:
+        NASA SP-8120 "Solid Rocket Motor Nozzles"
+        Kliegel & Levine (1969). "Transonic Flow in Small Throat Radius Nozzles"
+    """
+    if Re_throat <= 0:
+        return 0.98  # Default 2% loss if Re unknown
+
+    # Exit radius from area ratio
+    exit_radius = throat_radius * np.sqrt(area_ratio)
+
+    # Average Mach number in divergent section (approximate)
+    M_avg = 0.5 * (1.0 + np.sqrt(area_ratio))  # Rough estimate
+
+    # Calculate displacement thickness at exit
+    delta_star_exit = calculate_boundary_layer_displacement_thickness(
+        Re_throat, throat_radius, nozzle_length, M_avg, T_wall_ratio=0.4
+    )
+
+    # Effective area reduction
+    # A_eff = π(r - δ*)² ≈ A(1 - 2δ*/r) for δ* << r
+    if exit_radius > delta_star_exit:
+        area_correction = (1.0 - delta_star_exit / exit_radius) ** 2
+    else:
+        area_correction = 0.9  # Limit for very thick BL
+
+    # Additional skin friction loss
+    # Cf_skin ≈ 0.0025 for typical rocket nozzles
+    Cf_skin = 0.0025
+    wetted_area_ratio = 2.0 * nozzle_length / throat_radius  # Approximate
+    friction_loss = Cf_skin * wetted_area_ratio / area_ratio
+
+    # Total loss factor
+    loss_factor = area_correction * (1.0 - friction_loss)
+
+    # Clamp to reasonable range (0.95-1.0)
+    return max(0.95, min(1.0, loss_factor))
+
+
+@jit(nopython=True, cache=True)
+def calculate_throat_reynolds(
+    P_chamber: float,
+    T_chamber: float,
+    throat_diameter: float,
+    mean_molecular_weight: float,
+    gamma: float = 1.2
+) -> float:
+    """
+    Calculate Reynolds number at nozzle throat.
+
+    Re_t = ρ_t * V_t * D_t / μ_t
+
+    Args:
+        P_chamber: Chamber pressure (Pa)
+        T_chamber: Chamber temperature (K)
+        throat_diameter: Throat diameter (m)
+        mean_molecular_weight: Mean MW (g/mol)
+        gamma: Ratio of specific heats
+
+    Returns:
+        Throat Reynolds number (dimensionless)
+    """
+    # Throat conditions (M = 1)
+    T_ratio_throat = 2.0 / (gamma + 1.0)
+    P_ratio_throat = T_ratio_throat ** (gamma / (gamma - 1.0))
+
+    T_throat = T_chamber * T_ratio_throat
+    P_throat = P_chamber * P_ratio_throat
+
+    # Specific gas constant
+    R_specific = 8314.46 / mean_molecular_weight  # J/(kg·K)
+
+    # Density at throat
+    rho_throat = P_throat / (R_specific * T_throat)
+
+    # Velocity at throat (sonic)
+    a_throat = np.sqrt(gamma * R_specific * T_throat)
+    V_throat = a_throat
+
+    # Dynamic viscosity using Sutherland's law
+    # μ = μ_ref * (T/T_ref)^1.5 * (T_ref + S) / (T + S)
+    T_ref = 273.15
+    mu_ref = 1.716e-5  # Reference viscosity for air-like gases (Pa·s)
+    S = 110.4  # Sutherland constant (K)
+    mu_throat = mu_ref * (T_throat / T_ref) ** 1.5 * (T_ref + S) / (T_throat + S)
+
+    # Reynolds number
+    Re_throat = rho_throat * V_throat * throat_diameter / mu_throat
+
+    return Re_throat
+
+
+# =============================================================================
 # High-Level Interface
 # =============================================================================
 
@@ -283,9 +473,10 @@ def calculate_performance(
     eta_cstar: float = 1.0,
     eta_cf: float = 1.0,
     alpha_deg: float = 15.0,
+    include_boundary_layer: bool = True,
 ) -> PerformanceResult:
     """
-    Calculate complete rocket engine performance.
+    Calculate complete rocket engine performance with all loss corrections.
 
     Args:
         T_chamber: Combustion chamber temperature (K)
@@ -296,15 +487,22 @@ def calculate_performance(
         eta_cstar: Combustion efficiency (0.5-1.0), default 1.0 (ideal)
         eta_cf: Nozzle efficiency (0.5-1.0), default 1.0 (ideal)
         alpha_deg: Nozzle half-angle in degrees (default 15°)
+        include_boundary_layer: Apply boundary layer loss correction (default True)
 
     Returns:
         PerformanceResult with all performance metrics
 
-    Note:
-        Real-world performance uses:
+    Loss Mechanisms Included:
+        1. Combustion efficiency (η_c*): Incomplete combustion, heat losses
+        2. Divergence loss (λ): Non-axial exit flow in conical nozzles
+        3. Boundary layer loss: Displacement thickness, skin friction
+        4. Nozzle efficiency (η_Cf): Other nozzle losses
+
+    Real-world performance:
         - C*_real = C*_ideal × η_c*
         - λ = (1 + cos(α)) / 2  (divergence factor)
-        - Cf_real = Cf_ideal × η_Cf × λ
+        - η_BL = boundary layer loss factor (0.98-1.0)
+        - Cf_real = Cf_ideal × η_Cf × λ × η_BL
         - Isp_real = (C*_real × Cf_real) / g0
     """
     # Specific gas constant (J/(kg·K))
@@ -343,8 +541,28 @@ def calculate_performance(
     alpha_rad = np.radians(alpha_deg)
     divergence_factor = (1.0 + np.cos(alpha_rad)) / 2.0
 
-    # Apply nozzle efficiency AND divergence loss
-    Cf = Cf_ideal * eta_cf * divergence_factor
+    # Boundary layer loss factor
+    bl_factor = 1.0
+    if include_boundary_layer and nozzle.throat_area is not None:
+        throat_radius = np.sqrt(nozzle.throat_area / np.pi)
+        throat_diameter = 2.0 * throat_radius
+
+        # Calculate throat Reynolds number
+        Re_throat = calculate_throat_reynolds(
+            P_chamber, T_chamber, throat_diameter, mean_molecular_weight, gamma
+        )
+
+        # Estimate nozzle length from geometry (conical approximation)
+        exit_radius = throat_radius * np.sqrt(nozzle.area_ratio)
+        nozzle_length = (exit_radius - throat_radius) / np.tan(alpha_rad)
+
+        # Get boundary layer loss factor
+        bl_factor = calculate_boundary_layer_loss_factor(
+            Re_throat, nozzle.area_ratio, throat_radius, nozzle_length, gamma
+        )
+
+    # Apply all efficiency factors
+    Cf = Cf_ideal * eta_cf * divergence_factor * bl_factor
 
     # Specific impulse (real) - combines all efficiencies
     Isp = Cf * c_star / G0
@@ -352,10 +570,10 @@ def calculate_performance(
     # Mass flow rate and thrust (if throat area provided)
     if nozzle.throat_area is not None:
         mass_flow = P_chamber * nozzle.throat_area / c_star
-        # Thrust with efficiency and divergence corrections
-        thrust = mass_flow * V_exit * eta_cf * divergence_factor + (P_exit - nozzle.ambient_pressure) * (
-            nozzle.throat_area * nozzle.area_ratio
-        ) * eta_cf * divergence_factor
+        # Thrust with all corrections
+        thrust = mass_flow * V_exit * eta_cf * divergence_factor * bl_factor + \
+                 (P_exit - nozzle.ambient_pressure) * (nozzle.throat_area * nozzle.area_ratio) * \
+                 eta_cf * divergence_factor * bl_factor
     else:
         mass_flow = None
         thrust = Cf * P_chamber  # F/At if At not provided

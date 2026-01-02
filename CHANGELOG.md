@@ -5,6 +5,63 @@ All notable changes to EnSim will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-02
+
+### Added
+- **Multi-Stage Vehicle Support** (`src/core/staging.py`)
+  - Stage class with engine configuration and mass properties
+  - MultiStageVehicle for complete rocket modeling
+  - Presets: Falcon 9, Saturn V, custom configurations
+  - Delta-V calculations with payload optimization
+
+- **Regenerative Cooling Analysis** (`src/core/cooling.py`)
+  - Bartz correlation for gas-side heat transfer
+  - Dittus-Boelter coolant-side heat transfer
+  - Automatic cooling channel design
+  - Wall temperature and heat flux profiles
+  - 5 coolant types: RP-1, LH2, LOX, LCH4, Water
+
+- **Trajectory Optimization** (`src/core/optimization.py`)
+  - Nozzle expansion ratio optimization
+  - Stage mass allocation optimization
+  - Mission-weighted performance metrics
+
+- **Materials Database** (`src/core/materials.py`)
+  - 10 aerospace materials with full thermal properties
+  - Inconel 718, OFHC Copper, GRCop-84, Haynes 230, etc.
+  - Melting points, conductivity, service temperatures
+
+- **Mission Analysis** (`src/core/mission.py`)
+  - Altitude-dependent performance simulation
+  - Optimal operating altitude calculation
+
+- **17 Propellant Presets** (`src/data/propellant_presets.py`)
+  - LOX/LH2, LOX/RP-1, LOX/CH4, N2O4/UDMH, etc.
+  - Pre-configured O/F ratios and properties
+
+- **Unit Conversion System** (`src/utils/units.py`)
+  - SI/Imperial toggle in UI
+  - Comprehensive conversion functions
+
+- **New UI Widgets**
+  - ThermalAnalysisWidget with heat flux visualization
+  - CoolingAnalysisWidget for channel design
+  - MultiStageWidget for vehicle configuration
+  - OptimizationWidget for trajectory optimization
+  - PropellantPresetWidget for quick setup
+  - UnitSystemBar for unit toggle
+
+### Changed
+- Complete UI redesign with Mission Control dark theme
+- Reorganized tabs: Output, Results, Engine, Vehicle, Advanced
+- Improved color scheme: cyan accents, green values, orange warnings
+
+### Fixed
+- Thermal analysis now uses proper Bartz correlation
+- All module imports working correctly
+
+---
+
 ## [1.0.2] - 2026-01-02
 
 ### Fixed
@@ -68,31 +125,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (Phase 6: Deep Engineering)
-- **MOC Supersonic Flow Solver** (`src/core/moc_solver.py`)
-  - Prandtl-Meyer function and inverse solver
-  - Minimum Length Nozzle (MLN) contour generation
-  - Characteristic mesh visualization
-  - CSV and VTK export support
-  
-- **Design Optimizer** (`src/core/optimizer.py`)
-  - Scipy-based engine optimization (Nelder-Mead, L-BFGS-B)
-  - Monte Carlo reliability analysis with parallel execution
-  - Sensitivity analysis for uncertainty quantification
-  
-- **Plume Visualization** (`src/ui/viz/plume_render.py`)
-  - Shock diamond physics modeling
-  - Mach-to-color mapping
-  - Over/under-expanded plume visualization
-  
-- **Advanced Engineering UI Tab**
-  - MOC nozzle design sub-tab with mesh plot
-  - Optimization controls with convergence graph
-  - Monte Carlo reliability histograms
-
 ### Planned
 - Shifting equilibrium (non-frozen flow)
 - Bell nozzle geometry (Rao optimum)
-- Unit conversion (SI/Imperial toggle)
-- Additional propellants (MMH, UDMH, H2O2)
+- Real gas corrections (Redlich-Kwong EOS)
+- Additional propellants (H2O2, MMH variants)
 

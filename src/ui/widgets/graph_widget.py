@@ -29,7 +29,7 @@ class PerformanceGraph(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
 
         # Create figure with dark theme
-        self.figure = Figure(figsize=(8, 8), facecolor='#0b0c10')
+        self.figure = Figure(figsize=(8, 8), facecolor='#0a0e14')
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
 
@@ -47,14 +47,14 @@ class PerformanceGraph(QWidget):
 
         # Apply dark theme to all axes
         for ax in [self.ax_pressure, self.ax_temp, self.ax_mach]:
-            ax.set_facecolor('#1f2833')
-            ax.tick_params(colors='#c5c6c7', labelcolor='#c5c6c7')
+            ax.set_facecolor('#0a0e14')
+            ax.tick_params(colors='#8899aa', labelcolor='#8899aa')
             for spine in ax.spines.values():
-                spine.set_color('#45a29e')
-            ax.xaxis.label.set_color('#c5c6c7')
-            ax.yaxis.label.set_color('#c5c6c7')
-            ax.title.set_color('#66fcf1')
-            ax.grid(True, color='#45a29e', linestyle='-', linewidth=0.5, alpha=0.3)
+                spine.set_color('#2a3a4a')
+            ax.xaxis.label.set_color('#8899aa')
+            ax.yaxis.label.set_color('#8899aa')
+            ax.title.set_color('#ffffff')
+            ax.grid(True, color='#1a242e', linestyle='-', linewidth=0.5, alpha=0.3)
 
         # Labels
         self.ax_pressure.set_ylabel('P/Pc')

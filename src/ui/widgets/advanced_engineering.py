@@ -237,12 +237,12 @@ class MOCDesignTab(QWidget):
     def _update_results_label(self):
         """Update results text."""
         if self._contour:
-            text = f"""<b style="color:#00d4ff;">MLN Design Results:</b><br>
-            <span style="color:#8899aa;">Exit Mach:</span> <span style="color:#00ff9d;">{self._contour.M_exit:.2f}</span><br>
-            <span style="color:#8899aa;">Throat R:</span> <span style="color:#00ff9d;">{self._contour.throat_radius*1000:.1f} mm</span><br>
-            <span style="color:#8899aa;">Exit R:</span> <span style="color:#00ff9d;">{self._contour.exit_radius*1000:.1f} mm</span><br>
-            <span style="color:#8899aa;">Length:</span> <span style="color:#00ff9d;">{self._contour.length*1000:.1f} mm</span><br>
-            <span style="color:#8899aa;">ε:</span> <span style="color:#00ff9d;">{(self._contour.exit_radius/self._contour.throat_radius)**2:.1f}</span>
+            text = f"""<b style="color:#00ffcc;">MLN Design Results:</b><br>
+            <span style="color:#8899aa;">Exit Mach:</span> <span style="color:#00b4d8;">{self._contour.M_exit:.2f}</span><br>
+            <span style="color:#8899aa;">Throat R:</span> <span style="color:#00b4d8;">{self._contour.throat_radius*1000:.1f} mm</span><br>
+            <span style="color:#8899aa;">Exit R:</span> <span style="color:#00b4d8;">{self._contour.exit_radius*1000:.1f} mm</span><br>
+            <span style="color:#8899aa;">Length:</span> <span style="color:#00b4d8;">{self._contour.length*1000:.1f} mm</span><br>
+            <span style="color:#8899aa;">ε:</span> <span style="color:#00b4d8;">{(self._contour.exit_radius/self._contour.throat_radius)**2:.1f}</span>
             """
             self.results_label.setText(text)
 

@@ -130,57 +130,8 @@ class TimelineScrubber(QWidget):
         self.speed_combo.setToolTip("Playback speed")
         layout.addWidget(self.speed_combo)
 
-        # Apply styling
-        self.setStyleSheet("""
-            QPushButton {
-                background: #2a3a4a;
-                border: 1px solid #3d4d5d;
-                border-radius: 4px;
-                color: #ffffff;
-                font-size: 14pt;
-            }
-            QPushButton:hover {
-                background: #3a4a5a;
-                border-color: #00d4aa;
-            }
-            QPushButton:pressed {
-                background: #4a5a6a;
-            }
-            QPushButton#playButton {
-                background: #00aa88;
-            }
-            QPushButton#playButton:hover {
-                background: #00ccaa;
-            }
-            QPushButton#stopButton {
-                background: #aa4444;
-            }
-            QPushButton#stopButton:hover {
-                background: #cc5555;
-            }
-            QSlider::groove:horizontal {
-                background: #2a3a4a;
-                height: 8px;
-                border-radius: 4px;
-            }
-            QSlider::handle:horizontal {
-                background: #00d4aa;
-                width: 16px;
-                margin: -4px 0;
-                border-radius: 8px;
-            }
-            QSlider::sub-page:horizontal {
-                background: #00aa88;
-                border-radius: 4px;
-            }
-            QComboBox {
-                background: #2a3a4a;
-                border: 1px solid #3d4d5d;
-                border-radius: 4px;
-                padding: 4px;
-                color: #ffffff;
-            }
-        """)
+        # Apply styling removed - moved to aerospace.qss
+        pass
 
     def _connect_signals(self):
         """Connect internal signals."""
@@ -382,13 +333,8 @@ class ReplayControlBar(QFrame):
         self.timeline.position_changed.connect(self.position_changed.emit)
         self.timeline.playback_toggled.connect(self.playback_toggled.emit)
 
-        # Styling
-        self.setStyleSheet("""
-            #replayControlBar {
-                background: #1a2530;
-                border-top: 1px solid #00d4aa;
-            }
-        """)
+        # Styling removed - moved to aerospace.qss
+        pass
 
     def set_recording(self, duration: float, name: str = ""):
         """Set recording information."""
