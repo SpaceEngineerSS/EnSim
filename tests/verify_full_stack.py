@@ -14,8 +14,41 @@ import numpy as np
 from datetime import datetime
 
 
+import builtins
+
+def safe_print(*args, **kwargs):
+    try:
+        builtins.print(*args, **kwargs)
+    except UnicodeEncodeError:
+        cleaned_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                cleaned = (arg.replace('✅', '[PASS]')
+                              .replace('❌', '[FAIL]')
+                              .replace('⚠️', '[WARN]')
+                              .replace('✓', '[Y]')
+                              .replace('✗', '[N]')
+                              .replace('•', '-')
+                              .replace('🏆', '[SUCCESS]')
+                              .replace('×', 'x')
+                              .replace('₀', '0')
+                              .replace('ṁ', 'mdot')
+                              .replace('°', ' deg'))
+                cleaned = cleaned.encode('ascii', errors='replace').decode('ascii')
+                cleaned_args.append(cleaned)
+            else:
+                cleaned_args.append(arg)
+        try:
+            builtins.print(*cleaned_args, **kwargs)
+        except Exception:
+            pass
+
+# Override global print
+print = safe_print
+
 # Results
 RESULTS = {'passed': [], 'failed': []}
+
 
 
 def log_pass(test: str, msg: str):

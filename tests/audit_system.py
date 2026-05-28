@@ -23,19 +23,29 @@ RESULTS = {
 def log_pass(test_name: str, message: str):
     """Log a passed test."""
     RESULTS['passed'].append((test_name, message))
-    print(f"  ✅ PASS: {test_name} - {message}")
+    try:
+        print(f"  ✅ PASS: {test_name} - {message}")
+    except UnicodeEncodeError:
+        print(f"  [PASS] {test_name} - {message}")
 
 
 def log_fail(test_name: str, message: str):
     """Log a failed test."""
     RESULTS['failed'].append((test_name, message))
-    print(f"  ❌ FAIL: {test_name} - {message}")
+    try:
+        print(f"  ❌ FAIL: {test_name} - {message}")
+    except UnicodeEncodeError:
+        print(f"  [FAIL] {test_name} - {message}")
 
 
 def log_warn(test_name: str, message: str):
     """Log a warning."""
     RESULTS['warnings'].append((test_name, message))
-    print(f"  ⚠️ WARN: {test_name} - {message}")
+    try:
+        print(f"  ⚠️ WARN: {test_name} - {message}")
+    except UnicodeEncodeError:
+        print(f"  [WARN] {test_name} - {message}")
+
 
 
 # =============================================================================
@@ -278,8 +288,8 @@ def test_mach_singularity():
     for M in test_machs:
         cd = calculate_drag_coefficient(rocket, M)
         is_valid = not (np.isnan(cd) or np.isinf(cd)) and cd > 0
-        status = "✓" if is_valid else "✗"
-        print(f"  M={M:.2f}: Cd={cd:.4f} {status}")
+        status = "OK" if is_valid else "FAIL"
+        print(f"  M={M:.2f}: Cd={cd:.4f} - {status}")
         if not is_valid:
             all_valid = False
     
@@ -347,7 +357,7 @@ def test_persistence_schema():
         has_nose = 'nose' in content.lower()
         has_fins = 'fins' in content.lower()
         
-        print(f"  project_manager.py exists: ✓")
+        print(f"  project_manager.py exists: Yes")
         print(f"  Contains 'rocket': {has_rocket}")
         print(f"  Contains 'nose': {has_nose}")
         print(f"  Contains 'fins': {has_fins}")
@@ -431,7 +441,10 @@ def generate_report():
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write("\n".join(lines))
     
-    print(f"\n📋 Report generated: {report_path}")
+    try:
+        print(f"\n📋 Report generated: {report_path}")
+    except UnicodeEncodeError:
+        print(f"\nReport generated: {report_path}")
     return report_path
 
 

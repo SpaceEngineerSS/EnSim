@@ -1,47 +1,142 @@
-"""Project save/load manager for EnSim."""
+"""
+Project Save/Load Manager for EnSim (V3 Unified).
+
+Saves and loads complete EnSim projects including:
+- Engine parameters
+- Rocket configuration
+- Recovery system
+- Environment settings
+"""
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+
+from src.core.recovery import DeployTrigger, Parachute
+from src.core.rocket import BodyTube, EngineMount, Fin, FinSet, NoseCone, NoseShape, Rocket
+
+
+@dataclass
+class EngineData:
+    """Engine simulation parameters."""
+    fuel: str = "H2"
+    oxidizer: str = "O2"
+    of_ratio: float = 8.0
+    chamber_pressure_bar: float = 68.0
+    throat_area_cm2: float = 100.0
+    expansion_ratio: float = 50.0
+    ambient: str = "Vacuum (0 bar)"
+    eta_cstar: float = 0.95
+    eta_cf: float = 0.95
+    alpha_deg: float = 15.0
+
+
+@dataclass
+class RocketData:
+    """Rocket geometry data."""
+    name: str = "My Rocket"
+    # Nose
+    nose_shape: str = "ogive"
+    nose_length: float = 0.25
+    nose_diameter: float = 0.1
+    nose_mass: float = 0.3
+    nose_material: str = "fiberglass"
+    # Body
+    body_length: float = 1.0
+    body_diameter: float = 0.1
+    body_mass: float = 1.0
+    body_material: str = "cardboard"
+    # Fins
+    fin_count: int = 4
+    fin_root_chord: float = 0.12
+    fin_tip_chord: float = 0.06
+    fin_span: float = 0.06
+    fin_sweep_angle: float = 30.0
+    fin_mass: float = 0.2
+    fin_material: str = "plywood"
+    # Engine
+    fuel_mass: float = 5.0
+    oxidizer_mass: float = 25.0
+
+
+@dataclass
+class RecoveryData:
+    """Recovery system data."""
+    dual_deploy: bool = False
+    main_diameter: float = 1.0
+    main_cd: float = 1.5
+    main_deploy_altitude: float = 200.0
+    drogue_diameter: float = 0.3
+    drogue_cd: float = 1.2
+
+
+@dataclass
+class EnvironmentData:
+    """Launch environment data."""
+    wind_speed: float = 0.0
+    wind_direction: float = 0.0
+    rail_length: float = 1.5
+    launch_altitude: float = 0.0
+    launch_angle: float = 85.0
 
 
 @dataclass
 class ProjectData:
-    """Data structure for saved project."""
-    # Metadata
-    version: str = "1.0.0"
+    """Complete project data structure with flat properties for backward compatibility."""
+    # Meta
+    version: str = "3.0"
     created: str = ""
     modified: str = ""
 
-    # Propellants
-    fuel: str = "H2"
-    oxidizer: str = "O2"
-    of_ratio: float = 8.0
+    # Components
+    engine: EngineData = field(default_factory=EngineData)
+    rocket: RocketData = field(default_factory=RocketData)
+    recovery: RecoveryData = field(default_factory=RecoveryData)
+    environment: EnvironmentData = field(default_factory=EnvironmentData)
 
-    # Chamber
-    chamber_pressure_bar: float = 68.0
-    throat_area_cm2: float = 100.0
+    # Cached results (optional)
+    last_isp_vacuum: float | None = None
+    last_thrust: float | None = None
+    last_apogee: float | None = None
 
-    # Nozzle
-    expansion_ratio: float = 50.0
-    ambient: str = "Vacuum (0 bar)"
-
-    # Results (optional, saved if simulation was run)
-    temperature: float | None = None
-    isp_vacuum: float | None = None
-    isp_sea_level: float | None = None
-    thrust: float | None = None
-    c_star: float | None = None
-    gamma: float | None = None
-    mean_mw: float | None = None
+    # Properties for legacy V1.0 flat access compatibility
+    @property
+    def fuel(self) -> str:
+        return self.engine.fuel
+    
+    @property
+    def oxidizer(self) -> str:
+        return self.engine.oxidizer
+    
+    @property
+    def of_ratio(self) -> float:
+        return self.engine.of_ratio
+    
+    @property
+    def chamber_pressure_bar(self) -> float:
+        return self.engine.chamber_pressure_bar
+    
+    @property
+    def throat_area_cm2(self) -> float:
+        return self.engine.throat_area_cm2
+    
+    @property
+    def expansion_ratio(self) -> float:
+        return self.engine.expansion_ratio
+    
+    @property
+    def ambient(self) -> str:
+        return self.engine.ambient
 
 
 class ProjectManager:
     """
-    Manages project save/load operations.
+    Unified project persistence manager.
 
-    Projects are stored as .ensim files (JSON format).
+    Saves/loads complete rocket projects including engine, vehicle,
+    recovery, and environment configuration.
     """
 
     FILE_EXTENSION = ".ensim"
@@ -73,52 +168,92 @@ class ProjectManager:
         return self.data
 
     def save(self, path: Path | None = None) -> bool:
-        """
-        Save project to file.
-
-        Args:
-            path: File path. If None, uses current_path.
-
-        Returns:
-            True if saved successfully.
-        """
+        """Save project to .ensim file."""
         if path:
             self.current_path = Path(path)
 
         if not self.current_path:
             return False
 
-        # Ensure extension
         if not self.current_path.suffix:
             self.current_path = self.current_path.with_suffix(self.FILE_EXTENSION)
 
-        # Update modified time
         self.data.modified = datetime.now().isoformat()
 
         try:
+            # Convert to nested dict
+            project_dict = {
+                "meta": {
+                    "version": self.data.version,
+                    "created": self.data.created,
+                    "modified": self.data.modified
+                },
+                "engine": asdict(self.data.engine),
+                "rocket": asdict(self.data.rocket),
+                "recovery": asdict(self.data.recovery),
+                "environment": asdict(self.data.environment),
+                "results": {
+                    "isp_vacuum": self.data.last_isp_vacuum,
+                    "thrust": self.data.last_thrust,
+                    "apogee": self.data.last_apogee
+                }
+            }
+
             with open(self.current_path, 'w', encoding='utf-8') as f:
-                json.dump(asdict(self.data), f, indent=2)
+                json.dump(project_dict, f, indent=2)
+
             self._modified = False
             return True
+
         except Exception as e:
             print(f"Error saving project: {e}")
             return False
 
     def load(self, path: Path) -> ProjectData | None:
-        """
-        Load project from file.
-
-        Args:
-            path: Path to .ensim file.
-
-        Returns:
-            ProjectData if loaded successfully, None otherwise.
-        """
+        """Load project from .ensim file with backward compatibility for V1.0."""
         try:
             with open(path, encoding='utf-8') as f:
-                data_dict = json.load(f)
+                data = json.load(f)
 
-            self.data = ProjectData(**data_dict)
+            # Parse nested structure
+            self.data = ProjectData(
+                version=data.get("meta", {}).get("version", "1.0"),
+                created=data.get("meta", {}).get("created", ""),
+                modified=data.get("meta", {}).get("modified", "")
+            )
+
+            # Backward compatibility check for flat V1.0 file
+            if "engine" not in data and "fuel" in data:
+                self.data.engine = EngineData(
+                    fuel=data.get("fuel", "H2"),
+                    oxidizer=data.get("oxidizer", "O2"),
+                    of_ratio=float(data.get("of_ratio", 8.0)),
+                    chamber_pressure_bar=float(data.get("chamber_pressure_bar", 68.0)),
+                    throat_area_cm2=float(data.get("throat_area_cm2", 100.0)),
+                    expansion_ratio=float(data.get("expansion_ratio", 50.0)),
+                    ambient=data.get("ambient", "Vacuum (0 bar)")
+                )
+                self.data.last_isp_vacuum = data.get("isp_vacuum")
+                self.data.last_thrust = data.get("thrust")
+            else:
+                # Standard V3.0 parsing
+                if "engine" in data:
+                    self.data.engine = EngineData(**data["engine"])
+
+                if "rocket" in data:
+                    self.data.rocket = RocketData(**data["rocket"])
+
+                if "recovery" in data:
+                    self.data.recovery = RecoveryData(**data["recovery"])
+
+                if "environment" in data:
+                    self.data.environment = EnvironmentData(**data["environment"])
+
+                if "results" in data:
+                    self.data.last_isp_vacuum = data["results"].get("isp_vacuum")
+                    self.data.last_thrust = data["results"].get("thrust")
+                    self.data.last_apogee = data["results"].get("apogee")
+
             self.current_path = Path(path)
             self._modified = False
             return self.data
@@ -137,35 +272,112 @@ class ProjectManager:
         expansion_ratio: float,
         ambient: str
     ):
-        """Update input parameters."""
-        self.data.fuel = fuel
-        self.data.oxidizer = oxidizer
-        self.data.of_ratio = of_ratio
-        self.data.chamber_pressure_bar = chamber_pressure_bar
-        self.data.throat_area_cm2 = throat_area_cm2
-        self.data.expansion_ratio = expansion_ratio
-        self.data.ambient = ambient
+        """Legacy helper for updating engine inputs from flat signature."""
+        self.data.engine.fuel = fuel
+        self.data.engine.oxidizer = oxidizer
+        self.data.engine.of_ratio = of_ratio
+        self.data.engine.chamber_pressure_bar = chamber_pressure_bar
+        self.data.engine.throat_area_cm2 = throat_area_cm2
+        self.data.engine.expansion_ratio = expansion_ratio
+        self.data.engine.ambient = ambient
         self._modified = True
 
-    def update_results(
+    def update_from_ui(
         self,
-        temperature: float,
-        isp_vacuum: float,
-        isp_sea_level: float,
-        thrust: float,
-        c_star: float,
-        gamma: float,
-        mean_mw: float
+        engine_params: dict,
+        rocket_params: dict,
+        recovery_params: dict,
+        environment_params: dict
     ):
-        """Update simulation results."""
-        self.data.temperature = temperature
-        self.data.isp_vacuum = isp_vacuum
-        self.data.isp_sea_level = isp_sea_level
-        self.data.thrust = thrust
-        self.data.c_star = c_star
-        self.data.gamma = gamma
-        self.data.mean_mw = mean_mw
+        """Update project data from UI widgets."""
+        # Engine
+        for key, value in engine_params.items():
+            if hasattr(self.data.engine, key):
+                setattr(self.data.engine, key, value)
+
+        # Rocket
+        for key, value in rocket_params.items():
+            if hasattr(self.data.rocket, key):
+                setattr(self.data.rocket, key, value)
+
+        # Recovery
+        for key, value in recovery_params.items():
+            if hasattr(self.data.recovery, key):
+                setattr(self.data.recovery, key, value)
+
+        # Environment
+        for key, value in environment_params.items():
+            if hasattr(self.data.environment, key):
+                setattr(self.data.environment, key, value)
+
         self._modified = True
+
+    def build_rocket(self) -> Rocket:
+        """Construct Rocket object from saved data."""
+        rd = self.data.rocket
+
+        # Map shape name to enum
+        shape_map = {
+            "ogive": NoseShape.OGIVE,
+            "conical": NoseShape.CONICAL,
+            "elliptical": NoseShape.ELLIPTICAL,
+            "parabolic": NoseShape.PARABOLIC
+        }
+        nose_shape = shape_map.get(rd.nose_shape.lower(), NoseShape.OGIVE)
+
+        return Rocket(
+            name=rd.name,
+            nose=NoseCone(
+                shape=nose_shape,
+                length=rd.nose_length,
+                diameter=rd.nose_diameter,
+                mass=rd.nose_mass
+            ),
+            body=BodyTube(
+                length=rd.body_length,
+                diameter=rd.body_diameter,
+                mass=rd.body_mass
+            ),
+            fins=FinSet(
+                fin=Fin(
+                    root_chord=rd.fin_root_chord,
+                    tip_chord=rd.fin_tip_chord,
+                    span=rd.fin_span,
+                    sweep_angle=rd.fin_sweep_angle
+                ),
+                count=rd.fin_count,
+                mass=rd.fin_mass
+            ),
+            engine=EngineMount(
+                engine_mass_dry=0.5,
+                fuel_mass=rd.fuel_mass,
+                oxidizer_mass=rd.oxidizer_mass,
+                tank_length=0.5
+            )
+        )
+
+    def build_recovery(self) -> tuple:
+        """Construct recovery system from saved data."""
+        rec = self.data.recovery
+
+        main = Parachute(
+            name="Main",
+            diameter=rec.main_diameter,
+            cd=rec.main_cd,
+            deploy_trigger=DeployTrigger.AT_ALTITUDE if rec.dual_deploy else DeployTrigger.AT_APOGEE,
+            deploy_altitude=rec.main_deploy_altitude
+        )
+
+        drogue = None
+        if rec.dual_deploy:
+            drogue = Parachute(
+                name="Drogue",
+                diameter=rec.drogue_diameter,
+                cd=rec.drogue_cd,
+                deploy_trigger=DeployTrigger.AT_APOGEE
+            )
+
+        return main, drogue
 
     def mark_modified(self):
         """Mark project as modified."""

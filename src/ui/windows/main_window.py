@@ -588,6 +588,51 @@ class MainWindow(QMainWindow):
                 self.input_panel.pressure_spin.setValue(data.chamber_pressure_bar)
                 self.input_panel.throat_area_spin.setValue(data.throat_area_cm2)
                 self.input_panel.expansion_spin.setValue(data.expansion_ratio)
+                
+                # Check for nested V3 fields
+                if hasattr(data, 'engine'):
+                    if hasattr(self.input_panel, 'ambient_combo'):
+                        self.input_panel.ambient_combo.setCurrentText(data.engine.ambient)
+                    if hasattr(self.input_panel, 'eta_cstar_spin'):
+                        self.input_panel.eta_cstar_spin.setValue(data.engine.eta_cstar)
+                    if hasattr(self.input_panel, 'eta_cf_spin'):
+                        self.input_panel.eta_cf_spin.setValue(data.engine.eta_cf)
+                    if hasattr(self.input_panel, 'alpha_spin'):
+                        self.input_panel.alpha_spin.setValue(data.engine.alpha_deg)
+
+                if hasattr(data, 'rocket'):
+                    rd = data.rocket
+                    shape_text_map = {
+                        "ogive": 0,
+                        "conical": 1,
+                        "elliptical": 2,
+                        "parabolic": 3
+                    }
+                    idx = shape_text_map.get(rd.nose_shape.lower(), 0)
+                    self.vehicle_widget.nose_shape_combo.setCurrentIndex(idx)
+                    self.vehicle_widget.nose_length_spin.setValue(rd.nose_length)
+                    self.vehicle_widget.nose_mass_spin.setValue(rd.nose_mass)
+                    self.vehicle_widget.body_length_spin.setValue(rd.body_length)
+                    self.vehicle_widget.body_diameter_spin.setValue(rd.body_diameter)
+                    self.vehicle_widget.body_mass_spin.setValue(rd.body_mass)
+                    self.vehicle_widget.fin_count_spin.setValue(rd.fin_count)
+                    self.vehicle_widget.fin_root_spin.setValue(rd.fin_root_chord)
+                    self.vehicle_widget.fin_span_spin.setValue(rd.fin_span)
+                    self.vehicle_widget.fin_mass_spin.setValue(rd.fin_mass)
+                    self.vehicle_widget.fuel_mass_spin.setValue(rd.fuel_mass)
+                    self.vehicle_widget.ox_mass_spin.setValue(rd.oxidizer_mass)
+
+                if hasattr(data, 'recovery'):
+                    self.vehicle_widget.chute_diameter_spin.setValue(data.recovery.main_diameter)
+                    self.vehicle_widget.deploy_combo.setCurrentIndex(0 if not data.recovery.dual_deploy else 1)
+
+                if hasattr(data, 'environment'):
+                    self.vehicle_widget.wind_speed_spin.setValue(data.environment.wind_speed)
+                    self.vehicle_widget.rail_length_spin.setValue(data.environment.rail_length)
+                    self.vehicle_widget.angle_spin.setValue(data.environment.launch_angle)
+
+                # Refresh vehicle geometry and diagram
+                self.vehicle_widget._update_rocket()
 
                 self._update_title()
                 self.status_bar.showMessage(f"Opened: {path}", 3000)
@@ -616,14 +661,66 @@ class MainWindow(QMainWindow):
 
     def _collect_inputs(self):
         """Collect inputs from UI into project."""
-        self._project.update_inputs(
-            fuel=self.input_panel.fuel_combo.currentText(),
-            oxidizer=self.input_panel.oxidizer_combo.currentText(),
-            of_ratio=self.input_panel.of_ratio_spin.value(),
-            chamber_pressure_bar=self.input_panel.pressure_spin.value(),
-            throat_area_cm2=self.input_panel.throat_area_spin.value(),
-            expansion_ratio=self.input_panel.expansion_spin.value(),
-            ambient=self.input_panel.ambient_combo.currentText()
+        engine_params = {
+            'fuel': self.input_panel.fuel_combo.currentText(),
+            'oxidizer': self.input_panel.oxidizer_combo.currentText(),
+            'of_ratio': self.input_panel.of_ratio_spin.value(),
+            'chamber_pressure_bar': self.input_panel.pressure_spin.value(),
+            'throat_area_cm2': self.input_panel.throat_area_spin.value(),
+            'expansion_ratio': self.input_panel.expansion_spin.value(),
+            'ambient': self.input_panel.ambient_combo.currentText(),
+            'eta_cstar': self.input_panel.eta_cstar_spin.value(),
+            'eta_cf': self.input_panel.eta_cf_spin.value(),
+            'alpha_deg': self.input_panel.alpha_spin.value()
+        }
+
+        # Get values from vehicle designer UI directly
+        shape_map = {0: "ogive", 1: "conical", 2: "elliptical", 3: "parabolic"}
+        nose_shape_str = shape_map.get(self.vehicle_widget.nose_shape_combo.currentIndex(), "ogive")
+
+        rocket_params = {
+            'name': self.vehicle_widget.get_rocket().name,
+            'nose_shape': nose_shape_str,
+            'nose_length': self.vehicle_widget.nose_length_spin.value(),
+            'nose_diameter': self.vehicle_widget.body_diameter_spin.value(),
+            'nose_mass': self.vehicle_widget.nose_mass_spin.value(),
+            'body_length': self.vehicle_widget.body_length_spin.value(),
+            'body_diameter': self.vehicle_widget.body_diameter_spin.value(),
+            'body_mass': self.vehicle_widget.body_mass_spin.value(),
+            'fin_count': self.vehicle_widget.fin_count_spin.value(),
+            'fin_root_chord': self.vehicle_widget.fin_root_spin.value(),
+            'fin_tip_chord': self.vehicle_widget.get_rocket().fins.fin.tip_chord,
+            'fin_span': self.vehicle_widget.fin_span_spin.value(),
+            'fin_sweep_angle': self.vehicle_widget.get_rocket().fins.fin.sweep_angle,
+            'fin_mass': self.vehicle_widget.fin_mass_spin.value(),
+            'fuel_mass': self.vehicle_widget.fuel_mass_spin.value(),
+            'oxidizer_mass': self.vehicle_widget.ox_mass_spin.value()
+        }
+
+        rec_ui = self.vehicle_widget.get_recovery_params()
+        recovery_params = {
+            'dual_deploy': not rec_ui['deploy_at_apogee'],
+            'main_diameter': rec_ui['chute_diameter'],
+            'main_cd': 1.5,
+            'main_deploy_altitude': 200.0,
+            'drogue_diameter': 0.3,
+            'drogue_cd': 1.2
+        }
+
+        env_ui = self.vehicle_widget.get_launch_conditions()
+        environment_params = {
+            'wind_speed': env_ui['wind_speed'],
+            'wind_direction': 0.0,
+            'rail_length': env_ui['rail_length'],
+            'launch_altitude': 0.0,
+            'launch_angle': env_ui['launch_angle']
+        }
+
+        self._project.update_from_ui(
+            engine_params=engine_params,
+            rocket_params=rocket_params,
+            recovery_params=recovery_params,
+            environment_params=environment_params
         )
 
     def _export_csv(self):
@@ -1220,6 +1317,11 @@ class MainWindow(QMainWindow):
             if wind_speed > 0:
                 self._log(f"  Wind: {wind_speed} m/s, Rail: {rail_length}m")
 
+            # Get recovery parameters from UI
+            rec_params = self.vehicle_widget.get_recovery_params()
+            chute_diameter = rec_params.get('chute_diameter', 1.0)
+            deploy_at_apogee = rec_params.get('deploy_at_apogee', True)
+
             # Run 6-DOF simulation with adaptive integration
             result = simulate_flight_6dof(
                 rocket=rocket,
@@ -1234,7 +1336,9 @@ class MainWindow(QMainWindow):
                 rail_length=rail_length,
                 use_adaptive=True,
                 output_dt=0.01,  # 100Hz fixed output
-                throttle=1.0
+                throttle=1.0,
+                chute_diameter=chute_diameter,
+                deploy_at_apogee=deploy_at_apogee
             )
 
             # Store flight result for visualization

@@ -678,7 +678,10 @@ def simulate_flight_6dof(
     # Perturbation parameters (Monte Carlo)
     throttle: float = 1.0,
     cd_factor: float = 1.0,
-    fin_misalignment_deg: float = 0.0
+    fin_misalignment_deg: float = 0.0,
+    # Recovery parameters
+    chute_diameter: float = 0.0,
+    deploy_at_apogee: bool = True
 ) -> FlightResult6DOF:
     """
     Simulate rocket flight using 6-DOF rigid body dynamics.
@@ -794,11 +797,20 @@ def simulate_flight_6dof(
     base_mdot = thrust_vac / (isp_vac * G0) if isp_vac > 0 else 0
     throttled_mdot = base_mdot * throttle_clamped
 
+    # Rail unit vector for initial state
+    sin_la_init = np.sin(np.radians(launch_angle_deg))
+    cos_la_init = np.cos(np.radians(launch_angle_deg))
+    sin_az_init = np.sin(np.radians(launch_azimuth_deg))
+    cos_az_init = np.cos(np.radians(launch_azimuth_deg))
+    rail_dx_init = cos_la_init * sin_az_init
+    rail_dy_init = cos_la_init * cos_az_init
+    rail_dz_init = sin_la_init
+
     # Initial state vector: [x, y, z, vx, vy, vz, q0, q1, q2, q3, wx, wy, wz, m_prop]
     # 14 elements: 3 position + 3 velocity + 4 quaternion + 3 angular velocity + 1 propellant mass
     state = np.array([
         0.0, 0.0, 0.0,          # Position (at origin)
-        0.0, 0.0, 0.001,        # Velocity (tiny upward to start)
+        0.001 * rail_dx_init, 0.001 * rail_dy_init, 0.001 * rail_dz_init,  # Velocity along rail
         q_init[0], q_init[1], q_init[2], q_init[3],  # Quaternion
         0.0, 0.0, 0.0,          # Angular velocity (stationary)
         m_prop_initial          # Propellant mass (kg)
@@ -827,6 +839,7 @@ def simulate_flight_6dof(
     has_apogee = False
     max_alt_reached = False
     prev_vz = 0.0
+    chute_deployed = False
 
     # =========================================================================
     # Main simulation loop
@@ -969,12 +982,29 @@ def simulate_flight_6dof(
         # =====================================================================
         # Aerodynamic Forces
         # =====================================================================
-        # Transform velocity to body frame
-        q_inv = q_conjugate(q)
-        v_inertial = np.array([vx, vy, vz])
-        v_body = q_rotate_vector(q_inv, v_inertial)
+        # Meteorological convention: direction is where wind is coming FROM.
+        # Velocity vector points in the opposite direction (where it is blowing TO).
+        wind_to_dir_rad = np.radians(wind_direction_deg + 180.0)
+        
+        # Wind speed increases with altitude using a power law
+        if altitude > 0.0:
+            local_wind_speed = wind_speed * (altitude / 10.0) ** 0.143
+        else:
+            local_wind_speed = 0.0
 
-        # Calculate aerodynamic angles
+        wind_vx = local_wind_speed * np.sin(wind_to_dir_rad)
+        wind_vy = local_wind_speed * np.cos(wind_to_dir_rad)
+        wind_vz = 0.0
+
+        # Air-relative velocity vector
+        v_rel_inertial = np.array([vx - wind_vx, vy - wind_vy, vz - wind_vz])
+        V_rel = np.sqrt(v_rel_inertial[0]**2 + v_rel_inertial[1]**2 + v_rel_inertial[2]**2)
+
+        # Transform relative velocity to body frame
+        q_inv = q_conjugate(q)
+        v_body = q_rotate_vector(q_inv, v_rel_inertial)
+
+        # Calculate aerodynamic angles from relative wind
         alpha, beta = calculate_aero_angles(v_body)
         alpha_arr[i] = np.degrees(alpha)
         beta_arr[i] = np.degrees(beta)
@@ -987,12 +1017,19 @@ def simulate_flight_6dof(
         D = q_dyn * cd * A_ref
         drag_arr[i] = D
 
-        # Drag in body frame (opposes velocity)
-        if V > 1e-6:
-            v_body_unit = v_body / np.sqrt(v_body[0]**2 + v_body[1]**2 + v_body[2]**2)
+        # Drag in body frame (opposes air-relative velocity)
+        if V_rel > 1e-6:
+            v_body_unit = v_body / V_rel
             F_aero_body = -D * v_body_unit
         else:
             F_aero_body = np.array([0.0, 0.0, 0.0])
+
+        # Parachute recovery drag integration
+        if chute_deployed and chute_diameter > 0:
+            chute_cda = 1.5 * np.pi * (chute_diameter / 2) ** 2
+            D_chute = q_dyn * chute_cda
+            if V_rel > 1e-6:
+                F_aero_body += -D_chute * v_body_unit
 
         # Gravity magnitude for output
         g_vec = calculate_gravity_vector(altitude)
@@ -1016,6 +1053,10 @@ def simulate_flight_6dof(
 
         # Aerodynamic moment about CG
         M_aero = calculate_aerodynamic_moment(cp_pos, cg_pos, F_aero_body)
+
+        # Apply strong rotational damping when parachute is deployed to simulate stable descent
+        if chute_deployed:
+            M_aero = -5.0 * omega
 
         # Thrust moment (assuming no thrust vectoring)
         M_thrust = np.array([0.0, 0.0, 0.0])
@@ -1048,6 +1089,15 @@ def simulate_flight_6dof(
             apogee_time = t
             apogee_alt = altitude
         prev_vz = vz
+
+        # =====================================================================
+        # Parachute Deployment Logic
+        # =====================================================================
+        if has_apogee:
+            if deploy_at_apogee:
+                chute_deployed = True
+            elif altitude <= 300.0:  # Main deployment altitude trigger
+                chute_deployed = True
 
         # =====================================================================
         # Ground impact detection
@@ -1159,6 +1209,31 @@ def simulate_flight_6dof(
             # Check for NaN (physics violation)
             if np.any(np.isnan(state)):
                 raise PhysicsViolationError(f"NaN detected in state at t={t:.2f}s")
+
+            # Apply launch rail constraint (project velocity and lock orientation)
+            dist_traveled = np.sqrt(state[0]*state[0] + state[1]*state[1] + state[2]*state[2])
+            if dist_traveled < rail_length:
+                state[6] = q_init[0]
+                state[7] = q_init[1]
+                state[8] = q_init[2]
+                state[9] = q_init[3]
+                state[10] = 0.0
+                state[11] = 0.0
+                state[12] = 0.0
+                
+                sin_la = np.sin(np.radians(launch_angle_deg))
+                cos_la = np.cos(np.radians(launch_angle_deg))
+                sin_az = np.sin(np.radians(launch_azimuth_deg))
+                cos_az = np.cos(np.radians(launch_azimuth_deg))
+                
+                rail_dx = cos_la * sin_az
+                rail_dy = cos_la * cos_az
+                rail_dz = sin_la
+                
+                V_mag = np.sqrt(state[3]*state[3] + state[4]*state[4] + state[5]*state[5])
+                state[3] = V_mag * rail_dx
+                state[4] = V_mag * rail_dy
+                state[5] = V_mag * rail_dz
         else:
             t += dt
 

@@ -11,6 +11,32 @@ Usage:
 import argparse
 import sys
 from typing import NoReturn
+import builtins
+
+def safe_print(*args, **kwargs):
+    try:
+        builtins.print(*args, **kwargs)
+    except UnicodeEncodeError:
+        cleaned_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                cleaned = (arg.replace('✓', '[PASS]')
+                              .replace('⚠', '[WARN]')
+                              .replace('✅', '[PASS]')
+                              .replace('❌', '[FAIL]')
+                              .replace('⚠️', '[WARN]'))
+                cleaned = cleaned.encode('ascii', errors='replace').decode('ascii')
+                cleaned_args.append(cleaned)
+            else:
+                cleaned_args.append(arg)
+        try:
+            builtins.print(*cleaned_args, **kwargs)
+        except Exception:
+            pass
+
+# Override global print
+print = safe_print
+
 
 
 def run_gui() -> NoReturn:

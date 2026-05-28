@@ -42,6 +42,8 @@ class FlightResult:
     acceleration: np.ndarray
     mach: np.ndarray
     path_angle: np.ndarray  # Flight path angle (degrees)
+    mass: np.ndarray
+
 
     # Forces
     thrust: np.ndarray
@@ -249,6 +251,7 @@ def simulate_flight(
     q_arr = np.zeros(n_steps)
     stability = np.zeros(n_steps)
     aoa = np.zeros(n_steps)
+    mass = np.zeros(n_steps)
 
     # Initial State [x, z, v, gamma]
     # gamma in radians from horizontal
@@ -271,6 +274,7 @@ def simulate_flight(
     has_lifted = False
     has_burnout = False
     has_apogee = False
+    max_alt_reached = False
 
     A_ref = rocket.reference_area
 
@@ -293,6 +297,7 @@ def simulate_flight(
 
         # Mass
         m = rocket.get_mass_at_time(t)
+        mass[i] = m
 
         # Thrust
         if t < burn_time:
@@ -367,8 +372,12 @@ def simulate_flight(
             apogee_time = t
             apogee_alt = altitude[i]
 
+        # Track if rocket has left the pad/gained initial altitude
+        if has_lifted and altitude[i] > 1.0:
+            max_alt_reached = True
+
         # Impact
-        if has_lifted and y[1] <= 0:
+        if has_lifted and y[1] <= 0 and max_alt_reached:
             # Crash - Truncate ALL arrays to same length
             time = time[:i+1]
             altitude = altitude[:i+1]
@@ -382,6 +391,7 @@ def simulate_flight(
             q_arr = q_arr[:i+1]
             stability = stability[:i+1]
             aoa = aoa[:i+1]
+            mass = mass[:i+1]
             break
 
         # Integration Step
@@ -398,6 +408,7 @@ def simulate_flight(
         acceleration=acceleration,
         mach=mach,
         path_angle=path_angle,
+        mass=mass,
         thrust=thrust,
         drag=drag,
         q=q_arr,
