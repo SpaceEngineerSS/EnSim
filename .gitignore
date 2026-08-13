@@ -71,7 +71,7 @@ venv.bak/
 *.sublime-project
 *.sublime-workspace
 
-# Cursor IDE
+# Local editor state
 .cursor/
 
 # Jupyter Notebook
