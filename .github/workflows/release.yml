@@ -17,6 +17,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+      - name: Install Qt runtime libraries
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libegl1 libgl1
       - name: Verify tag and package version
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
