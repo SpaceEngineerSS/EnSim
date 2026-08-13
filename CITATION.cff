@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: SpaceEngineerSS
-    given-names: ""
-title: "EnSim: Open Source Rocket Engine Simulation Suite"
-version: 2.0.0
-date-released: 2026-01-02
+  - family-names: Gümüş
+    given-names: Mehmet
+title: "EnSim: Rocket Propulsion and Flight Simulation"
+version: 3.0.0
+date-released: 2026-08-13
 url: "https://github.com/SpaceEngineerSS/EnSim"
 repository-code: "https://github.com/SpaceEngineerSS/EnSim"
 license: MIT
@@ -16,10 +16,10 @@ keywords:
   - combustion
   - aerospace engineering
 abstract: >-
-  EnSim is a desktop application for designing liquid rocket engines.
-  It solves thermochemical equilibrium equations using NASA CEA methodology
-  to calculate theoretical performance metrics (Isp, C*, T_comb) and
-  visualizes nozzle flow in 2D and 3D.
+  EnSim is an open-source desktop application and Python package for
+  thermochemical equilibrium, ideal rocket-nozzle performance, preliminary
+  cooling analysis, uncertainty propagation and six-degree-of-freedom flight
+  simulation.
 references:
   - type: book
     authors:

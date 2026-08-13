@@ -1,128 +1,68 @@
-# User Guide
+# Desktop user guide
 
-Welcome to the EnSim User Guide! This comprehensive guide covers all features of the application.
+![Main interface](../screenshot_main.png)
 
-## Interface Overview
+## Engine workflow
 
-EnSim features a modern "Mission Control" style interface with cyan and green neon accents:
+![Engine result plots](../screenshot_graphs.png)
 
-![Main Interface](../screenshot_main.png)
+The contextual input panel collects propellants, mass O/F ratio, chamber and
+ambient pressure, expansion ratio, throat diameter and explicit efficiency
+inputs. Run calculates equilibrium first and then the selected frozen ideal
+nozzle operating point. Output presents convergence and key values; Results
+contains station plots and the optional 3-D view.
 
-### Main Components
+## Engine specialist tabs
 
-1. **Input Panel** (Left): Propellant selection and engine parameters
-2. **KPI Dashboard** (Top): Real-time performance metrics
-3. **Tab Navigation** (Center): Output, Results, Engine, Vehicle, Advanced
-4. **Status Bar** (Bottom): Simulation status and messages
+![Cooling workspace](../screenshot_engine.png)
 
-### Tab Overview
+- **Thermal/cooling** uses the current chamber result together with explicitly
+  entered channel geometry, coolant, wall material and correlation inputs.
+- **Optimization** exposes reduced-order nozzle, staging, trajectory and load
+  objectives. Constraints shown in the form are the constraints enforced.
+- **Advanced / MOC** designs a symmetric planar minimum-length contour under
+  steady, inviscid, irrotational and calorically perfect assumptions. Its
+  transverse input is throat half-height, not an axisymmetric radius.
+- **Advanced / Engine UQ** propagates the displayed uncertainty model and reports
+  valid and failed runs.
 
-| Tab | Description |
-|-----|-------------|
-| **Output** | Main simulation output and KPI dashboard |
-| **Results** | 2D graphs and 3D visualization |
-| **Engine** | Thermal analysis, cooling design, optimization |
-| **Vehicle** | Multi-stage configuration and flight simulation |
-| **Advanced** | MOC nozzle design, Monte Carlo analysis |
+![Planar MOC workspace](../screenshot_advanced.png)
 
-#### Results Tab
-![Results Tab](../screenshot_results.png)
+## Vehicle and flight
 
-#### Engine Tab (Thermal & Cooling)
-![Engine Tab](../screenshot_engine.png)
+![Vehicle workspace](../screenshot_vehicle.png)
 
-#### Vehicle Tab (Multi-Stage)
-![Vehicle Tab](../screenshot_vehicle.png)
+Configure the vehicle before running flight or dispersion analysis. Flight uses
+the engine mass flow and available propellant to determine cutoff. The optional
+WGS-84 path returns ECI, local ENU and geodetic histories. The general
+aerodynamic model is preliminary; consult
+[flight verification](../FLIGHT_VALIDATION.md).
 
-#### 3D Visualization
-![3D View](../screenshot_3d.png)
+## Three-dimensional view
 
-## Guides
+![Three-dimensional nozzle visualization](../screenshot_3d.png)
 
-<div class="grid cards" markdown>
+The 3-D view revolves the selected nozzle contour and colors its surface with the
+one-dimensional station result. It is not a CFD solution or conjugate thermal
+analysis.
 
--   :material-flask:{ .lg .middle } __Propellant Selection__
+## Projects and exports
 
-    ---
+Project files store local JSON parameters and contain no executable code. CSV and
+Markdown exports preserve SI units in their headers. The Markdown report states
+the idealized model boundary. Snapshot comparison is for design-state comparison,
+not experimental uncertainty.
 
-    Choose and configure fuel/oxidizer combinations.
+## Interpreting warnings
 
-    [:octicons-arrow-right-24: Propellants](propellants.md)
+- A convergence failure invalidates downstream nozzle performance.
+- Overexpansion is a warning that the attached-flow model may be inappropriate.
+- A cooling result outside a correlation domain should be rejected, not
+  extrapolated silently.
+- Acoustic frequency proximity is not proof of instability.
+- Monte Carlo confidence is conditional on the selected input distributions.
 
--   :material-engine:{ .lg .middle } __Engine Design__
+## Units
 
-    ---
-
-    Configure chamber conditions and nozzle geometry.
-
-    [:octicons-arrow-right-24: Engine Design](engine-design.md)
-
--   :material-airplane:{ .lg .middle } __Flight Simulation__
-
-    ---
-
-    Run 6-DOF trajectory simulations.
-
-    [:octicons-arrow-right-24: Flight Simulation](flight-simulation.md)
-
--   :material-dice-multiple:{ .lg .middle } __Monte Carlo Analysis__
-
-    ---
-
-    Statistical dispersion analysis.
-
-    [:octicons-arrow-right-24: Monte Carlo](monte-carlo.md)
-
--   :material-export:{ .lg .middle } __Data Export__
-
-    ---
-
-    Export results to CSV, reports, and 3D models.
-
-    [:octicons-arrow-right-24: Export](export.md)
-
-</div>
-
-## Quick Reference
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+N` | New Project |
-| `Ctrl+O` | Open Project |
-| `Ctrl+S` | Save Project |
-| `Ctrl+R` | Run Simulation |
-| `F5` | Run Simulation |
-| `Ctrl+E` | Export Results |
-
-### Supported Propellants
-
-| Fuel | Oxidizer | Application |
-|------|----------|-------------|
-| H₂ | O₂ | High-performance upper stages |
-| CH₄ | O₂ | Reusable rockets (Raptor-style) |
-| RP-1 | O₂ | First stages (Merlin-style) |
-| N₂H₄ | N₂O₄ | Storable propellants (spacecraft) |
-| MMH | N₂O₄ | Reaction control systems |
-
-### Typical Parameter Ranges
-
-| Parameter | Typical Range |
-|-----------|---------------|
-| Chamber Pressure | 1-30 MPa |
-| O/F Ratio | 1.5-8.0 |
-| Expansion Ratio | 10-300 |
-| Chamber Temperature | 2500-3700 K |
-
-## Tips & Best Practices
-
-!!! tip "Start Simple"
-    Begin with standard propellant combinations (LOX/LH₂, LOX/RP-1) before exploring exotic options.
-
-!!! tip "Validate Results"
-    Compare your results against NASA CEA for verification.
-
-!!! warning "High Expansion Ratios"
-    Very high expansion ratios (>100) are sensitive to numerical precision. Consider sea-level flow separation.
-
+The current interface and computational core use SI. Do not interpret labels as
+converted Imperial values; the former cosmetic unit toggle was removed.

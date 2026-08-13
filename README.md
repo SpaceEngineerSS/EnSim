@@ -1,289 +1,151 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/assets/logo.png" alt="EnSim Logo" width="120" height="120">
-</p>
+# EnSim
 
-<h1 align="center">EnSim</h1>
-<h3 align="center">🚀 Professional Rocket Engine & Flight Simulation Platform</h3>
+EnSim is an open-source desktop application and Python package for liquid-rocket
+propulsion analysis and six-degree-of-freedom flight simulation. It is intended
+for preliminary design, reproducible trade studies and engineering education.
 
-<p align="center">
-  <a href="https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml">
-    <img src="https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-  </a>
-  <a href="https://pypi.org/project/ensim/">
-    <img src="https://img.shields.io/pypi/v/ensim.svg" alt="PyPI Version">
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/Python-3.10+-green.svg" alt="Python 3.10+">
-  </a>
-  <a href="docs/VALIDATION.md">
-    <img src="https://img.shields.io/badge/Validated-NASA%20CEA%20±2%25-brightgreen.svg" alt="NASA CEA Validated">
-  </a>
-</p>
+[![CI](https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/ensim.svg)](https://pypi.org/project/ensim/)
+[![Python](https://img.shields.io/pypi/pyversions/ensim.svg)](https://pypi.org/project/ensim/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-documentation">Documentation</a> •
-  <a href="#-validation">Validation</a> •
-  <a href="#-contributing">Contributing</a>
-</p>
+![EnSim main window](docs/screenshot_main.png)
 
----
+## What EnSim calculates
 
-## Overview
+- ideal-gas chemical equilibrium by constrained Gibbs-energy minimization;
+- adiabatic chamber temperature from coupled equilibrium and enthalpy balance;
+- frozen-composition, calorically perfect nozzle performance;
+- planar minimum-length method-of-characteristics nozzle contours;
+- preliminary regenerative-cooling heat transfer and pressure loss;
+- acoustic chamber-mode frequencies, with stability classification only when
+  growth and damping rates are supplied;
+- local-frame and WGS-84/J2 six-degree-of-freedom trajectories;
+- staging, dispersion analysis, reduced-order optimization and uncertainty
+  propagation.
 
-**EnSim** is an open-source desktop application for rocket propulsion analysis and flight simulation. It combines NASA-validated thermochemical equilibrium calculations with full 6-DOF trajectory simulation, all within a modern, user-friendly interface.
+The interface uses SI units. Long-running engine, flight and uncertainty jobs run
+outside the GUI event loop. Project files remain local; the application does not
+require a network connection.
 
-Whether you're a student learning rocket science, a researcher exploring propulsion concepts, or an engineer performing preliminary design analysis, EnSim provides the tools you need.
+## Scientific status
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_main.png" alt="EnSim Interface" width="800">
-</p>
+EnSim distinguishes verification from validation:
 
-## 📸 Screenshots
+- thermodynamic polynomial evaluation, conservation equations and nozzle
+  relations have analytical or invariant tests;
+- two gas-phase HP equilibrium cases are compared with results produced by the
+  official NASA CEA 3.3.2 Python distribution;
+- dragless WGS-84 translation and torque-free rotation are compared with
+  selected public NASA NESC check-case histories;
+- cooling correlations are checked against their equations and physical trends,
+  but are not calibrated to a particular engine hot-fire data set;
+- the general aerodynamic flight model has not been validated against telemetry.
+- axial flight drag uses an explicit user-supplied coefficient rather than an
+  undocumented synthetic Mach curve.
 
-<details>
-<summary><b>Click to expand screenshots</b></summary>
+See [validation](docs/VALIDATION.md), [model limitations](docs/MODEL_LIMITATIONS.md)
+and [theory](docs/THEORY.md) before using results in a design decision. EnSim is
+not a certification, range-safety or hardware-release tool.
 
-### Results & Graphs
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_results.png" alt="Results Tab" width="800">
-</p>
+## Installation
 
-### Engine Analysis (Thermal & Cooling)
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_engine.png" alt="Engine Tab" width="800">
-</p>
-
-### Vehicle Configuration (Multi-Stage)
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_vehicle.png" alt="Vehicle Tab" width="800">
-</p>
-
-### 3D Nozzle Visualization
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_3d.png" alt="3D Visualization" width="800">
-</p>
-
-### Advanced Engineering
-<p align="center">
-  <img src="https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/screenshot_advanced.png" alt="Advanced Tab" width="800">
-</p>
-
-</details>
-
-## ✨ Features
-
-### 🔬 Thermochemical Analysis
-- **NASA CEA Methodology**: Gordon-McBride equilibrium solver with Gibbs free energy minimization
-- **Comprehensive Species Database**: 35+ species including H₂, O₂, CH₄, RP-1, N₂O₄, UDMH, MMH
-- **High-Temperature Dissociation**: Full accounting for H, O, OH, NO, and other radicals
-- **Validated Accuracy**: <2% error vs NASA CEA reference data
-
-### 🚀 Performance Calculations
-- **Chamber Temperature**: Adiabatic flame temperature with dissociation
-- **Characteristic Velocity (C*)**: Key measure of combustion efficiency
-- **Specific Impulse (Isp)**: Both vacuum and sea-level values
-- **Thrust Coefficient (Cf)**: With nozzle divergence corrections
-
-### 🎯 6-DOF Flight Simulation
-- **Full Rigid Body Dynamics**: Quaternion-based orientation (no gimbal lock)
-- **Adaptive Integration**: RK45 Dormand-Prince with automatic step sizing
-- **Aerodynamic Models**: Configurable drag and stability derivatives
-- **Dense Output**: Cubic Hermite interpolation for smooth trajectories
-
-### 🎲 Monte Carlo Analysis
-- **Landing Dispersion**: CEP and 3-sigma confidence ellipses
-- **Performance Variability**: Statistical analysis of Isp, thrust, burn time
-- **Parallel Processing**: Multi-core execution for thousands of runs
-- **Visualization**: Scatter plots, histograms, and probability contours
-
-### 🔧 Advanced Engineering Tools
-- **Multi-Stage Vehicles**: Full staging simulation with preset rockets (Falcon 9, Saturn V)
-- **Regenerative Cooling**: Bartz correlation thermal analysis with channel design
-- **Trajectory Optimization**: Nozzle expansion ratio and stage mass allocation
-- **Materials Database**: 10 aerospace materials with thermal properties
-- **17 Propellant Presets**: Ready-to-use fuel/oxidizer combinations
-
-### 🎨 Modern User Interface
-- **Mission Control Aesthetic**: SpaceX-inspired dark theme with cyan/green neon accents
-- **Real-time KPI Dashboard**: Live display of key performance metrics
-- **Interactive 3D Visualization**: PyVista-powered nozzle and trajectory display
-- **SI/Imperial Units**: One-click unit system toggle
-- **Professional Exports**: CSV data, Markdown reports, STL/OBJ/PLY 3D models
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.10 or higher
-- pip package manager
-
-### Installation
-
-#### Option 1: Install from PyPI (Recommended)
+Python 3.10 or newer is required.
 
 ```bash
-pip install ensim
+python -m pip install ensim
+ensim
 ```
 
-#### Option 2: Install from Source
+For a source checkout:
 
 ```bash
-# Clone the repository
 git clone https://github.com/SpaceEngineerSS/EnSim.git
 cd EnSim
-
-# Create virtual environment (recommended)
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Running EnSim
-
-```bash
-# Launch the GUI application
+python -m venv .venv
+python -m pip install -e ".[dev,docs]"
+python -m pytest
 python main.py
-
-# Run with validation tests
-python main.py --test
 ```
 
-### First Simulation
+The command `ensim --test` performs a short installation and coupled-physics
+smoke test. It is not a substitute for the complete pytest suite.
 
-1. **Select Propellants**: Choose fuel (e.g., H₂) and oxidizer (e.g., O₂)
-2. **Set Conditions**: Enter O/F ratio, chamber pressure, expansion ratio
-3. **Run Simulation**: Click "RUN SIMULATION" to calculate performance
-4. **Analyze Results**: View KPIs, graphs, and 3D nozzle visualization
+## Minimal Python example
 
-## 📖 Documentation
+```python
+from ensim.core.chemistry import CombustionProblem
+from ensim.core.propulsion import NozzleConditions, calculate_performance
+from ensim.utils.nasa_parser import load_default_database
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design and physics overview |
-| [docs/THEORY.md](docs/THEORY.md) | Mathematical formulation and equations |
-| [docs/VALIDATION.md](docs/VALIDATION.md) | NASA CEA comparison results |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
+database = load_default_database()
+problem = CombustionProblem(database)
+problem.add_fuel("H2", moles=2.0, temperature=298.15)
+problem.add_oxidizer("O2", moles=1.0, temperature=298.15)
+equilibrium = problem.solve(pressure=6.89e6)
 
-## ✅ Validation
+nozzle = NozzleConditions(
+    area_ratio=40.0,
+    chamber_pressure=6.89e6,
+    ambient_pressure=0.0,
+)
+performance = calculate_performance(
+    T_chamber=equilibrium.temperature,
+    P_chamber=nozzle.chamber_pressure,
+    gamma=equilibrium.gamma,
+    mean_molecular_weight=equilibrium.mean_molecular_weight,
+    nozzle=nozzle,
+)
 
-EnSim is rigorously validated against NASA CEA, the industry standard for rocket propulsion analysis.
-
-### Validation Summary
-
-| Propellant Combination | T_chamber Error | Isp Error | Status |
-|------------------------|-----------------|-----------|--------|
-| LOX/LH₂ | 1.76% | 1.41% | ✅ Pass |
-| LOX/CH₄ | 0.48% | 1.07% | ✅ Pass |
-| LOX/RP-1 | 0.49% | 0.86% | ✅ Pass |
-| N₂O₄/UDMH | 0.56% | 0.85% | ✅ Pass |
-
-**Overall Accuracy**: Average error <1% across all validated cases
-
-See [VALIDATION.md](docs/VALIDATION.md) for detailed comparison data.
-
-## 🏗️ Architecture
-
-```
-EnSim/
-├── 📁 src/
-│   ├── 📁 core/                 # Physics Engine (Numba JIT)
-│   │   ├── chemistry.py         # Gibbs equilibrium solver
-│   │   ├── propulsion.py        # Nozzle flow calculations
-│   │   ├── flight_6dof.py       # 6-DOF dynamics
-│   │   ├── integrators.py       # RK45, Hermite interpolation
-│   │   ├── monte_carlo.py       # Dispersion analysis
-│   │   └── thermodynamics.py    # NASA polynomial evaluation
-│   │
-│   ├── 📁 ui/                   # User Interface (PyQt6)
-│   │   ├── windows/             # Main window, dialogs
-│   │   ├── widgets/             # Custom widgets
-│   │   └── workers.py           # Background threads
-│   │
-│   └── 📁 utils/                # Utilities
-│       ├── nasa_parser.py       # Thermo data parser
-│       └── exporters.py         # Data export functions
-│
-├── 📁 data/                     # NASA thermodynamic database
-├── 📁 tests/                    # Test suite (pytest)
-├── 📁 docs/                     # Documentation
-└── 📁 assets/                   # Icons, stylesheets
+print(equilibrium.temperature, performance.isp)
 ```
 
-## 🔧 Technology Stack
+`mean_molecular_weight` is expressed in g/mol; pressures are Pa and
+temperatures are K.
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| GUI | PyQt6 | Modern cross-platform interface |
-| Numerics | NumPy, SciPy | Array operations, optimization |
-| Acceleration | Numba | JIT compilation for 10-100x speedup |
-| 3D Visualization | PyVista | Interactive nozzle/trajectory display |
-| 2D Plots | Matplotlib | Scientific plotting |
-| Testing | pytest | Unit and validation tests |
+## Documentation
 
-## 🤝 Contributing
+- [Architecture](ARCHITECTURE.md)
+- [Theory and equations](docs/THEORY.md)
+- [Validation evidence](docs/VALIDATION.md)
+- [Flight verification](docs/FLIGHT_VALIDATION.md)
+- [Cooling model](docs/COOLING.md)
+- [Combustion-instability model](docs/COMBUSTION_INSTABILITY.md)
+- [Uncertainty quantification](docs/UNCERTAINTY_QUANTIFICATION.md)
+- [API overview](docs/api/index.md)
 
-We welcome contributions from the community! Whether it's:
-
-- 🐛 **Bug Reports**: Found an issue? [Open a bug report](../../issues/new?template=bug_report.yml)
-- ✨ **Feature Requests**: Have an idea? [Suggest a feature](../../issues/new?template=feature_request.yml)
-- 🔬 **Scientific Issues**: Validation concerns? [Report a scientific issue](../../issues/new?template=scientific_issue.yml)
-- 💻 **Code Contributions**: Ready to code? See [CONTRIBUTING.md](CONTRIBUTING.md)
-
-### Development Setup
+## Development
 
 ```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest tests/ -v
-
-# Run linting
-ruff check src/
-
-# Format code
-black src/ tests/
+python -m ruff check src tests
+python -m pytest
+python -m build
+python -m twine check dist/*
 ```
 
-## 📜 License
+Bug reports and scientific challenges are welcome through the
+[issue tracker](https://github.com/SpaceEngineerSS/EnSim/issues). A scientific
+issue should include units, full input data, the reference source and enough
+information to reproduce the comparison.
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+## Primary references
 
-## 🙏 Acknowledgments
+1. Gordon, S. and McBride, B. J., *Computer Program for Calculation of Complex
+   Chemical Equilibrium Compositions and Applications, Part I: Analysis*, NASA
+   RP-1311, 1994.
+2. McBride, B. J., Zehe, M. J. and Gordon, S., *NASA Glenn Coefficients for
+   Calculating Thermodynamic Properties of Individual Species*,
+   NASA/TP-2002-211556, 2002.
+3. Jackson, E. B., Murri, D. G. and Shelton, R. O., *Check-Cases for
+   Verification of 6-Degree-of-Freedom Flight Vehicle Simulations, Volume I*,
+   NASA/TM-2015-218675, 2015.
+4. Bartz, D. R., *A Simple Equation for Rapid Estimation of Rocket Nozzle
+   Convective Heat Transfer Coefficients*, Jet Propulsion, 1957.
+5. Gordon, S. and McBride, B. J., *Computer Program for Calculation of Complex
+   Chemical Equilibrium Compositions and Applications, Part II: Users Manual
+   and Program Description*, NASA RP-1311, 1996.
 
-- **NASA Glenn Research Center** - Thermodynamic polynomial database
-- **Sutton & Biblarz** - "Rocket Propulsion Elements" reference
-- **The open-source scientific Python community** - NumPy, SciPy, Matplotlib
+## License and citation
 
-## 📚 References
-
-1. Gordon, S. & McBride, B.J. (1994). *"Computer Program for Calculation of Complex Chemical Equilibrium Compositions and Applications"*. NASA Reference Publication 1311.
-
-2. McBride, B.J., Zehe, M.J., & Gordon, S. (2002). *"NASA Glenn Coefficients for Calculating Thermodynamic Properties of Individual Species"*. NASA/TP-2002-211556.
-
-3. Sutton, G.P. & Biblarz, O. (2017). *"Rocket Propulsion Elements"*. 9th Edition, Wiley.
-
-4. Anderson, J.D. (2003). *"Modern Compressible Flow"*. 3rd Edition, McGraw-Hill.
-
----
-
-<p align="center">
-  Made with ❤️ for the aerospace community
-</p>
-
-<p align="center">
-  <a href="#ensim">⬆️ Back to top</a>
-</p>
+EnSim is released under the [MIT License](LICENSE). Citation metadata is
+available in [CITATION.cff](CITATION.cff).

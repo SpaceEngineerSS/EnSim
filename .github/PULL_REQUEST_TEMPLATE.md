@@ -1,82 +1,23 @@
-## Description
+## Summary
 
-<!-- Provide a brief description of the changes -->
+Describe the problem, the implemented change and its scope.
 
+## Evidence
 
+- [ ] `python -m ruff check src tests`
+- [ ] `python -m ruff format --check src tests`
+- [ ] `python -m pytest`
+- [ ] New or changed behavior has focused tests
 
-## Type of Change
+For a scientific-model change, include the governing equation, unit convention,
+domain of applicability, primary source and a reproducible comparison. State what
+the evidence does not validate.
 
-<!-- Mark the relevant option with [x] -->
+## Compatibility and risk
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] 📚 Documentation update
-- [ ] 🔬 Scientific improvement (accuracy, validation)
-- [ ] ⚡ Performance improvement
-- [ ] 🎨 UI/UX improvement
-- [ ] 🧪 Test improvement
-- [ ] 🔧 Configuration/build change
+Describe public API, project-file, dependency, numerical-result or UI changes.
+Call out migrations and remaining limitations.
 
-## Related Issues
+## Visual changes
 
-<!-- Link to related issues using #issue-number -->
-
-Closes #
-
-## Changes Made
-
-<!-- List the key changes made in this PR -->
-
--
--
--
-
-## Testing
-
-<!-- Describe how you tested these changes -->
-
-- [ ] Unit tests pass (`pytest tests/unit/`)
-- [ ] Validation tests pass (`pytest tests/validation/`)
-- [ ] Manual testing performed
-- [ ] New tests added for new functionality
-
-### Test Details
-
-<!-- Describe specific tests run -->
-
-
-
-## Scientific Validation (if applicable)
-
-<!-- For physics-related changes, describe validation against references -->
-
-| Property | EnSim | Reference | Error |
-|----------|-------|-----------|-------|
-| T_chamber | | | |
-| Isp | | | |
-
-Reference: <!-- e.g., NASA CEA, literature source -->
-
-## Screenshots (if applicable)
-
-<!-- Add screenshots for UI changes -->
-
-
-
-## Checklist
-
-- [ ] My code follows the project's coding style
-- [ ] I have added/updated docstrings for new functions
-- [ ] I have updated the documentation (if needed)
-- [ ] I have added tests that prove my fix/feature works
-- [ ] New and existing tests pass locally
-- [ ] I have updated CHANGELOG.md (if applicable)
-- [ ] Any dependent changes have been merged
-
-## Additional Notes
-
-<!-- Any additional context or notes for reviewers -->
-
-
-
+Attach before/after screenshots when the desktop interface changes.

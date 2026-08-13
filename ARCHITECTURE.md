@@ -1,275 +1,100 @@
-# EnSim Architecture
+# EnSim architecture
 
-> **Engineering Simulation Core** — A High-Fidelity 6-DOF Rocket Flight Simulator
+## Design boundaries
 
----
+EnSim separates numerical models from presentation and file I/O. Modules under
+`src/ensim/core` do not import Qt. The desktop layer converts user input to SI,
+runs expensive calculations in worker threads and renders immutable result
+objects. This boundary makes the physics usable from tests, scripts and the GUI.
 
-## 1. System Overview
-
-### Mission Statement
-
-EnSim is a professional-grade rocket flight simulation engine designed for aerospace engineering analysis. It provides real-time 6 Degrees of Freedom (6-DOF) trajectory simulation with adaptive numerical integration and Monte Carlo dispersion analysis.
-
-### Technology Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Core Physics** | Python 3.10+, NumPy, Numba | JIT-compiled numerical kernels |
-| **UI Framework** | PyQt6 | Cross-platform desktop application |
-| **3D Visualization** | PyVista | Interactive nozzle and plume rendering |
-| **Parallel Computing** | multiprocessing, ProcessPoolExecutor | Monte Carlo parallelization |
-| **Chemistry** | NASA CEA Method | Chemical equilibrium thermodynamics |
-
-### Key Capabilities
-
-- **14-State Vector Integration**: Position, velocity, quaternion, angular velocity, propellant mass
-- **Adaptive RK45 Solver**: Dormand-Prince 5(4) with PI step-size control
-- **Dense Output**: Fixed-rate sampling via Cubic Hermite interpolation
-- **Flow Separation Physics**: Summerfield criterion for thrust loss modeling
-- **Monte Carlo Dispersion**: Parallel CEP and 3-sigma ellipse computation
-
----
-
-## 2. The Physics Core — "The Engine"
-
-### 2.1 State Vector Architecture (14-DOF)
-
-The simulation uses a 14-element state vector:
-
-```
-State = [x, y, z, vx, vy, vz, q0, q1, q2, q3, ωx, ωy, ωz, m_prop]
-         ├─────┘  ├───────┘  ├────────────┘  ├────────────┘  └─ Propellant mass
-         Position  Velocity   Quaternion      Angular velocity
-         (ENU)     (ENU)      (Body→Inertial) (Body frame)
+```text
+PyQt6 interface
+    | validated SI inputs
+    v
+worker orchestration -------- project/export services
+    |
+    +-- thermochemistry --> frozen nozzle performance --> engine result
+    +-- vehicle + environment + integrator -----------> flight result
+    +-- cooling / MOC / optimization / UQ ------------> specialist results
 ```
 
-**Design Rationale:**
+## Package layout
 
-| Component | Choice | Reason |
-|-----------|--------|--------|
-| Orientation | Quaternion | Avoids gimbal lock at ±90° pitch |
-| Coordinate Frame | ENU (East-North-Up) | Matches geodetic convention |
-| Angular Velocity | Body Frame | Simplifies moment equations |
-| Mass | Integrated State | Enables variable mass dynamics |
-
-### 2.2 Numerical Integration
-
-#### Dormand-Prince 5(4) — Adaptive RK45
-
-The integrator uses embedded error estimation:
-
-```python
-# Butcher Tableau (7-stage, 5th order, 4th order error)
-k1 = f(t, y)
-k2 = f(t + c2*h, y + h*(a21*k1))
-...
-y_5th = y + h*(b1*k1 + b3*k3 + b4*k4 + b5*k5 + b6*k6)  # Solution
-y_4th = y + h*(d1*k1 + d3*k3 + d4*k4 + d5*k5 + d6*k6)  # Error estimate
+```text
+src/ensim/
+  core/          numerical models and typed result records
+  data/          packaged thermodynamic data resources
+  ui/            windows, widgets and background workers
+  utils/         NASA-data parsing, units and export
+  visualization/ plotting support
+tests/
+  unit/          equations, invariants, edge cases and UI smoke tests
+  validation/    external-reference comparisons
+  reference/     provenance and immutable NESC reference subsets
 ```
 
-**Step Size Control (PI Controller):**
+The import namespace is `ensim`; the physical source layout is an implementation
+detail. Public examples must never import from `src`.
 
-```
-err_norm = ||y_5th - y_4th|| / (atol + rtol * |y|)
-h_new = h * (0.9 / err_norm^0.2) * (err_prev^0.04)
-```
+## Engine calculation path
 
-This provides:
-- **Safety factor**: 0.9 prevents oscillation
-- **I-gain (0.04)**: Smooths step size changes
-- **P-gain (0.2)**: Responds to current error
+1. Resolve visible propellant choices to packaged species identifiers.
+2. Convert the mass O/F ratio to the reactant mole basis using database molar
+   masses.
+3. Solve adiabatic, constant-pressure equilibrium using element constraints and
+   an enthalpy balance.
+4. Derive mixture molar mass and frozen `Cp/Cv` from the converged composition.
+5. solve the supersonic area-Mach relation for the selected area ratio;
+6. calculate exit pressure, thrust coefficient, characteristic velocity and
+   specific impulse for the selected ambient pressure.
 
-#### Dense Output — Cubic Hermite Interpolation
+The same geometry is retained when reporting vacuum and sea-level operating
+points. EnSim does not silently cap the expansion ratio. It reports the ideal
+one-dimensional attached-flow result and identifies overexpansion as a model
+limitation; it does not invent a separation penalty.
 
-When the solver takes large steps (h >> dt_output), we interpolate:
+## Flight calculation path
 
-```
-For t ∈ [t_n, t_n + h]:
-  θ = (t - t_n) / h
-  y(t) = (1-θ)·y_n + θ·y_{n+1} + θ(θ-1)[(1-2θ)(y_{n+1}-y_n) + (θ-1)h·f_n + θ·h·f_{n+1}]
-```
+The vehicle model owns mass properties, engine data, aerodynamic geometry and
+staging information. The local model propagates position and velocity in an ENU
+frame. The optional WGS-84 model propagates ECI position, velocity and attitude,
+uses ellipsoidal geodesy and J2 gravity, and transforms the rotating atmosphere
+through ECEF. Quaternion normalization and nonnegative mass are maintained as
+explicit numerical invariants.
 
-This produces C¹-continuous output at fixed `output_dt` intervals regardless of internal step sizes.
+Aerodynamic forces use air-relative velocity. The current coefficient model is
+appropriate for preliminary slender-vehicle studies, not general CFD-equivalent
+prediction. See `docs/FLIGHT_VALIDATION.md`.
 
-### 2.3 Propulsion Model
+## Concurrency and determinism
 
-#### Thrust Calculation with Altitude Correction
+Qt workers own each long-running task. The GUI prevents overlapping engine runs
+and never mutates a result while it is being displayed. Stochastic analyzers
+accept an explicit seed. Engine UQ preserves sample order and records failed
+samples rather than replacing them with nominal values.
 
-```python
-P_exit = P_chamber / (1 + (γ-1)/2 * M_exit²)^(γ/(γ-1))
-F_thrust = ṁ·Ve + (P_exit - P_ambient)·A_exit
-```
+## Data and units
 
-#### Flow Separation Detection (Summerfield Criterion)
+- internal calculations use SI;
+- thermodynamic molar mass is exposed as g/mol at the current API boundary;
+- the packaged NASA-format database is loaded with `importlib.resources`;
+- project files contain input parameters, not executable code;
+- reference test data include source URLs and SHA-256 hashes.
 
-```python
-separation_ratio = P_exit / P_ambient
+## Failure policy
 
-if separation_ratio < 0.4:
-    flow_regime = SEPARATED
-    thrust_loss_factor = 0.5 + 0.5 * (separation_ratio / 0.4)
-else:
-    flow_regime = ATTACHED
-    thrust_loss_factor = 1.0
-```
+Inputs outside mathematical domains raise `ValueError`; numerical failures use
+the calculation exceptions in `ensim.core.types`. Material, coolant and species
+lookups do not silently fall back to a different physical substance. Monte Carlo
+results expose attempted, valid and failed sample counts.
 
-#### 2.4 Shifting Equilibrium Model (Simplified)
+## Extending the project
 
-EnSim implements a shifting equilibrium model that captures recombination effects:
-1. **Base Expansion**: Uses chamber gamma ($\gamma_{ch}$) for isentropic ratios to ensure a fair " frozen versus shifting" comparison.
-2. **Recombination**: Extent of atomic recombination (H, O, OH) is estimated based on local $T, P$.
-3. **Energy Recovery**: Heat released from recombination is recovered directly into the kinetic energy of the stream: $V = \sqrt{V_{isen}^2 + 2\Delta h_{recomb}}$.
+A new scientific model should include:
 
-This approach ensures $Isp_{shifting} \geq Isp_{frozen}$ consistently across all expansion ratios.
-
-**Physical Meaning:**
-- Pe/Pa < 0.4: Shock wave enters nozzle, flow detaches from wall
-- Thrust loss: 10-50% reduction due to asymmetric separation
-
----
-
-## 3. Simulation Architecture — "The Nervous System"
-
-### 3.1 Thread Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Main GUI Thread                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ InputPanel   │  │ GraphWidget  │  │ View3DWidget │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│                         ▲                                   │
-│                         │ pyqtSignal(FlightResult6DOF)      │
-└─────────────────────────┼───────────────────────────────────┘
-                          │
-┌─────────────────────────┼───────────────────────────────────┐
-│          FlightSimulationWorker (QThread)                   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  simulate_flight_6dof(rocket, params...)            │   │
-│  │  ├── RK45 Integration Loop                          │   │
-│  │  ├── Aerodynamic Force Calculation                  │   │
-│  │  ├── Flow Separation Check                          │   │
-│  │  └── Dense Output Interpolation                     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Signals: log(str), progress(int), finished(result)        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Key Design Decisions:**
-- **Worker Thread**: Heavy computation in QThread prevents UI freeze
-- **Signal-Slot**: Type-safe communication between threads
-- **Object Copying**: Rocket is deep-copied to worker to prevent race conditions
-
-### 3.2 Monte Carlo Parallel Architecture
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    MonteCarloWorker (QThread)                  │
-│  ┌──────────────────────────────────────────────────────────┐ │
-│  │  ProcessPoolExecutor(max_workers=CPU_COUNT)              │ │
-│  │                                                          │ │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐     │ │
-│  │  │ Core 1  │  │ Core 2  │  │ Core 3  │  │ Core N  │     │ │
-│  │  │ Sim #1  │  │ Sim #2  │  │ Sim #3  │  │ Sim #N  │     │ │
-│  │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘     │ │
-│  │       │            │            │            │          │ │
-│  │       └────────────┴─────┬──────┴────────────┘          │ │
-│  │                          ▼                               │ │
-│  │               Aggregate Results                          │ │
-│  │            ├── compute_cep()                            │ │
-│  │            └── compute_confidence_ellipse()             │ │
-│  └──────────────────────────────────────────────────────────┘ │
-│                                                                │
-│  Result: DispersionResult(cep, ellipse, landing_points)       │
-└────────────────────────────────────────────────────────────────┘
-```
-
-**GIL Bypass:**
-- `multiprocessing.Process` spawns independent Python interpreters
-- Each simulation runs in complete isolation
-- Result aggregation happens after all processes complete
-
----
-
-## 4. Directory Structure
-
-```
-EnSim/
-├── main.py                      # Application entry point
-├── ARCHITECTURE.md              # This document
-│
-├── src/
-│   ├── core/                    # Physics engine (Numba-accelerated)
-│   │   ├── flight_6dof.py       # 6-DOF simulator + FlightResult6DOF
-│   │   ├── integrators.py       # RK45, Hermite interpolation
-│   │   ├── math_utils.py        # Quaternion operations (JIT)
-│   │   ├── monte_carlo.py       # Dispersion analysis + CEP
-│   │   ├── rocket.py            # Vehicle model dataclasses
-│   │   ├── rocket_engine.py     # Flow separation physics
-│   │   ├── propulsion.py        # Isentropic flow, nozzle design
-│   │   ├── chemistry.py         # NASA CEA equilibrium
-│   │   └── aero.py              # Barrowman aerodynamics
-│   │
-│   ├── ui/                      # PyQt6 interface
-│   │   ├── windows/
-│   │   │   └── main_window.py   # Application shell
-│   │   ├── widgets/
-│   │   │   ├── vehicle_widget.py    # Rocket designer + plots
-│   │   │   ├── view3d_widget.py     # PyVista 3D view
-│   │   │   └── graph_widget.py      # Matplotlib plots
-│   │   └── workers.py           # QThread workers
-│   │
-│   └── utils/                   # I/O and parsing
-│       └── nasa_parser.py       # Thermodynamic data loader
-│
-├── data/
-│   └── nasa_thermo.dat          # NASA 7-term polynomial database
-│
-└── tests/
-    ├── unit/                    # pytest unit tests
-    └── stress_test_monte_carlo.py
-```
-
----
-
-## 5. Future Roadmap
-
-### 5.1 GNC Integration (Guidance, Navigation, Control)
-
-| Feature | Description | Complexity |
-|---------|-------------|------------|
-| **PID Attitude Control** | Roll/pitch/yaw rate damping | Medium |
-| **Thrust Vector Control** | Gimbal angle simulation | Medium |
-| **LQR Optimal Control** | State-feedback trajectory tracking | High |
-| **Kalman Filter** | Sensor fusion for state estimation | High |
-
-### 5.2 Environmental Models
-
-| Feature | Description | Reference |
-|---------|-------------|-----------|
-| **Wind Profile** | Weibull distribution, altitude-dependent | MIL-STD-210C |
-| **Atmospheric Turbulence** | Dryden/Von Kármán spectrum | MIL-F-8785C |
-| **Earth Rotation** | Coriolis and centrifugal effects | WGS-84 |
-
-### 5.3 Terrain Integration
-
-| Feature | Description |
-|---------|-------------|
-| **DEM Loading** | SRTM/ASTER elevation data |
-| **Ground Collision** | Ray-mesh intersection |
-| **Landing Site Analysis** | Slope and hazard detection |
-
----
-
-## References
-
-1. Stevens, B.L., Lewis, F.L. — *Aircraft Control and Simulation*, 3rd Ed.
-2. Zipfel, P.H. — *Modeling and Simulation of Aerospace Vehicle Dynamics*, 3rd Ed.
-3. Sutton, G.P. — *Rocket Propulsion Elements*, 9th Ed.
-4. Gordon, S., McBride, B.J. — *NASA RP-1311: CEA Computer Program*
-5. Dormand, J.R., Prince, P.J. — *A family of embedded Runge-Kutta formulae* (1980)
-
----
-
-*Document Version: 1.0 | Last Updated: 2026-01-02*
+1. an explicit domain of applicability and unit contract;
+2. a typed input/result boundary;
+3. unit tests for equations, invariants and invalid inputs;
+4. an external comparison when credible reference data exist;
+5. documentation that distinguishes correlation, verification and validation;
+6. no hidden empirical margins or undocumented fallback constants.

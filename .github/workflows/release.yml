@@ -1,170 +1,100 @@
-# EnSim Release Pipeline
-# Automatically creates releases when version tags are pushed
-#
-# Triggers:
-# - Push of version tags (v*.*.*)
-#
-# Actions:
-# - Build packages for all platforms
-# - Create GitHub release with changelog
-# - Publish to PyPI (when configured)
-
 name: Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., 1.0.0)'
-        required: true
-        type: string
+      - "v*.*.*"
 
 permissions:
-  contents: write
-
-env:
-  PYTHON_VERSION: "3.11"
+  contents: read
 
 jobs:
-  # ============================================================================
-  # Build Job - Create distribution packages
-  # ============================================================================
-  build:
-    name: Build Packages
+  verify-and-build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install build dependencies
+          python-version: "3.11"
+          cache: pip
+      - name: Verify tag and package version
         run: |
-          pip install build wheel
-      
-      - name: Build sdist and wheel
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$TAG_VERSION" = "$PACKAGE_VERSION"
+      - name: Install quality and build dependencies
+        run: python -m pip install --upgrade build ruff twine .[dev]
+      - name: Run quality gate
+        env:
+          ENSIM_DISABLE_3D: "1"
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ruff check src tests scripts
+          ruff format --check src tests scripts
+          pytest
+          ensim --test
+      - name: Build and inspect distributions
         run: |
           python -m build
-      
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
         with:
-          name: packages
+          name: python-distributions
           path: dist/
+          if-no-files-found: error
 
-  # ============================================================================
-  # Release Job - Create GitHub release
-  # ============================================================================
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: build
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: packages
-          path: dist/
-      
-      - name: Extract changelog for this version
-        id: changelog
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if [ -z "$VERSION" ]; then
-            VERSION=${{ github.event.inputs.version }}
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Extract changelog section
-          CHANGELOG=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$ d')
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="Release version $VERSION"
-          fi
-          
-          # Write to file for multiline support
-          echo "$CHANGELOG" > release_notes.md
-      
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: EnSim v${{ steps.changelog.outputs.version }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
-          files: |
-            dist/*
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ============================================================================
-  # Publish Job - Publish to PyPI
-  # ============================================================================
   publish-pypi:
-    name: Publish to PyPI
+    needs: verify-and-build
     runs-on: ubuntu-latest
-    needs: [build, release]
-    if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') }}
     environment:
       name: pypi
       url: https://pypi.org/project/ensim/
     permissions:
       id-token: write
-      contents: read
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: packages
+          name: python-distributions
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
 
-  # ============================================================================
-  # Documentation Job - Build and publish docs
-  # ============================================================================
-  docs:
-    name: Update Documentation
+  github-release:
+    needs: publish-pypi
     runs-on: ubuntu-latest
-    needs: release
-    
+    permissions:
+      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/download-artifact@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install documentation tools
-        run: |
-          pip install mkdocs mkdocs-material mkdocstrings[python]
-      
-      - name: Build documentation
-        run: |
-          mkdocs build
-        continue-on-error: true
-      
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+          name: python-distributions
+          path: dist/
+      - uses: softprops/action-gh-release@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-        continue-on-error: true
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
+          files: dist/*
 
+  documentation:
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install .[docs]
+      - run: mkdocs build --strict
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

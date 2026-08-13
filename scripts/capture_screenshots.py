@@ -1,171 +1,108 @@
-#!/usr/bin/env python3
-"""
-Automatic Screenshot Capture Script for EnSim Documentation.
+"""Capture the current desktop interface for the documentation."""
 
-Captures screenshots of each tab sequentially with proper delays.
-"""
+from __future__ import annotations
 
 import sys
-import os
-import time
+from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QApplication, QScrollArea, QTabWidget  # noqa: E402
+
+from ensim.ui.windows.main_window import MainWindow  # noqa: E402
+from ensim.ui.workers import CalculationWorker, SimulationParams  # noqa: E402
 
 
-def capture_screenshots():
-    """Capture screenshots of all tabs."""
-    
-    app = QApplication(sys.argv)
-    
-    from src.ui.windows.main_window import MainWindow
-    
+def process_events(app: QApplication, count: int = 4) -> None:
+    for _ in range(count):
+        app.processEvents()
+
+
+def capture(window: MainWindow, app: QApplication, name: str) -> None:
+    process_events(app)
+    path = PROJECT_ROOT / "docs" / f"{name}.png"
+    pixmap = window.grab()
+    if not pixmap.save(str(path), "PNG"):
+        raise RuntimeError(f"Could not save {path}")
+    print(f"{path.name}: {path.stat().st_size / 1024:.1f} KiB")
+
+
+def populate_engine_result(window: MainWindow) -> None:
+    params = SimulationParams(
+        fuel="H2",
+        oxidizer="O2",
+        of_ratio_mass=6.0,
+        chamber_pressure_bar=68.0,
+        expansion_ratio=40.0,
+        ambient_pressure_bar=0.0,
+        throat_area_cm2=100.0,
+    )
+    results = []
+    errors = []
+    worker = CalculationWorker(params)
+    worker.finished.connect(results.append)
+    worker.error.connect(errors.append)
+    worker.run()
+    if errors or not results:
+        raise RuntimeError(errors[0] if errors else "Engine calculation returned no result")
+    window._last_params = params
+    window._on_simulation_complete(results[0])
+
+
+def main() -> int:
+    app = QApplication.instance() or QApplication([])
+    app.setApplicationName("EnSim")
     window = MainWindow()
+    window._first_run = False
+    window.resize(1440, 920)
     window.show()
-    window.resize(1400, 900)
-    
-    # Center window
-    screen = app.primaryScreen()
-    if screen:
-        geo = screen.availableGeometry()
-        window.move((geo.width() - 1400) // 2, (geo.height() - 900) // 2)
-    
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'docs')
-    os.makedirs(output_dir, exist_ok=True)
-    
-    step = [0]
-    
-    def save_screenshot(name: str):
-        """Save current window as screenshot."""
-        app.processEvents()
-        time.sleep(0.5)
-        app.processEvents()
-        
-        pixmap = window.grab()
-        path = os.path.join(output_dir, f'{name}.png')
-        pixmap.save(path, 'PNG')
-        
-        size_kb = os.path.getsize(path) / 1024
-        print(f"[OK] {name}.png ({size_kb:.1f} KB)")
-    
-    def run_simulation():
-        """Run a quick simulation to populate data."""
-        try:
-            if hasattr(window, 'input_panel'):
-                p = window.input_panel
-                if hasattr(p, 'fuel_combo'):
-                    p.fuel_combo.setCurrentIndex(0)  # H2
-                if hasattr(p, 'oxidizer_combo'):
-                    p.oxidizer_combo.setCurrentIndex(0)  # O2
-                if hasattr(p, 'of_ratio_spin'):
-                    p.of_ratio_spin.setValue(6.0)
-                if hasattr(p, 'chamber_pressure_spin'):
-                    p.chamber_pressure_spin.setValue(70.0)
-                if hasattr(p, 'expansion_ratio_spin'):
-                    p.expansion_ratio_spin.setValue(40.0)
-            
-            if hasattr(window, '_run_simulation'):
-                window._run_simulation()
-                app.processEvents()
-                time.sleep(2)  # Wait for simulation
-                app.processEvents()
-                print("[OK] Simulation completed")
-        except Exception as e:
-            print(f"[WARN] Simulation error: {e}")
-    
-    def next_step():
-        """Execute screenshot steps sequentially."""
-        s = step[0]
-        
-        try:
-            if s == 0:
-                print("\n=== EnSim Screenshot Capture v2 ===\n")
-                print("Step 1: Running simulation...")
-                run_simulation()
-                
-            elif s == 1:
-                print("\nStep 2: Capturing Output tab...")
-                window.tabs.setCurrentIndex(0)  # Output
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_main')
-                
-            elif s == 2:
-                print("\nStep 3: Capturing Results tab...")
-                window.tabs.setCurrentIndex(1)  # Results
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_results')
-                
-            elif s == 3:
-                print("\nStep 4: Capturing Results/3D...")
-                # Find 3D sub-tab
-                results_tab = window.tabs.widget(1)
-                if results_tab:
-                    for child in results_tab.findChildren(type(window.tabs)):
-                        if child.objectName() == "subTabs":
-                            child.setCurrentIndex(1)  # 3D View
-                            break
-                app.processEvents()
-                time.sleep(0.5)
-                save_screenshot('screenshot_3d')
-                
-            elif s == 4:
-                print("\nStep 5: Capturing Results/Graphs...")
-                results_tab = window.tabs.widget(1)
-                if results_tab:
-                    for child in results_tab.findChildren(type(window.tabs)):
-                        if child.objectName() == "subTabs":
-                            child.setCurrentIndex(0)  # Graphs
-                            break
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_graphs')
-                
-            elif s == 5:
-                print("\nStep 6: Capturing Engine tab...")
-                window.tabs.setCurrentIndex(2)  # Engine
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_engine')
-                
-            elif s == 6:
-                print("\nStep 7: Capturing Vehicle tab...")
-                window.tabs.setCurrentIndex(3)  # Vehicle
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_vehicle')
-                
-            elif s == 7:
-                print("\nStep 8: Capturing Advanced tab...")
-                window.tabs.setCurrentIndex(4)  # Advanced
-                app.processEvents()
-                time.sleep(0.3)
-                save_screenshot('screenshot_advanced')
-                
-            elif s == 8:
-                print("\n=== Complete! ===")
-                print(f"Screenshots saved to: {output_dir}")
-                window.close()
-                app.quit()
-                return
-                
-        except Exception as e:
-            print(f"[ERROR] Step {s}: {e}")
-            import traceback
-            traceback.print_exc()
-        
-        step[0] += 1
-        QTimer.singleShot(800, next_step)
-    
-    # Start after window is ready
-    QTimer.singleShot(1500, next_step)
-    
-    sys.exit(app.exec())
+    process_events(app)
+    populate_engine_result(window)
+
+    window.tabs.setCurrentIndex(0)
+    capture(window, app, "screenshot_main")
+
+    window.tabs.setCurrentIndex(1)
+    results_tabs = window.tabs.widget(1).findChild(QTabWidget, "subTabs")
+    if results_tabs is None:
+        raise RuntimeError("Results sub-tabs were not found")
+    results_tabs.setCurrentIndex(0)
+    capture(window, app, "screenshot_graphs")
+    results_tabs.setCurrentIndex(1)
+    if window.view3d_widget._plotter is not None:
+        window.view3d_widget._plotter.render()
+        path = PROJECT_ROOT / "docs" / "screenshot_3d.png"
+        window.view3d_widget._plotter.screenshot(str(path))
+        print(f"{path.name}: {path.stat().st_size / 1024:.1f} KiB")
+
+    window.tabs.setCurrentIndex(2)
+    window.engine_tabs.setCurrentIndex(0)
+    window.cooling_widget._run_analysis()
+    if not window.cooling_widget._worker.wait(60_000):
+        raise RuntimeError("Cooling calculation timed out")
+    process_events(app)
+    capture(window, app, "screenshot_engine")
+
+    window.tabs.setCurrentIndex(3)
+    vehicle_tabs = window.tabs.widget(3).findChild(QTabWidget, "subTabs")
+    if vehicle_tabs is None:
+        raise RuntimeError("Vehicle sub-tabs were not found")
+    vehicle_tabs.setCurrentIndex(1)
+    vehicle_scroll = window.vehicle_widget.findChild(QScrollArea)
+    if vehicle_scroll is not None:
+        vehicle_scroll.ensureWidgetVisible(window.vehicle_widget.axial_cd_spin)
+    window.vehicle_widget._update_diagram()
+    capture(window, app, "screenshot_vehicle")
+
+    window.tabs.setCurrentIndex(4)
+    window.advanced_widget.moc_tab._generate()
+    capture(window, app, "screenshot_advanced")
+
+    window.close()
+    process_events(app)
+    return 0
 
 
-if __name__ == '__main__':
-    capture_screenshots()
+if __name__ == "__main__":
+    raise SystemExit(main())

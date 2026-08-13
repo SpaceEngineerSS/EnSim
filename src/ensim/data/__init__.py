@@ -1,0 +1,1 @@
+"""Packaged thermodynamic data resources."""

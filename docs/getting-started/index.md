@@ -1,102 +1,52 @@
-# Getting Started
+# Getting started
 
-Welcome to EnSim! This guide will help you get up and running quickly.
+## Install from PyPI
 
-## Overview
+EnSim requires Python 3.10 or newer.
 
-EnSim is a professional rocket engine simulation platform that provides:
+```bash
+python -m pip install ensim
+ensim --test
+ensim
+```
 
-- **Thermochemical Analysis**: Calculate combustion properties using NASA CEA methodology
-- **Performance Metrics**: Specific impulse, characteristic velocity, thrust coefficient
-- **Flight Simulation**: Full 6-DOF trajectory analysis
-- **Monte Carlo**: Statistical dispersion analysis
+The smoke test loads the packaged thermodynamic database and runs one coupled
+H2/O2 equilibrium and ideal-nozzle calculation.
 
-## Installation Steps
-
-### 1. Prerequisites
-
-Before installing EnSim, ensure you have:
-
-- **Python 3.10 or higher** - [Download Python](https://www.python.org/downloads/)
-- **pip** - Usually included with Python
-- **Git** (optional) - For cloning the repository
-
-### 2. Clone Repository
+## Install a source checkout
 
 ```bash
 git clone https://github.com/SpaceEngineerSS/EnSim.git
-cd ensim
-```
-
-Or download the [latest release](https://github.com/SpaceEngineerSS/EnSim/releases/latest).
-
-### 3. Create Virtual Environment
-
-We recommend using a virtual environment:
-
-=== "Windows"
-
-    ```powershell
-    python -m venv venv
-    venv\Scripts\activate
-    ```
-
-=== "Linux/macOS"
-
-    ```bash
-    python -m venv venv
-    source venv/bin/activate
-    ```
-
-### 4. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 5. Verify Installation
-
-```bash
-python main.py --test
-```
-
-You should see validation tests pass successfully.
-
-## Quick Start
-
-Launch EnSim:
-
-```bash
+cd EnSim
+python -m venv .venv
+python -m pip install -e ".[dev,docs]"
+python -m pytest
 python main.py
 ```
 
-The main window will open with the Mission Control interface.
+Activate the environment using `.venv\Scripts\Activate.ps1` on PowerShell or
+`source .venv/bin/activate` on POSIX shells.
 
-## Next Steps
+## First desktop calculation
 
-- [Quick Start Guide](quickstart.md) - Your first simulation in 5 minutes
-- [First Simulation](first-simulation.md) - Detailed walkthrough
-- [User Guide](../user-guide/index.md) - Comprehensive feature documentation
+1. Select fuel and oxidizer. Visible labels map to packaged species identifiers.
+2. Enter mass O/F ratio, chamber pressure, nozzle area ratio, throat diameter and
+   ambient pressure in the displayed SI units.
+3. Run the engine calculation.
+4. Check convergence and the reported model notes before reading performance.
+5. Use Results for station profiles, Engine for specialist analyses and Vehicle
+   for the configured rocket and flight simulation.
 
-## Troubleshooting
+The sea-level and vacuum figures use the same selected nozzle geometry. An
+overexpanded attached-flow result does not include an empirical separation loss.
 
-### Common Issues
+## 3-D troubleshooting
 
-??? question "PyQt6 import error on Linux"
+Interactive rendering requires PyVista, PyVistaQt, Qt and a working OpenGL/VTK
+environment. EnSim falls back to a nonfatal placeholder in headless sessions.
 
-    Install Qt dependencies:
-    ```bash
-    sudo apt-get install libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0
-    ```
+## Next reading
 
-??? question "Numba compilation warning"
-
-    First run may show JIT compilation messages. This is normal and improves performance on subsequent runs.
-
-??? question "3D visualization not working"
-
-    Ensure PyVista is installed:
-    ```bash
-    pip install pyvista pyvistaqt
-    ```
-
+Read [model limitations](../MODEL_LIMITATIONS.md) and
+[validation evidence](../VALIDATION.md) before interpreting a result as more than
+a preliminary engineering estimate.

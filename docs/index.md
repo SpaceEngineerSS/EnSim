@@ -1,122 +1,38 @@
-# EnSim Documentation
+# EnSim documentation
 
-Welcome to **EnSim** - the Professional Rocket Engine & Flight Simulation Platform.
+EnSim combines a Python numerical package with a PyQt6 desktop interface for
+preliminary rocket-propulsion and flight studies.
 
-<div class="grid cards" markdown>
+## Start here
 
--   :material-rocket-launch:{ .lg .middle } __Quick Start__
+- [Installation and first calculation](getting-started/index.md)
+- [Desktop workflow](user-guide/index.md)
+- [Governing equations](THEORY.md)
+- [Verification and validation evidence](VALIDATION.md)
+- [Model limitations](MODEL_LIMITATIONS.md)
+- [Python API](api/index.md)
 
-    ---
+## Evidence at a glance
 
-    Get up and running with EnSim in under 5 minutes.
+Two ideal-gas HP equilibrium cases are cross-compared with NASA CEA 3.3.2.
+Selected dragless translation and torque-free rotation histories are compared
+with public NASA NESC check cases. Correlation-based cooling, acoustics,
+optimization and uncertainty modules have equation/invariant tests but no broad
+experimental validation claim.
 
-    [:octicons-arrow-right-24: Getting Started](getting-started/index.md)
+EnSim is suitable for concept screening, reproducible trade studies and
+education. It is not a certification, range-safety or hardware-release tool.
 
--   :material-book-open-variant:{ .lg .middle } __User Guide__
+## Scientific modules
 
-    ---
+| Area | Main model | Evidence |
+|---|---|---|
+| Thermochemistry | ideal-gas Gibbs equilibrium and enthalpy closure | analytical checks and NASA CEA comparison |
+| Nozzle | frozen, calorically perfect, 1-D attached flow | analytical relations |
+| Cooling | Bartz, Gnielinski and resistance network | equation/domain/trend tests |
+| Instability | cylindrical acoustics; supplied rate balance | eigenfrequency and classification tests |
+| Flight | local ENU or ECI/WGS-84/J2 rigid body | invariants and NESC subsets |
+| UQ | seeded sampling and covariance statistics | deterministic/statistical tests |
 
-    Learn how to use EnSim's features effectively.
-
-    [:octicons-arrow-right-24: User Guide](user-guide/index.md)
-
--   :material-math-integral:{ .lg .middle } __Theory__
-
-    ---
-
-    Understand the physics and mathematics behind EnSim.
-
-    [:octicons-arrow-right-24: Theory](theory/index.md)
-
--   :material-api:{ .lg .middle } __API Reference__
-
-    ---
-
-    Detailed documentation for developers.
-
-    [:octicons-arrow-right-24: API Reference](api/index.md)
-
-</div>
-
-## What is EnSim?
-
-EnSim is an open-source desktop application for rocket propulsion analysis and flight simulation. It provides:
-
-- **Thermochemical Equilibrium**: NASA CEA methodology for combustion analysis
-- **Performance Calculations**: Isp, C*, thrust coefficient, and more
-- **6-DOF Flight Simulation**: Full rigid-body trajectory simulation
-- **Monte Carlo Analysis**: Statistical dispersion analysis
-- **Modern Interface**: User-friendly PyQt6 GUI with 3D visualization
-
-## Key Features
-
-### 🔬 Validated Accuracy
-
-EnSim results are validated against NASA CEA with <2% error across all test cases.
-
-| Property | Max Error | Status |
-|----------|-----------|--------|
-| Chamber Temperature | 1.76% | ✅ |
-| Specific Impulse | 1.41% | ✅ |
-| Characteristic Velocity | 0.96% | ✅ |
-
-### 🚀 Comprehensive Analysis
-
-From thermochemistry to trajectory prediction:
-
-```mermaid
-graph LR
-    A[Propellant Selection] --> B[Combustion Analysis]
-    B --> C[Nozzle Design]
-    C --> D[Performance Metrics]
-    D --> E[Flight Simulation]
-    E --> F[Monte Carlo]
-```
-
-### ⚡ High Performance
-
-- **Numba JIT Compilation**: 10-100x faster than pure Python
-- **Parallel Processing**: Multi-core Monte Carlo simulations
-- **Adaptive Integration**: RK45 with automatic step sizing
-
-## Quick Example
-
-```python
-from src.core.chemistry import CombustionProblem
-from src.utils.nasa_parser import create_sample_database
-
-# Load species database
-db = create_sample_database()
-
-# Setup combustion problem
-problem = CombustionProblem(db)
-problem.add_fuel('H2', moles=2.0)
-problem.add_oxidizer('O2', moles=1.0)
-
-# Solve equilibrium
-result = problem.solve(pressure=10e6)  # 100 bar
-
-print(f"Chamber Temperature: {result.temperature:.0f} K")
-print(f"Gamma: {result.gamma:.3f}")
-print(f"Mean MW: {result.mean_molecular_weight:.2f} g/mol")
-```
-
-## System Requirements
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| Python | 3.10 | 3.11+ |
-| RAM | 4 GB | 8 GB |
-| CPU | 2 cores | 4+ cores |
-| GPU | Not required | OpenGL 3.3+ for 3D |
-
-## Getting Help
-
-- **Issues**: [GitHub Issues](https://github.com/SpaceEngineerSS/EnSim/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/SpaceEngineerSS/EnSim/discussions)
-- **Email**: support@ensim.io
-
-## License
-
-EnSim is released under the [MIT License](https://opensource.org/licenses/MIT).
-
+Report defects or scientific challenges through
+[GitHub Issues](https://github.com/SpaceEngineerSS/EnSim/issues).

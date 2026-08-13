@@ -1,133 +1,60 @@
 # Changelog
 
-All notable changes to EnSim will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [2.0.0] - 2026-01-02
-
-### Added
-- **Multi-Stage Vehicle Support** (`src/core/staging.py`)
-  - Stage class with engine configuration and mass properties
-  - MultiStageVehicle for complete rocket modeling
-  - Presets: Falcon 9, Saturn V, custom configurations
-  - Delta-V calculations with payload optimization
-
-- **Regenerative Cooling Analysis** (`src/core/cooling.py`)
-  - Bartz correlation for gas-side heat transfer
-  - Dittus-Boelter coolant-side heat transfer
-  - Automatic cooling channel design
-  - Wall temperature and heat flux profiles
-  - 5 coolant types: RP-1, LH2, LOX, LCH4, Water
-
-- **Trajectory Optimization** (`src/core/optimization.py`)
-  - Nozzle expansion ratio optimization
-  - Stage mass allocation optimization
-  - Mission-weighted performance metrics
-
-- **Materials Database** (`src/core/materials.py`)
-  - 10 aerospace materials with full thermal properties
-  - Inconel 718, OFHC Copper, GRCop-84, Haynes 230, etc.
-  - Melting points, conductivity, service temperatures
-
-- **Mission Analysis** (`src/core/mission.py`)
-  - Altitude-dependent performance simulation
-  - Optimal operating altitude calculation
-
-- **17 Propellant Presets** (`src/data/propellant_presets.py`)
-  - LOX/LH2, LOX/RP-1, LOX/CH4, N2O4/UDMH, etc.
-  - Pre-configured O/F ratios and properties
-
-- **Unit Conversion System** (`src/utils/units.py`)
-  - SI/Imperial toggle in UI
-  - Comprehensive conversion functions
-
-- **New UI Widgets**
-  - ThermalAnalysisWidget with heat flux visualization
-  - CoolingAnalysisWidget for channel design
-  - MultiStageWidget for vehicle configuration
-  - OptimizationWidget for trajectory optimization
-  - PropellantPresetWidget for quick setup
-  - UnitSystemBar for unit toggle
-
-### Changed
-- Complete UI redesign with Mission Control dark theme
-- Reorganized tabs: Output, Results, Engine, Vehicle, Advanced
-- Improved color scheme: cyan accents, green values, orange warnings
-
-### Fixed
-- Thermal analysis now uses proper Bartz correlation
-- All module imports working correctly
-
----
-
-## [1.0.2] - 2026-01-02
-
-### Fixed
-- Logo and screenshot URLs now use absolute GitHub paths for PyPI display
-- All repository URLs corrected to SpaceEngineerSS/EnSim
-
----
-
-## [1.0.1] - 2026-01-02
-
-### Added
-- PyPI package publishing support
-- Automated release pipeline with trusted publisher
-
-### Fixed
-- Linting errors across all modules
-- Updated type hints to modern Python 3.10+ syntax
-
----
-
-## [1.0.0] - 2026-01-02
-
-### Added
-- **Core Physics Engine**
-  - NASA 7-term polynomial thermodynamic data parser
-  - Gibbs free energy minimization solver (Gordon & McBride method)
-  - 1-D isentropic nozzle flow calculations
-  - Numba JIT-optimized functions for real-time performance
-
-- **Chemical Species Database**
-  - H2, O2, H2O, OH, H, O (core H2/O2 combustion)
-  - CH4, CO, CO2, N2, N2O (hydrocarbon and nitrous)
-  - N2O4, NO2, NO, N2H4 (storable propellants)
-  - RP-1 (kerosene surrogate)
-
-- **GUI Application (PyQt6)**
-  - Dark engineering theme
-  - KPI dashboard with live updates
-  - Input panel with all simulation parameters
-  - Efficiency factor inputs (η_c*, η_Cf)
-  - Tooltips explaining physics terms
-  - Save/Load project (.ensim files)
-  - Export to CSV and Markdown report
-
-- **Visualization**
-  - Matplotlib 2D plots (P/Pc, T, Mach vs area ratio)
-  - PyVista 3D nozzle with temperature coloring
-  - Interactive rotation/zoom
-
-- **Documentation**
-  - README with installation and usage
-  - THEORY.md with mathematical background
-  - VALIDATION.md with NASA CEA comparison
-  - CITATION.cff for academic citation
-  - CONTRIBUTING.md for contributors
-
-### Technical Details
-- 64 automated tests (pytest)
-- Validated against NASA CEA within 3%
-- Numba JIT compilation for <100ms calculation time
+This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Planned
-- Shifting equilibrium (non-frozen flow)
-- Bell nozzle geometry (Rao optimum)
-- Real gas corrections (Redlich-Kwong EOS)
-- Additional propellants (H2O2, MMH variants)
+## [3.0.0] - 2026-08-13
 
+### Scientific models
+
+- Reworked packaged thermochemistry and NASA-format parsing with explicit
+  conservation and CEA 3.3.2 reference comparisons.
+- Corrected frozen ideal-nozzle operating-point reporting and removed hidden
+  geometry changes and empirical separation penalties.
+- Made thrust, mass flow, `c*` efficiency and specific impulse mutually
+  consistent and removed the single-threshold flow-separation verdict.
+- Removed the heuristic shifting-equilibrium API; equilibrium nozzle flow remains
+  out of scope until energy, entropy, chemistry and element conservation are
+  solved together at each station.
+- Corrected Bartz inputs, added Gnielinski coolant convection, counterflow energy
+  balance, pressure loss and explicit correlation-domain validation.
+- Replaced heuristic cooling-channel auto-sizing with explicit geometry, mass
+  flow and coolant inlet-state inputs.
+- Replaced geometry-only combustion-stability verdicts with acoustic modes and
+  user-supplied growth/damping classification.
+- Added WGS-84 geodesy, ECEF/ECI transforms, J2 gravity and NASA NESC case 1/2
+  reference subsets.
+- Removed the undocumented synthetic transonic drag curve; trajectory drag now
+  uses an explicit user-supplied axial coefficient and RK stages use depleted mass.
+- Replaced proxy optimization objectives with reproducible reduced-order physics.
+- Added positive-support uncertainty sampling, explicit seeds, failure accounting
+  and correctly labelled confidence ellipses.
+
+### Application and package
+
+- Migrated the installed namespace to `ensim` and packaged data/assets with the
+  wheel.
+- Rebuilt the advanced panel around MOC design and engine uncertainty analysis.
+- Fixed propellant identifier mapping and mass-to-mole conversion in the GUI.
+- Removed nonfunctional replay, unit-toggle and duplicate optimization controls.
+- Replaced unsourced hardware replicas and static propellant-performance previews
+  with three reproducible, neutral engine input cases.
+- Added safe headless 3-D fallback and GUI workflow/smoke tests.
+- Rewrote scientific documentation around reproducible evidence and limitations.
+
+## [2.0.0] - 2026-01-02
+
+- Added the initial multi-stage, cooling, optimization, materials, mission,
+  propellant-preset and desktop analysis modules.
+- Published the `ensim` package and trusted-publishing workflow.
+
+## [1.0.0] - 2026-01-02
+
+- Initial open-source release with thermochemistry, ideal nozzle performance,
+  PyQt6 interface, plotting and project export.
+
+[Unreleased]: https://github.com/SpaceEngineerSS/EnSim/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/SpaceEngineerSS/EnSim/compare/v2.0.0...v3.0.0
+[2.0.0]: https://github.com/SpaceEngineerSS/EnSim/releases/tag/v2.0.0
+[1.0.0]: https://github.com/SpaceEngineerSS/EnSim/releases/tag/v1.0.0

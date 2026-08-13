@@ -1,84 +1,48 @@
 # Contributing to EnSim
 
-Thank you for your interest in contributing to EnSim! This document provides guidelines for contributing.
+Contributions are welcome when they preserve EnSim's explicit model boundaries,
+reproducibility and scientific traceability.
 
-## Code of Conduct
+## Development setup
 
-Be respectful and constructive in all interactions.
-
-## Getting Started
-
-1. Fork the repository
-2. Clone your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/ensim.git
-   cd ensim
-   ```
-3. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # or venv\Scripts\activate on Windows
-   pip install -r requirements.txt
-   ```
-
-## Development Workflow
-
-### Branch Naming
-
-- `feature/description` - New features
-- `fix/description` - Bug fixes
-- `docs/description` - Documentation updates
-
-### Code Style
-
-- Follow PEP 8
-- Use type hints for function signatures
-- Maximum line length: 100 characters
-- Use docstrings (Google style)
-
-### Testing
-
-Run tests before submitting:
 ```bash
-pytest tests/ -v
+git clone https://github.com/SpaceEngineerSS/EnSim.git
+cd EnSim
+python -m venv .venv
+python -m pip install -e ".[dev,docs]"
+python -m pytest
 ```
 
-All tests must pass. Add tests for new features.
+Before opening a pull request, run:
 
-### Commit Messages
-
-Use clear, descriptive commit messages:
-```
-Add Mach number solver for area ratio
-
-- Implement Newton-Raphson iteration
-- Add Numba JIT optimization
-- Include unit tests
+```bash
+python -m ruff check src tests
+python -m ruff format --check src tests
+python -m pytest
+mkdocs build --strict
 ```
 
-## Pull Request Process
+## Scientific changes
 
-1. Create a feature branch from `main`
-2. Make your changes
-3. Run tests: `pytest tests/`
-4. Update documentation if needed
-5. Submit PR with clear description
+A model change must state its governing equations, units, assumptions and valid
+domain. Cite a primary source where one exists. Add tests for invariants, invalid
+inputs and at least one independent reference value; update `docs/THEORY.md`,
+`docs/VALIDATION.md` or `docs/MODEL_LIMITATIONS.md` as appropriate. Do not hide a
+failed solve behind a nominal value, undocumented efficiency or generic
+correlation.
 
-## Scientific Contributions
+External comparisons must distinguish verification, cross-comparison and
+experimental validation. Include the exact source version, input case, extraction
+method and tolerances needed to reproduce the evidence.
 
-For physics-related changes:
-- Cite sources in code comments
-- Add validation tests comparing to NASA CEA
-- Update `docs/VALIDATION.md`
+## Code changes
 
-## Areas for Contribution
+- Keep numerical models independent of Qt.
+- Preserve SI internally and label every public unit boundary.
+- Prefer immutable input/result records for numerical APIs.
+- Avoid broad exception handling in core calculations.
+- Add only comments that explain a non-obvious decision or source.
+- Keep commits focused and use a clear imperative subject.
 
-- Additional propellant combinations
-- Shifting equilibrium implementation
-- Performance optimizations
-- UI/UX improvements
-- Documentation and examples
-
-## Questions?
-
-Open an issue for discussion.
+Use the issue templates for defects, feature proposals or scientific challenges.
+Security reports follow [SECURITY.md](SECURITY.md).
