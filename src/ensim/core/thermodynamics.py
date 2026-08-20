@@ -20,8 +20,9 @@ References:
 """
 
 import numpy as np
-from numba import jit
 from numpy.typing import NDArray
+
+from ensim.utils.numba_support import jit
 
 from .constants import GAS_CONSTANT
 

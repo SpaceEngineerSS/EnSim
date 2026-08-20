@@ -4,6 +4,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-08-20
+
+### Distribution
+
+- Added self-contained desktop downloads for Windows x64, Linux x86-64, and
+  macOS on both Apple Silicon and Intel.
+- Added release-time smoke tests and SHA-256 checksum files for every desktop
+  bundle.
+
 ## [3.0.0] - 2026-08-13
 
 ### Scientific models
@@ -54,7 +63,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 - Initial open-source release with thermochemistry, ideal nozzle performance,
   PyQt6 interface, plotting and project export.
 
-[Unreleased]: https://github.com/SpaceEngineerSS/EnSim/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/SpaceEngineerSS/EnSim/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/SpaceEngineerSS/EnSim/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/SpaceEngineerSS/EnSim/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/SpaceEngineerSS/EnSim/releases/tag/v2.0.0
 [1.0.0]: https://github.com/SpaceEngineerSS/EnSim/releases/tag/v1.0.0

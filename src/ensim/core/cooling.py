@@ -17,8 +17,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 import numpy as np
-from numba import jit
 from numpy.typing import NDArray
+
+from ensim.utils.numba_support import jit
 
 
 class CoolingType(Enum):

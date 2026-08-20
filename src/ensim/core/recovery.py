@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 import numpy as np
-from numba import jit
+
+from ensim.utils.numba_support import jit
 
 
 class DeployTrigger(Enum):

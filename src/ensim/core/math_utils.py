@@ -20,7 +20,8 @@ References:
 """
 
 import numpy as np
-from numba import jit
+
+from ensim.utils.numba_support import jit
 
 # =============================================================================
 # Quaternion Basic Operations

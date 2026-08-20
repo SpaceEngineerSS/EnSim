@@ -4,8 +4,8 @@ authors:
   - family-names: Gümüş
     given-names: Mehmet
 title: "EnSim: Rocket Propulsion and Flight Simulation"
-version: 3.0.0
-date-released: 2026-08-13
+version: 3.0.1
+date-released: 2026-08-20
 url: "https://github.com/SpaceEngineerSS/EnSim"
 repository-code: "https://github.com/SpaceEngineerSS/EnSim"
 license: MIT

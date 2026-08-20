@@ -1,0 +1,107 @@
+name: Desktop bundles
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install bundler and application
+        run: python -m pip install "pyinstaller==6.22.0" pillow .
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"$').Matches.Groups[1].Value
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name EnSim --icon src/ensim/assets/icon.png --paths src --additional-hooks-dir .github/pyinstaller-hooks --collect-all ensim --collect-all pyvistaqt --hidden-import matplotlib.backends.backend_qtagg --copy-metadata ensim main.py
+          $smoke = Start-Process -FilePath .\dist\EnSim.exe -ArgumentList "--test" -Wait -PassThru -WindowStyle Hidden
+          if ($smoke.ExitCode -ne 0) { exit $smoke.ExitCode }
+          $asset = "EnSim-$version-Windows-x64.exe"
+          Move-Item -LiteralPath .\dist\EnSim.exe -Destination ".\dist\$asset"
+          $hash = (Get-FileHash -Algorithm SHA256 ".\dist\$asset").Hash.ToLowerInvariant()
+          Set-Content -LiteralPath ".\dist\$asset.sha256" -Value "$hash  $asset" -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: |
+            dist/EnSim-*-Windows-x64.exe
+            dist/EnSim-*-Windows-x64.exe.sha256
+          if-no-files-found: error
+
+  linux-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install Qt runtime, bundler and application
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0
+          python -m pip install "pyinstaller==6.22.0" pillow .
+      - name: Build Linux executable
+        run: |
+          version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python -m PyInstaller --noconfirm --clean --onefile --name EnSim --paths src --additional-hooks-dir .github/pyinstaller-hooks --collect-all ensim --collect-all pyvistaqt --hidden-import matplotlib.backends.backend_qtagg --copy-metadata ensim main.py
+          QT_QPA_PLATFORM=offscreen ./dist/EnSim --test
+          asset="EnSim-${version}-Linux-x86_64"
+          mv dist/EnSim "dist/${asset}"
+          chmod +x "dist/${asset}"
+          (cd dist && tar -czf "${asset}.tar.gz" "${asset}")
+          (cd dist && sha256sum "${asset}.tar.gz" > "${asset}.tar.gz.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-x64
+          path: |
+            dist/EnSim-*-Linux-x86_64.tar.gz
+            dist/EnSim-*-Linux-x86_64.tar.gz.sha256
+          if-no-files-found: error
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: arm64
+          - runner: macos-15-intel
+            architecture: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install bundler and application
+        run: python -m pip install "pyinstaller==6.22.0" pillow .
+      - name: Build macOS application and disk image
+        run: |
+          version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name EnSim --icon src/ensim/assets/icon.png --osx-bundle-identifier io.github.spaceengineerss.ensim --paths src --additional-hooks-dir .github/pyinstaller-hooks --collect-all ensim --collect-all pyvistaqt --hidden-import matplotlib.backends.backend_qtagg --copy-metadata ensim main.py
+          QT_QPA_PLATFORM=offscreen ./dist/EnSim.app/Contents/MacOS/EnSim --test
+          asset="EnSim-${version}-macOS-${{ matrix.architecture }}.dmg"
+          hdiutil create -volname "EnSim ${version}" -srcfolder dist/EnSim.app -ov -format UDZO "dist/${asset}"
+          (cd dist && shasum -a 256 "${asset}" > "${asset}.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-${{ matrix.architecture }}
+          path: |
+            dist/EnSim-*-macOS-${{ matrix.architecture }}.dmg
+            dist/EnSim-*-macOS-${{ matrix.architecture }}.dmg.sha256
+          if-no-files-found: error

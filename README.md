@@ -50,6 +50,21 @@ not a certification, range-safety or hardware-release tool.
 
 ## Installation
 
+### Desktop downloads
+
+Self-contained downloads that do not require a separate Python installation are
+available on the [GitHub Releases page](https://github.com/SpaceEngineerSS/EnSim/releases/latest):
+
+- Windows x64 executable (`.exe`);
+- Linux x86-64 executable archive (`.tar.gz`);
+- macOS disk images (`.dmg`) for Apple Silicon and Intel.
+
+Each desktop file has a matching `.sha256` checksum. The current Windows and
+macOS builds are not code-signed, so the operating system may ask for explicit
+confirmation before the first launch.
+
+### Python package
+
 Python 3.10 or newer is required.
 
 ```bash

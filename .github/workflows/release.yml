@@ -9,6 +9,9 @@ permissions:
   contents: read
 
 jobs:
+  desktop-bundles:
+    uses: ./.github/workflows/desktop-build.yml
+
   verify-and-build:
     runs-on: ubuntu-latest
     steps:
@@ -31,8 +34,8 @@ jobs:
           ENSIM_DISABLE_3D: "1"
           QT_QPA_PLATFORM: offscreen
         run: |
-          ruff check src tests scripts
-          ruff format --check src tests scripts
+          ruff check src tests scripts .github/pyinstaller-hooks
+          ruff format --check src tests scripts .github/pyinstaller-hooks
           pytest
           ensim --test
       - name: Build and inspect distributions
@@ -46,7 +49,7 @@ jobs:
           if-no-files-found: error
 
   publish-pypi:
-    needs: verify-and-build
+    needs: [verify-and-build, desktop-bundles]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -70,8 +73,15 @@ jobs:
         with:
           name: python-distributions
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: desktop-dist/
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
-          files: dist/*
+          files: |
+            dist/*
+            desktop-dist/*

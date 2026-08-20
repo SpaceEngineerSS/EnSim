@@ -28,9 +28,9 @@ jobs:
       - name: Install package and test tools
         run: python -m pip install -e ".[dev]"
       - name: Lint
-        run: python -m ruff check src tests scripts
+        run: python -m ruff check src tests scripts .github/pyinstaller-hooks
       - name: Format check
-        run: python -m ruff format --check src tests scripts
+        run: python -m ruff format --check src tests scripts .github/pyinstaller-hooks
       - name: Test
         run: python -m pytest
       - name: Installation smoke test

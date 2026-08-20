@@ -13,9 +13,10 @@ import re
 from pathlib import Path
 
 import numpy as np
-from numba import jit
 from numpy.typing import NDArray
 from scipy.optimize import Bounds, LinearConstraint, brentq, least_squares, linprog, minimize
+
+from ensim.utils.numba_support import jit
 
 from .constants import GAS_CONSTANT
 from .types import (

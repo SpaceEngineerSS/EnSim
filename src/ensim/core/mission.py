@@ -7,7 +7,8 @@ Implements the U.S. Standard Atmosphere 1976 and engine altitude sweeps.
 from dataclasses import dataclass
 
 import numpy as np
-from numba import jit
+
+from ensim.utils.numba_support import jit
 
 # US Standard Atmosphere 1976 Constants
 # Geopotential altitude layers (m)

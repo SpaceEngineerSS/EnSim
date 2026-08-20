@@ -26,7 +26,6 @@ References:
 from dataclasses import dataclass
 
 import numpy as np
-from numba import jit
 
 from ensim.core.aero import calculate_total_cp
 from ensim.core.geodesy import (
@@ -65,6 +64,7 @@ from ensim.core.math_utils import (
 )
 from ensim.core.mission import get_atmosphere
 from ensim.core.rocket import Rocket
+from ensim.utils.numba_support import jit
 
 # =============================================================================
 # Physical Constants

@@ -18,7 +18,8 @@ References:
 """
 
 import numpy as np
-from numba import jit
+
+from ensim.utils.numba_support import jit
 
 # =============================================================================
 # Dormand-Prince 5(4) Butcher Tableau Coefficients

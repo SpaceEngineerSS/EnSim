@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ensim"
-version = "3.0.0"
+version = "3.0.1"
 description = "Rocket propulsion analysis and six-degree-of-freedom flight simulation"
 readme = "README.md"
 license = "MIT"
