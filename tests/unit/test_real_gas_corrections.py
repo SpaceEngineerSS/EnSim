@@ -211,3 +211,26 @@ class TestCriticalProperties:
             assert Tc > 0, f"{species} Tc should be positive"
             assert Pc > 0, f"{species} Pc should be positive"
             assert -1 < omega < 2, f"{species} omega out of range"
+
+
+@pytest.mark.parametrize(
+    ("Tr", "Pr", "omega"), [(1.2, 0.5, 0.0), (2.5, 1.5, 0.224), (0.9, 0.2, 0.344)]
+)
+def test_enthalpy_departure_matches_virial_identity(Tr, Pr, omega):
+    """H^R = P (B - T dB/dT) for Z = 1 + B P / (R T), checked with a numerical derivative."""
+    from ensim.core.constants import GAS_CONSTANT
+    from ensim.core.thermodynamics import correct_enthalpy_departure
+
+    Tc, Pc = 300.0, 5.0e6
+
+    def second_virial(T):
+        reduced = T / Tc
+        b0 = 0.083 - 0.422 / reduced**1.6
+        b1 = 0.139 - 0.172 / reduced**4.2
+        return GAS_CONSTANT * Tc / Pc * (b0 + omega * b1)
+
+    T, P = Tr * Tc, Pr * Pc
+    step = 1e-4 * T
+    dB_dT = (second_virial(T + step) - second_virial(T - step)) / (2.0 * step)
+    expected = P * (second_virial(T) - T * dB_dT)
+    assert correct_enthalpy_departure(T, P, Tc, Pc, omega) == pytest.approx(expected, rel=1e-7)

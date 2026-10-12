@@ -422,7 +422,6 @@ class MonteCarloWorker(QThread):
                 config=config,
                 dt=0.05,  # Faster for MC
                 max_time=120.0,
-                verbose=False,
             )
 
             self.progress.emit(95)

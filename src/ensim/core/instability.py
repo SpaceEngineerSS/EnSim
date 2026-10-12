@@ -18,6 +18,8 @@ from enum import Enum
 
 import numpy as np
 
+from .constants import NASA_R
+
 
 class ModeType(Enum):
     """Type of acoustic mode."""
@@ -153,7 +155,7 @@ def calculate_speed_of_sound(
     """
     if T_chamber <= 0.0 or mean_mw <= 0.0 or not 1.0 < gamma < 2.0:
         raise ValueError("Gas properties are outside physical bounds")
-    R = 8314.46261815324 / mean_mw  # J/(kg·K)
+    R = NASA_R / mean_mw  # J/(kg·K)
     return np.sqrt(gamma * R * T_chamber)
 
 

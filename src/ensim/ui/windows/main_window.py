@@ -1411,8 +1411,8 @@ class MainWindow(QMainWindow):
         self._log(f"   CEP (50%): {result.cep_radius:.1f} m")
 
         # Format ellipse
-        if result.ellipse_major and result.ellipse_minor:
-            ellipse_str = f"{result.ellipse_major:.0f}m × {result.ellipse_minor:.0f}m"
+        if result.ellipse_semi_major and result.ellipse_semi_minor:
+            ellipse_str = f"{result.ellipse_semi_major:.0f}m × {result.ellipse_semi_minor:.0f}m"
         else:
             ellipse_str = "N/A"
 
@@ -1425,7 +1425,7 @@ class MainWindow(QMainWindow):
             f"<tr><td><b>CEP (50%):</b></td><td>{result.cep_radius:.1f} m</td></tr>"
             f"<tr><td><b>{100 * result.ellipse_confidence:.1f}% ellipse:</b></td>"
             f"<td>{ellipse_str}</td></tr>"
-            f"<tr><td><b>Mean Apogee:</b></td><td>{result.mean_apogee:.0f} m</td></tr>"
+            f"<tr><td><b>Mean Apogee:</b></td><td>{result.apogee_mean:.0f} m</td></tr>"
             f"<tr><td><b>Success Rate:</b></td><td>{result.success_rate * 100:.0f}%</td></tr>"
             f"</table>",
         )

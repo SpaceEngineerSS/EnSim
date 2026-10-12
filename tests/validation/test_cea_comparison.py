@@ -42,7 +42,7 @@ class CEATestCase:
     cea_gamma: float  # frozen Cp/Cv, not equilibrium speed-of-sound gamma
     cea_mean_mw: float  # g/mol
     # Tolerances
-    T_tolerance: float = 0.02  # 2%
+    T_tolerance: float = 5e-4  # 0.05 %
 
 
 # Generated with NASA's official ``cea==3.3.2`` Python package. The reactant
@@ -113,7 +113,7 @@ class TestNASACEAComparison:
         error = abs(result.temperature - test_case.cea_T_chamber) / test_case.cea_T_chamber
 
         assert error < test_case.T_tolerance, (
-            f"Temperature error {error * 100:.2f}% exceeds tolerance {test_case.T_tolerance * 100:.0f}%\n"
+            f"Temperature error {error * 100:.4f}% exceeds {test_case.T_tolerance * 100:.2f}%\n"
             f"EnSim: {result.temperature:.0f} K, CEA: {test_case.cea_T_chamber:.0f} K"
         )
 
@@ -134,9 +134,9 @@ class TestNASACEAComparison:
 
         error = abs(result.gamma - test_case.cea_gamma) / test_case.cea_gamma
 
-        # Gamma should be within 2%
-        assert error < 0.02, (
-            f"Gamma error {error * 100:.2f}% exceeds 2%\n"
+        # Frozen gamma within 0.1 %
+        assert error < 1e-3, (
+            f"Gamma error {error * 100:.4f}% exceeds 0.1%\n"
             f"EnSim: {result.gamma:.3f}, CEA: {test_case.cea_gamma:.3f}"
         )
 
@@ -157,9 +157,9 @@ class TestNASACEAComparison:
 
         error = abs(result.mean_molecular_weight - test_case.cea_mean_mw) / test_case.cea_mean_mw
 
-        # MW should be within 2%
-        assert error < 0.02, (
-            f"Mean MW error {error * 100:.2f}% exceeds 2%\n"
+        # Mean molecular weight within 0.05 %
+        assert error < 5e-4, (
+            f"Mean MW error {error * 100:.4f}% exceeds 0.05%\n"
             f"EnSim: {result.mean_molecular_weight:.2f} g/mol, CEA: {test_case.cea_mean_mw:.2f} g/mol"
         )
 

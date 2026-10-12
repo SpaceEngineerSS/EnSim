@@ -24,7 +24,7 @@ from numpy.typing import NDArray
 
 from ensim.utils.numba_support import jit
 
-from .constants import GAS_CONSTANT
+from .constants import GAS_CONSTANT, P_REF
 
 
 @jit(nopython=True, cache=True)
@@ -212,32 +212,16 @@ def calculate_enthalpy(T: float, species) -> float:
     return h_over_rt(T, coeffs) * GAS_CONSTANT * T
 
 
-def calculate_entropy(T: float, species, P: float = 101325.0) -> float:
-    """
-    Calculate entropy S in J/(mol·K).
+def calculate_entropy(T: float, species, P: float = P_REF) -> float:
+    """Ideal-gas entropy S(T, P) = S°(T) - R ln(P / P°) in J/(mol K).
 
-    Note: For ideal gases, S depends on pressure:
-    S(T, P) = S°(T) - R * ln(P/P°)
-
-    Args:
-        T: Temperature in Kelvin
-        species: SpeciesData object
-        P: Pressure in Pa (default: 1 atm)
-
-    Returns:
-        S in J/(mol·K)
+    P° is 1 bar, the reference state of the NASA Glenn coefficients.
     """
     coeffs = species.get_coeffs_for_temp(T)
-    s0_r = s_over_r(T, coeffs)
-
-    # Standard pressure correction
-    P_ref = 101325.0  # Pa
-    s_r = s0_r - np.log(P / P_ref)
-
-    return s_r * GAS_CONSTANT
+    return (s_over_r(T, coeffs) - np.log(P / P_REF)) * GAS_CONSTANT
 
 
-def calculate_gibbs(T: float, species, P: float = 101325.0) -> float:
+def calculate_gibbs(T: float, species, P: float = P_REF) -> float:
     """
     Calculate Gibbs free energy G in J/mol.
 
@@ -246,7 +230,7 @@ def calculate_gibbs(T: float, species, P: float = 101325.0) -> float:
     Args:
         T: Temperature in Kelvin
         species: SpeciesData object
-        P: Pressure in Pa (default: 1 atm)
+        P: Pressure in Pa (default: 1 bar)
 
     Returns:
         G in J/mol
@@ -343,7 +327,7 @@ def calculate_compressibility_factor_rk(T: float, P: float, Tc: float, Pc: float
     if P == 0:
         return 1.0
 
-    R = 8.314462  # J/(mol·K)
+    R = GAS_CONSTANT
 
     # RK parameters
     a = 0.42748 * R * R * (Tc**2.5) / Pc
@@ -484,18 +468,16 @@ def correct_enthalpy_departure(
     if P == 0:
         return 0.0
 
-    R = 8.314462  # J/(mol·K)
-
     Tr = T / Tc
     Pr = P / Pc
 
-    # Simple correlation for enthalpy departure
-    # (H - H_ig)/(R*Tc) = Pr/Tr * (0.083 - 1.097/Tr^1.6 + omega*(0.139 - 0.894/Tr^4.2))
-
-    term0 = 0.083 - 1.097 / (Tr**1.6)
-    term1 = 0.139 - 0.894 / (Tr**4.2)
-
-    H_departure_reduced = Pr / Tr * (term0 + omega * term1)
-    H_departure = H_departure_reduced * R * Tc
-
-    return H_departure
+    # H^R / (R Tc) = Pr [B0 - Tr dB0/dTr + omega (B1 - Tr dB1/dTr)]
+    # with B0 = 0.083 - 0.422/Tr^1.6 and B1 = 0.139 - 0.172/Tr^4.2
+    # (Smith, Van Ness & Abbott, Introduction to Chemical Engineering
+    # Thermodynamics, 7th ed., eq. 6.87).
+    # Coefficients are the exact derivatives of the B0/B1 fits used by the
+    # compressibility model (0.422 * 2.6, 0.172 * 5.2), not the rounded
+    # 1.097 / 0.894 printed in textbooks.
+    term0 = 0.083 - 0.422 * 2.6 / (Tr**1.6)
+    term1 = 0.139 - 0.172 * 5.2 / (Tr**4.2)
+    return Pr * (term0 + omega * term1) * GAS_CONSTANT * Tc

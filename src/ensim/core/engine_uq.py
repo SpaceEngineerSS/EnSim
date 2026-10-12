@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import truncnorm
 
 from ensim.core.propulsion import NozzleConditions, calculate_performance
+from ensim.core.sampling import lognormal_factor
 
 
 @dataclass(frozen=True)
@@ -159,14 +160,7 @@ class EngineUQAnalyzer:
         rng = np.random.default_rng(seed)
 
         def positive_samples(value: float, fractional_sigma: float) -> np.ndarray:
-            if fractional_sigma == 0.0:
-                return np.full(n_samples, value)
-            log_variance = np.log1p(fractional_sigma**2)
-            return value * rng.lognormal(
-                -0.5 * log_variance,
-                np.sqrt(log_variance),
-                n_samples,
-            )
+            return value * lognormal_factor(rng, fractional_sigma, n_samples)
 
         pressure = positive_samples(
             inputs.chamber_pressure,

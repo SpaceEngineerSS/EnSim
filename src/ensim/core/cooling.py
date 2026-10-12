@@ -21,6 +21,8 @@ from numpy.typing import NDArray
 
 from ensim.utils.numba_support import jit
 
+from .constants import NASA_R
+
 
 class CoolingType(Enum):
     """Engine cooling methods."""
@@ -291,7 +293,7 @@ def bartz_heat_transfer_coefficient(
         area_ratio = geometric_area_ratio
     area_ratio = max(1.0, area_ratio)
 
-    R_spec = 8314.46261815324 / molecular_weight
+    R_spec = NASA_R / molecular_weight
     Cp = gamma * R_spec / (gamma - 1.0)
     M_local = _mach_from_area_ratio(area_ratio, gamma, supersonic)
     temperature_factor = 1.0 + 0.5 * (gamma - 1.0) * M_local**2

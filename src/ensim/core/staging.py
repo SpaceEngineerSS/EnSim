@@ -1,15 +1,13 @@
 """
-Multi-stage rocket vehicle model with staging logic.
+Multi-stage vehicle bookkeeping: stage masses, thrust, staging events and
+ideal (Tsiolkovsky) delta-v.
 
-Provides comprehensive support for multi-stage launch vehicles including:
-- Stage definition with propulsion and mass properties
-- Staging event detection and execution
-- Payload fairing jettison
-- Coast phases between burns
+Engine thrust varies linearly with ambient pressure between the sea-level and
+vacuum values, F(h) = F_vac - (F_vac - F_sl) p(h) / p0, which is exact for a
+fixed nozzle running full. p(h) comes from the US Standard Atmosphere 1976.
 
 References:
-    - Sutton & Biblarz, "Rocket Propulsion Elements", 9th ed., Ch. 4
-    - Hill & Peterson, "Mechanics and Thermodynamics of Propulsion", 2nd ed.
+    Sutton & Biblarz, "Rocket Propulsion Elements", 9th ed., ch. 4.
 """
 
 from dataclasses import dataclass, field
@@ -17,47 +15,52 @@ from enum import Enum, auto
 
 import numpy as np
 
+from .constants import G0, P_ATM
+from .mission import atmosphere_properties
+
 
 class StageStatus(Enum):
     """Stage operational status."""
 
-    INACTIVE = auto()  # Not yet active
-    BURNING = auto()  # Engine firing
-    COASTING = auto()  # Engine off, still attached
-    SEPARATED = auto()  # Jettisoned from stack
-    EXPENDED = auto()  # Completely expended
+    INACTIVE = auto()
+    BURNING = auto()
+    COASTING = auto()
+    SEPARATED = auto()
+    EXPENDED = auto()
 
 
 class StagingTrigger(Enum):
     """Conditions that trigger stage separation."""
 
-    PROPELLANT_DEPLETION = auto()  # When propellant runs out
-    TIME_BASED = auto()  # At specific mission time
-    ALTITUDE_BASED = auto()  # At specific altitude
-    VELOCITY_BASED = auto()  # At specific velocity
-    MANUAL = auto()  # Manual trigger
+    PROPELLANT_DEPLETION = auto()
+    TIME_BASED = auto()
+    ALTITUDE_BASED = auto()
+    VELOCITY_BASED = auto()
+    MANUAL = auto()
 
 
 @dataclass
 class StageEngine:
-    """
-    Engine parameters for a stage.
+    """Engine cluster of one stage.
+
+    Thrust is **per engine**; cluster values are multiplied by
+    ``num_engines``. Vacuum-only engines may leave the sea-level values at zero.
 
     Attributes:
-        thrust_sl: Sea-level thrust (N)
-        thrust_vac: Vacuum thrust (N)
-        isp_sl: Sea-level specific impulse (s)
-        isp_vac: Vacuum specific impulse (s)
-        num_engines: Number of engines
-        throttle_min: Minimum throttle (0-1)
-        throttle_max: Maximum throttle (0-1)
-        gimbal_range_deg: Gimbal range (degrees)
-        ignition_time: Engine ignition delay (s)
-        shutdown_time: Engine shutdown time (s)
+        thrust_sl_per_engine: Sea-level thrust of one engine, N.
+        thrust_vac_per_engine: Vacuum thrust of one engine, N.
+        isp_sl: Sea-level specific impulse, s.
+        isp_vac: Vacuum specific impulse, s.
+        num_engines: Engines in the cluster.
+        throttle_min: Deepest throttle setting while running, fraction.
+        throttle_max: Highest throttle setting, fraction.
+        gimbal_range_deg: Gimbal range, deg.
+        ignition_time: Delay between staging and full thrust, s.
+        shutdown_time: Thrust tail-off duration, s.
     """
 
-    thrust_sl: float
-    thrust_vac: float
+    thrust_sl_per_engine: float
+    thrust_vac_per_engine: float
     isp_sl: float
     isp_vac: float
     num_engines: int = 1
@@ -67,65 +70,68 @@ class StageEngine:
     ignition_time: float = 0.5
     shutdown_time: float = 0.3
 
+    def __post_init__(self) -> None:
+        if self.num_engines < 1:
+            raise ValueError("A stage needs at least one engine")
+        if self.thrust_vac_per_engine <= 0.0 or self.isp_vac <= 0.0:
+            raise ValueError("Vacuum thrust and Isp must be positive")
+        if self.thrust_sl_per_engine < 0.0 or self.isp_sl < 0.0:
+            raise ValueError("Sea-level thrust and Isp cannot be negative")
+        if not 0.0 <= self.throttle_min <= self.throttle_max <= 1.0:
+            raise ValueError("Throttle limits must satisfy 0 <= min <= max <= 1")
+
+    @property
+    def total_thrust_sl(self) -> float:
+        """Sea-level thrust of the whole cluster, N."""
+        return self.thrust_sl_per_engine * self.num_engines
+
+    @property
+    def total_thrust_vac(self) -> float:
+        """Vacuum thrust of the whole cluster, N."""
+        return self.thrust_vac_per_engine * self.num_engines
+
+    def _throttle(self, throttle: float) -> float:
+        if throttle <= 0.0:
+            return 0.0
+        return float(np.clip(throttle, self.throttle_min, self.throttle_max))
+
+    @staticmethod
+    def _pressure_fraction(altitude: float) -> float:
+        return atmosphere_properties(max(0.0, altitude))[1] / P_ATM
+
     def get_thrust(self, altitude: float, throttle: float = 1.0) -> float:
+        """Cluster thrust at an altitude and throttle setting, N.
+
+        A throttle of zero or less shuts the engines down; other values are
+        clamped to the throttle limits.
         """
-        Calculate thrust at given altitude and throttle.
-
-        Uses exponential atmosphere model for interpolation.
-
-        Args:
-            altitude: Altitude above sea level (m)
-            throttle: Throttle setting (0-1)
-
-        Returns:
-            Total thrust (N)
-        """
-        # Atmospheric pressure decay (scale height ~8.5 km)
-        h_scale = 8500.0
-        atm_factor = np.exp(-altitude / h_scale)
-
-        # Interpolate between sea-level and vacuum
-        thrust = self.thrust_vac - (self.thrust_vac - self.thrust_sl) * atm_factor
-
-        # Apply throttle and engine count
-        throttle_clamped = np.clip(throttle, self.throttle_min, self.throttle_max)
-        return thrust * throttle_clamped * self.num_engines
+        fraction = self._pressure_fraction(altitude)
+        per_engine = (
+            self.thrust_vac_per_engine
+            - (self.thrust_vac_per_engine - self.thrust_sl_per_engine) * fraction
+        )
+        return max(0.0, per_engine) * self._throttle(throttle) * self.num_engines
 
     def get_isp(self, altitude: float) -> float:
+        """Delivered specific impulse at an altitude, s."""
+        fraction = self._pressure_fraction(altitude)
+        return self.isp_vac - (self.isp_vac - self.isp_sl) * fraction
+
+    def get_mass_flow_rate(self, altitude: float = 0.0, throttle: float = 1.0) -> float:
+        """Cluster propellant mass flow, kg/s.
+
+        ``altitude`` is accepted for symmetry with :meth:`get_thrust`; for a
+        nozzle running full the flow does not depend on ambient pressure.
         """
-        Calculate Isp at given altitude.
-
-        Args:
-            altitude: Altitude above sea level (m)
-
-        Returns:
-            Specific impulse (s)
-        """
-        h_scale = 8500.0
-        atm_factor = np.exp(-altitude / h_scale)
-        return self.isp_vac - (self.isp_vac - self.isp_sl) * atm_factor
-
-    def get_mass_flow_rate(self, altitude: float, throttle: float = 1.0) -> float:
-        """
-        Calculate mass flow rate.
-
-        Args:
-            altitude: Altitude (m)
-            throttle: Throttle setting (0-1)
-
-        Returns:
-            Mass flow rate (kg/s)
-        """
-        G0 = 9.80665  # Standard gravity
-        thrust = self.get_thrust(altitude, throttle)
-        isp = self.get_isp(altitude)
-        return thrust / (isp * G0) if isp > 0 else 0.0
+        del altitude
+        per_engine = self.thrust_vac_per_engine / (self.isp_vac * G0)
+        return per_engine * self._throttle(throttle) * self.num_engines
 
 
 @dataclass
 class Stage:
     """
-    Complete stage definition.
+    One stage of the stack.
 
     Attributes:
         name: Stage identifier
@@ -199,7 +205,6 @@ class Stage:
         Returns:
             Ideal delta-v (m/s)
         """
-        G0 = 9.80665
         m_initial = self.dry_mass + self.propellant_mass + payload_mass
         m_final = self.dry_mass + payload_mass
         if m_final <= 0:
@@ -519,16 +524,12 @@ class MultiStageVehicle:
             self.stages[0].status = StageStatus.BURNING
 
 
-# =============================================================================
-# Reference vehicle constructors
-# =============================================================================
-
-
 def create_medium_lift_reference() -> MultiStageVehicle:
     """Create an editable two-stage reference vehicle."""
+    # Nine kerosene gas-generator engines, 845 kN SL / 914 kN vac each
     s1_engine = StageEngine(
-        thrust_sl=7_607_000,
-        thrust_vac=8_227_000,
+        thrust_sl_per_engine=845_000,
+        thrust_vac_per_engine=914_000,
         isp_sl=282,
         isp_vac=311,
         num_engines=9,
@@ -546,8 +547,8 @@ def create_medium_lift_reference() -> MultiStageVehicle:
     )
 
     s2_engine = StageEngine(
-        thrust_sl=0,
-        thrust_vac=934_000,
+        thrust_sl_per_engine=0,
+        thrust_vac_per_engine=934_000,
         isp_sl=0,
         isp_vac=348,
         num_engines=1,
@@ -576,9 +577,10 @@ def create_medium_lift_reference() -> MultiStageVehicle:
 
 def create_heavy_lift_reference() -> MultiStageVehicle:
     """Create an editable three-stage reference vehicle."""
+    # Five F-1 class engines, 6.77 MN SL / 7.77 MN vac each
     s_ic_engine = StageEngine(
-        thrust_sl=33_400_000,
-        thrust_vac=38_700_000,
+        thrust_sl_per_engine=6_770_000,
+        thrust_vac_per_engine=7_770_000,
         isp_sl=263,
         isp_vac=304,
         num_engines=5,
@@ -594,9 +596,10 @@ def create_heavy_lift_reference() -> MultiStageVehicle:
         staging_trigger=StagingTrigger.PROPELLANT_DEPLETION,
     )
 
+    # Five J-2 class engines, 1.03 MN vac each
     s_ii_engine = StageEngine(
-        thrust_sl=0,
-        thrust_vac=5_141_000,
+        thrust_sl_per_engine=0,
+        thrust_vac_per_engine=1_033_000,
         isp_sl=0,
         isp_vac=421,
         num_engines=5,
@@ -614,8 +617,8 @@ def create_heavy_lift_reference() -> MultiStageVehicle:
     )
 
     s_ivb_engine = StageEngine(
-        thrust_sl=0,
-        thrust_vac=1_033_000,
+        thrust_sl_per_engine=0,
+        thrust_vac_per_engine=1_033_000,
         isp_sl=0,
         isp_vac=421,
         num_engines=1,
@@ -643,49 +646,38 @@ def create_heavy_lift_reference() -> MultiStageVehicle:
 def create_custom_vehicle(
     stage_configs: list[dict], payload_mass: float = 0.0, name: str = "Custom Vehicle"
 ) -> MultiStageVehicle:
-    """
-    Create a custom multi-stage vehicle from configuration.
+    """Build a vehicle from plain dictionaries, bottom stage first.
 
-    Args:
-        stage_configs: List of stage configuration dictionaries
-        payload_mass: Payload mass (kg)
-        name: Vehicle name
-
-    Each stage config should have:
-        - name: str
-        - dry_mass: float (kg)
-        - propellant_mass: float (kg)
-        - thrust_sl: float (N)
-        - thrust_vac: float (N)
-        - isp_sl: float (s)
-        - isp_vac: float (s)
-        - num_engines: int (default 1)
-
-    Returns:
-        Configured MultiStageVehicle
+    Keys per stage: ``name``, ``dry_mass`` (kg), ``propellant_mass`` (kg),
+    ``thrust_sl_per_engine`` and ``thrust_vac_per_engine`` (N), ``isp_sl`` and
+    ``isp_vac`` (s), ``num_engines``, ``throttle_min``, ``throttle_max``,
+    ``fairing_mass`` (kg) and ``fairing_jettison_alt`` (m). Masses, vacuum
+    thrust and vacuum Isp are required.
     """
     stages = []
-
-    for config in stage_configs:
+    for index, config in enumerate(stage_configs, start=1):
+        required = ("dry_mass", "propellant_mass", "thrust_vac_per_engine", "isp_vac")
+        missing = [key for key in required if key not in config]
+        if missing:
+            raise KeyError(f"Stage {index} is missing {', '.join(missing)}")
         engine = StageEngine(
-            thrust_sl=config.get("thrust_sl", 0),
-            thrust_vac=config.get("thrust_vac", config.get("thrust_sl", 1e6)),
-            isp_sl=config.get("isp_sl", 280),
-            isp_vac=config.get("isp_vac", config.get("isp_sl", 320)),
+            thrust_sl_per_engine=config.get("thrust_sl_per_engine", 0.0),
+            thrust_vac_per_engine=config["thrust_vac_per_engine"],
+            isp_sl=config.get("isp_sl", 0.0),
+            isp_vac=config["isp_vac"],
             num_engines=config.get("num_engines", 1),
             throttle_min=config.get("throttle_min", 0.6),
             throttle_max=config.get("throttle_max", 1.0),
         )
-
-        stage = Stage(
-            name=config.get("name", f"Stage-{len(stages) + 1}"),
-            dry_mass=config.get("dry_mass", 1000),
-            propellant_mass=config.get("propellant_mass", 10000),
-            engine=engine,
-            staging_trigger=StagingTrigger.PROPELLANT_DEPLETION,
-            fairing_mass=config.get("fairing_mass", 0),
-            fairing_jettison_alt=config.get("fairing_jettison_alt", None),
+        stages.append(
+            Stage(
+                name=config.get("name", f"Stage {index}"),
+                dry_mass=config["dry_mass"],
+                propellant_mass=config["propellant_mass"],
+                engine=engine,
+                staging_trigger=StagingTrigger.PROPELLANT_DEPLETION,
+                fairing_mass=config.get("fairing_mass", 0.0),
+                fairing_jettison_alt=config.get("fairing_jettison_alt"),
+            )
         )
-        stages.append(stage)
-
     return MultiStageVehicle(name=name, stages=stages, payload_mass=payload_mass)

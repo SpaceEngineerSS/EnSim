@@ -18,7 +18,8 @@ from scipy.optimize import Bounds, LinearConstraint, brentq, least_squares, linp
 
 from ensim.utils.numba_support import jit
 
-from .constants import GAS_CONSTANT
+from .constants import GAS_CONSTANT, P_ATM, P_REF
+from .thermodynamics import h_over_rt
 from .types import (
     CalculationError,
     EquilibriumResult,
@@ -546,8 +547,7 @@ class CombustionProblem:
         self.species_db = species_db
         self.reactants: list[Reactant] = []
         self.product_species: list[str] = []
-        # Extended default products for comprehensive combustion equilibrium
-        # Includes nitrogen oxides, radicals, and minor species for accuracy
+        # Gas-phase products considered when the caller does not choose them
         self.default_products = [
             # Major H/O species
             "H2O",
@@ -606,27 +606,19 @@ class CombustionProblem:
         return filter_valid_species(all_sp, element_list)
 
     def calculate_input_enthalpy(self) -> float:
-        """Calculate total input enthalpy in J."""
+        """Total enthalpy of the reactants at their inlet temperatures, J."""
         h_total = 0.0
         for r in self.reactants:
-            if r.species_name in self.species_db:
-                sp = self.species_db[r.species_name]
-                T = r.temperature
-                c = sp.coeffs_low if sp.t_mid > T else sp.coeffs_high
-                h_rt = (
-                    c[0]
-                    + c[1] / 2 * T
-                    + c[2] / 3 * T**2
-                    + c[3] / 4 * T**3
-                    + c[4] / 5 * T**4
-                    + c[5] / T
-                )
-                h_total += r.moles * h_rt * GAS_CONSTANT * T
+            if r.species_name not in self.species_db:
+                raise CalculationError(f"Reactant {r.species_name} is not in the thermo database")
+            sp = self.species_db[r.species_name]
+            coeffs = sp.coeffs_low if sp.t_mid > r.temperature else sp.coeffs_high
+            h_total += r.moles * h_over_rt(r.temperature, coeffs) * GAS_CONSTANT * r.temperature
         return h_total
 
     def solve(
         self,
-        pressure: float = 101325.0,
+        pressure: float = P_ATM,
         initial_temp_guess: float = 3000.0,
         max_iterations: int = 50,
         tolerance: float = 1e-5,
@@ -656,7 +648,8 @@ class CombustionProblem:
             t_mid[j] = sp.t_mid
             mw[j] = sp.molecular_weight
 
-        P_atm = pressure / 101325.0
+        # Pressure relative to the 1 bar standard state of the thermo data
+        P_atm = pressure / P_REF
         h_target = self.calculate_input_enthalpy()
 
         if pressure <= 0.0:
@@ -755,6 +748,7 @@ class CombustionProblem:
         n, g_rt, h_rt, cp_r, h_current, residual = evaluate(T)
         balance_scale = np.maximum(np.abs(b_elements), 1.0)
         element_balance_error = float(np.max(np.abs(a_matrix @ n - b_elements) / balance_scale))
+        # Relative tolerance with a 1 J floor for reactant sets whose total enthalpy is near zero
         enthalpy_tolerance = abs(h_target) * tolerance + 1.0
         converged = bool(
             element_balance_error <= max(tolerance, 1e-8) and abs(residual) <= enthalpy_tolerance
@@ -768,7 +762,9 @@ class CombustionProblem:
 
         cp_mix = np.sum(x * cp_r) * GAS_CONSTANT
         cv_mix = cp_mix - GAS_CONSTANT
-        gamma = cp_mix / cv_mix if cv_mix > 0 else 1.2
+        if cv_mix <= 0.0:
+            raise CalculationError("Mixture heat capacity is not physical")
+        gamma = cp_mix / cv_mix
         positive = x > 0.0
         entropy = GAS_CONSTANT * np.sum(
             n[positive] * (h_rt[positive] - g_rt[positive] - np.log(x[positive] * P_atm))

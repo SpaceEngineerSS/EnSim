@@ -190,8 +190,8 @@ class StageConfigCard(QFrame):
             "name": f"Stage {self.stage_num}",
             "dry_mass": self.dry_mass.value(),
             "propellant_mass": self.prop_mass.value(),
-            "thrust_sl": self.thrust_sl.value() * 1000,  # kN to N
-            "thrust_vac": self.thrust_vac.value() * 1000,
+            "thrust_sl_per_engine": self.thrust_sl.value() * 1000,  # kN to N
+            "thrust_vac_per_engine": self.thrust_vac.value() * 1000,
             "isp_sl": self.isp_sl.value(),
             "isp_vac": self.isp_vac.value(),
             "num_engines": self.num_engines.value(),
@@ -201,8 +201,8 @@ class StageConfigCard(QFrame):
         """Set stage configuration from dictionary."""
         self.dry_mass.setValue(config.get("dry_mass", 5000))
         self.prop_mass.setValue(config.get("propellant_mass", 50000))
-        self.thrust_sl.setValue(config.get("thrust_sl", 500000) / 1000)
-        self.thrust_vac.setValue(config.get("thrust_vac", 550000) / 1000)
+        self.thrust_sl.setValue(config.get("thrust_sl_per_engine", 500000) / 1000)
+        self.thrust_vac.setValue(config.get("thrust_vac_per_engine", 550000) / 1000)
         self.isp_sl.setValue(config.get("isp_sl", 280))
         self.isp_vac.setValue(config.get("isp_vac", 310))
         self.num_engines.setValue(config.get("num_engines", 1))
@@ -350,8 +350,8 @@ class MultiStageWidget(QWidget):
         self._add_stage()
         self.stage_cards[0].dry_mass.setValue(25000)
         self.stage_cards[0].prop_mass.setValue(400000)
-        self.stage_cards[0].thrust_sl.setValue(7000)
-        self.stage_cards[0].thrust_vac.setValue(7600)
+        self.stage_cards[0].thrust_sl.setValue(845)
+        self.stage_cards[0].thrust_vac.setValue(914)
         self.stage_cards[0].isp_sl.setValue(282)
         self.stage_cards[0].isp_vac.setValue(311)
         self.stage_cards[0].num_engines.setValue(9)
@@ -421,8 +421,8 @@ class MultiStageWidget(QWidget):
                 {
                     "dry_mass": 2000,
                     "propellant_mass": 20000,
-                    "thrust_sl": 300000,
-                    "thrust_vac": 330000,
+                    "thrust_sl_per_engine": 300000,
+                    "thrust_vac_per_engine": 330000,
                     "isp_sl": 270,
                     "isp_vac": 295,
                     "num_engines": 1,
@@ -430,8 +430,8 @@ class MultiStageWidget(QWidget):
                 {
                     "dry_mass": 500,
                     "propellant_mass": 5000,
-                    "thrust_sl": 0,
-                    "thrust_vac": 50000,
+                    "thrust_sl_per_engine": 0,
+                    "thrust_vac_per_engine": 50000,
                     "isp_sl": 0,
                     "isp_vac": 320,
                     "num_engines": 1,
@@ -447,8 +447,8 @@ class MultiStageWidget(QWidget):
                 {
                     "dry_mass": 100000,
                     "propellant_mass": 2000000,
-                    "thrust_sl": 30000000,
-                    "thrust_vac": 35000000,
+                    "thrust_sl_per_engine": 30000000,
+                    "thrust_vac_per_engine": 35000000,
                     "isp_sl": 265,
                     "isp_vac": 300,
                     "num_engines": 5,
@@ -456,8 +456,8 @@ class MultiStageWidget(QWidget):
                 {
                     "dry_mass": 30000,
                     "propellant_mass": 400000,
-                    "thrust_sl": 0,
-                    "thrust_vac": 5000000,
+                    "thrust_sl_per_engine": 0,
+                    "thrust_vac_per_engine": 5000000,
                     "isp_sl": 0,
                     "isp_vac": 420,
                     "num_engines": 5,
@@ -465,8 +465,8 @@ class MultiStageWidget(QWidget):
                 {
                     "dry_mass": 10000,
                     "propellant_mass": 100000,
-                    "thrust_sl": 0,
-                    "thrust_vac": 1000000,
+                    "thrust_sl_per_engine": 0,
+                    "thrust_vac_per_engine": 1000000,
                     "isp_sl": 0,
                     "isp_vac": 420,
                     "num_engines": 1,
@@ -486,8 +486,8 @@ class MultiStageWidget(QWidget):
             config = {
                 "dry_mass": stage.dry_mass,
                 "propellant_mass": stage.propellant_mass,
-                "thrust_sl": stage.engine.thrust_sl,
-                "thrust_vac": stage.engine.thrust_vac,
+                "thrust_sl_per_engine": stage.engine.thrust_sl_per_engine,
+                "thrust_vac_per_engine": stage.engine.thrust_vac_per_engine,
                 "isp_sl": stage.engine.isp_sl,
                 "isp_vac": stage.engine.isp_vac,
                 "num_engines": stage.engine.num_engines,
