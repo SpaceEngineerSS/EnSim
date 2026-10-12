@@ -10,8 +10,8 @@ from ensim.core.engine import EngineInputs, analyze_engine
 def kerolox():
     return analyze_engine(
         EngineInputs(
-            "RP1",
-            "O2",
+            "RP-1",
+            "LOX",
             of_ratio=2.6,
             chamber_pressure=7e6,
             expansion_ratio=25.0,
@@ -49,7 +49,7 @@ def test_low_pressure_vacuum_engine_has_no_sea_level_point():
 
 def test_unknown_propellant_is_reported():
     with pytest.raises(KeyError, match="Unobtainium"):
-        analyze_engine(EngineInputs("Unobtainium", "O2", 2.0, 5e6, 20.0))
+        analyze_engine(EngineInputs("Unobtainium", "LOX", 2.0, 5e6, 20.0))
 
 
 @pytest.mark.parametrize(
@@ -60,4 +60,4 @@ def test_invalid_inputs_are_rejected(kwargs):
     values = {"of_ratio": 2.0, "chamber_pressure": 5e6, "expansion_ratio": 20.0}
     values.update(kwargs)
     with pytest.raises(ValueError):
-        EngineInputs("CH4", "O2", **values)
+        EngineInputs("LCH4", "LOX", **values)

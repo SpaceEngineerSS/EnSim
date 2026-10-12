@@ -5,8 +5,8 @@
     "modified": "2026-08-13T00:00:00"
   },
   "engine": {
-    "fuel": "CH4",
-    "oxidizer": "O2",
+    "fuel": "LCH4",
+    "oxidizer": "LOX",
     "of_ratio": 3.4,
     "chamber_pressure_bar": 100.0,
     "throat_area_cm2": 100.0,

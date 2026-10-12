@@ -14,7 +14,7 @@ def test_check_passes(capsys):
 
 
 def test_engine_text_and_json(capsys):
-    args = ["engine", "--fuel", "CH4", "--of", "3.4", "--pc", "100", "--eps", "35"]
+    args = ["engine", "--fuel", "LCH4", "--of", "3.4", "--pc", "100", "--eps", "35"]
     assert main(args) == 0
     assert "Isp vacuum" in capsys.readouterr().out
     assert main([*args, "--throat-area", "50", "--json"]) == 0
@@ -47,7 +47,7 @@ def test_run_project_with_flight_writes_json(tmp_path):
     "argv",
     [
         ["engine", "--fuel", "Xx", "--of", "2", "--pc", "10", "--eps", "5"],
-        ["engine", "--fuel", "H2", "--of", "-1", "--pc", "10", "--eps", "5"],
+        ["engine", "--fuel", "LH2", "--of", "-1", "--pc", "10", "--eps", "5"],
         ["run", "does-not-exist.ensim"],
     ],
 )

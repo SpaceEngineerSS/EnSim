@@ -87,12 +87,12 @@ class InputPanel(QWidget):
 
         self.fuel_combo = QComboBox()
         for label, species in (
-            ("H2 (Hydrogen)", "H2"),
-            ("CH4 (Methane)", "CH4"),
-            ("RP-1 (Kerosene)", "RP1"),
-            ("N2H4 (Hydrazine)", "N2H4"),
-            ("MMH (Monomethyl Hydrazine)", "MMH"),
-            ("UDMH (Dimethyl Hydrazine)", "UDMH"),
+            ("LH2", "LH2"),
+            ("LCH4", "LCH4"),
+            ("RP-1", "RP-1"),
+            ("N2H4", "N2H4"),
+            ("MMH", "MMH"),
+            ("UDMH", "UDMH"),
         ):
             self.fuel_combo.addItem(label, species)
         self.fuel_combo.setCurrentIndex(0)
@@ -101,10 +101,10 @@ class InputPanel(QWidget):
 
         self.oxidizer_combo = QComboBox()
         for label, species in (
-            ("O2 (LOX)", "O2"),
-            ("N2O (Nitrous oxide)", "N2O"),
-            ("N2O4 (NTO)", "N2O4"),
-            ("H2O2 (Hydrogen peroxide)", "H2O2"),
+            ("LOX", "LOX"),
+            ("N2O", "N2O"),
+            ("NTO", "NTO"),
+            ("HTP", "HTP"),
         ):
             self.oxidizer_combo.addItem(label, species)
         self.oxidizer_combo.setCurrentIndex(0)

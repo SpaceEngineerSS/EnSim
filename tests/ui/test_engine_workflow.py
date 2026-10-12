@@ -13,8 +13,8 @@ def test_engine_worker_uses_mass_ratio_and_selected_operating_pressure():
     errors = []
     worker = CalculationWorker(
         SimulationParams(
-            fuel="H2",
-            oxidizer="O2",
+            fuel="LH2",
+            oxidizer="LOX",
             fuel_moles=1.0,
             oxidizer_moles=1.0,
             of_ratio_mass=6.0,
@@ -41,18 +41,18 @@ def test_engine_worker_uses_mass_ratio_and_selected_operating_pressure():
 def test_engine_worker_rejects_unknown_species_before_solving():
     errors = []
     worker = CalculationWorker(
-        SimulationParams(fuel="NOT_A_SPECIES", oxidizer="O2", of_ratio_mass=2.0)
+        SimulationParams(fuel="NOT_A_SPECIES", oxidizer="LOX", of_ratio_mass=2.0)
     )
     worker.error.connect(errors.append)
     worker.run()
-    assert errors == ["Fuel species is unavailable: NOT_A_SPECIES"]
+    assert errors == ["Fuel 'NOT_A_SPECIES' is neither a known propellant nor a database species"]
 
 
 def test_completed_engine_run_selects_results_workspace():
     app = QApplication.instance() or QApplication([])
     window = MainWindow()
     results = []
-    worker = CalculationWorker(SimulationParams(fuel="H2", oxidizer="O2", of_ratio_mass=6.0))
+    worker = CalculationWorker(SimulationParams(fuel="LH2", oxidizer="LOX", of_ratio_mass=6.0))
     worker.finished.connect(results.append)
     worker.run()
     window._last_params = worker.params

@@ -12,9 +12,9 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 @pytest.mark.parametrize(
     ("filename", "fuel", "oxidizer"),
     [
-        ("h2_o2_vacuum.ensim", "H2", "O2"),
-        ("methalox_sealevel.ensim", "CH4", "O2"),
-        ("rp1_lox_reference.ensim", "RP1", "O2"),
+        ("h2_o2_vacuum.ensim", "LH2", "LOX"),
+        ("methalox_sealevel.ensim", "LCH4", "LOX"),
+        ("rp1_lox_reference.ensim", "RP-1", "LOX"),
     ],
 )
 def test_packaged_examples_load(filename, fuel, oxidizer):
@@ -28,7 +28,7 @@ def test_packaged_examples_load(filename, fuel, oxidizer):
 def test_round_trip_preserves_every_section(tmp_path):
     source = ProjectManager()
     source.new_project()
-    source.update_inputs("CH4", "O2", 3.45, 120.0, 85.0, 42.0, "Vacuum (0 bar)")
+    source.update_inputs("LCH4", "LOX", 3.45, 120.0, 85.0, 42.0, "Vacuum (0 bar)")
     source.data.rocket.name = "Reference Vehicle"
     source.data.rocket.engine_mass_dry = 3.3
     source.data.recovery.dual_deploy = True
@@ -80,7 +80,9 @@ def test_v1_flat_file_and_unknown_fields_load(tmp_path):
     flat.write_text(
         json.dumps({"fuel": "CH4", "oxidizer": "O2", "of_ratio": 3.2}), encoding="utf-8"
     )
-    assert ProjectManager().load(flat).engine.of_ratio == pytest.approx(3.2)
+    migrated = ProjectManager().load(flat).engine
+    assert migrated.of_ratio == pytest.approx(3.2)
+    assert (migrated.fuel, migrated.oxidizer) == ("LCH4", "LOX")
 
     newer = tmp_path / "newer.ensim"
     newer.write_text(

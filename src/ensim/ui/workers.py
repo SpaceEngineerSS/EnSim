@@ -4,13 +4,10 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from ensim.core.chemistry import CombustionProblem
+from ensim.core.engine import EngineInputs, analyze_engine
 from ensim.core.flight_6dof import simulate_flight_6dof
 from ensim.core.monte_carlo import DispersionConfig, run_monte_carlo
-from ensim.core.propulsion import NozzleConditions, calculate_performance
 from ensim.core.rocket import Rocket
-from ensim.core.types import ConvergenceError
-from ensim.utils.nasa_parser import load_default_database
 
 
 @dataclass
@@ -84,153 +81,57 @@ class CalculationWorker(QThread):
         self._species_db = None
 
     def run(self):
-        """Execute the simulation in background thread."""
+        """Run ``analyze_engine`` off the GUI thread."""
         try:
-            # Step 1: Load database
-            self.log.emit("Loading thermodynamic database...")
-            self._species_db = load_default_database()
-            if self.params.fuel not in self._species_db:
-                raise ValueError(f"Fuel species is unavailable: {self.params.fuel}")
-            if self.params.oxidizer not in self._species_db:
-                raise ValueError(f"Oxidizer species is unavailable: {self.params.oxidizer}")
-            oxidizer_moles = self.params.oxidizer_moles
-            if self.params.of_ratio_mass is not None:
-                fuel_mw = self._species_db[self.params.fuel].molecular_weight
-                oxidizer_mw = self._species_db[self.params.oxidizer].molecular_weight
-                oxidizer_moles = (
-                    self.params.of_ratio_mass * self.params.fuel_moles * fuel_mw / oxidizer_mw
-                )
-
-            # Step 2: Setup combustion problem
-            self.log.emit(f"Setting up {self.params.fuel}/{self.params.oxidizer} combustion...")
-            problem = CombustionProblem(self._species_db)
-            problem.add_fuel(self.params.fuel, moles=self.params.fuel_moles)
-            problem.add_oxidizer(self.params.oxidizer, moles=oxidizer_moles)
-
-            # Step 3: Solve equilibrium
-            P_chamber = self.params.chamber_pressure_bar * 1e5  # bar to Pa
-
-            if self.params.chamber_pressure_bar < 2.0:
+            params = self.params
+            if params.of_ratio_mass is None:
+                raise ValueError("A mass O/F ratio is required")
+            if params.chamber_pressure_bar < 2.0:
                 raise ValueError(
-                    f"Chamber pressure too low ({self.params.chamber_pressure_bar} bar). "
+                    f"Chamber pressure too low ({params.chamber_pressure_bar} bar). "
                     "At least 2 bar is required for the sea-level choked-flow result."
                 )
-
             self.log.emit(
-                f"Solving chemical equilibrium at {self.params.chamber_pressure_bar:.1f} bar..."
+                f"Solving {params.fuel}/{params.oxidizer} at {params.chamber_pressure_bar:g} bar"
             )
-
-            eq_result = problem.solve(
-                pressure=P_chamber, initial_temp_guess=3000.0, max_iterations=50, tolerance=1e-5
-            )
-
-            if not eq_result.converged:
-                raise ConvergenceError(
-                    "Chemical-equilibrium solver did not satisfy equilibrium and energy residuals"
+            result = analyze_engine(
+                EngineInputs(
+                    fuel=params.fuel,
+                    oxidizer=params.oxidizer,
+                    of_ratio=params.of_ratio_mass,
+                    chamber_pressure=params.chamber_pressure_bar * 1e5,
+                    expansion_ratio=params.expansion_ratio,
+                    throat_area=params.throat_area_cm2 * 1e-4 if params.throat_area_cm2 else None,
+                    ambient_pressure=params.ambient_pressure_bar * 1e5,
+                    eta_cstar=params.eta_cstar,
+                    eta_cf=params.eta_cf,
+                    nozzle_half_angle_deg=params.alpha_deg,
                 )
-
-            self.log.emit(f"  T = {eq_result.temperature:.1f} K, γ = {eq_result.gamma:.3f}")
-
-            # Step 4: Calculate vacuum performance
-            self.log.emit(
-                f"Calculating nozzle performance (ε = {self.params.expansion_ratio:.0f})..."
             )
-
-            throat_area = None
-            if self.params.throat_area_cm2:
-                throat_area = self.params.throat_area_cm2 * 1e-4  # cm² to m²
-
-            nozzle_vac = NozzleConditions(
-                area_ratio=self.params.expansion_ratio,
-                chamber_pressure=P_chamber,
-                ambient_pressure=0.0,
-                throat_area=throat_area,
+            sea_level = result.sea_level or result.operating
+            self.finished.emit(
+                SimulationResult(
+                    temperature=result.chamber_temperature,
+                    gamma=result.gamma,
+                    mean_mw=result.molecular_weight,
+                    species_fractions={k: v for k, v in result.composition.items() if v > 1e-3},
+                    isp_vacuum=result.vacuum.isp,
+                    isp_sea_level=sea_level.isp,
+                    isp_operating=result.operating.isp,
+                    c_star=result.vacuum.c_star,
+                    exit_velocity=result.vacuum.exit_velocity,
+                    thrust_vacuum=result.vacuum.thrust,
+                    thrust_operating=result.operating.thrust,
+                    exit_mach=result.vacuum.exit_mach,
+                    exit_pressure=result.vacuum.exit_pressure,
+                    operating_ambient_pressure=result.inputs.ambient_pressure,
+                    mass_flow_rate=result.vacuum.mass_flow_rate,
+                    converged=result.equilibrium.converged,
+                    iterations=result.equilibrium.iterations,
+                )
             )
-
-            perf_vac = calculate_performance(
-                T_chamber=eq_result.temperature,
-                P_chamber=P_chamber,
-                gamma=eq_result.gamma,
-                mean_molecular_weight=eq_result.mean_molecular_weight,
-                nozzle=nozzle_vac,
-                eta_cstar=self.params.eta_cstar,
-                eta_cf=self.params.eta_cf,
-                alpha_deg=self.params.alpha_deg,
-            )
-
-            self.log.emit(f"  Vacuum Isp = {perf_vac.isp:.1f} s")
-
-            # Step 5: Calculate sea-level performance
-            self.log.emit("Calculating sea-level performance...")
-
-            nozzle_sl = NozzleConditions(
-                area_ratio=self.params.expansion_ratio,
-                chamber_pressure=P_chamber,
-                ambient_pressure=101325.0,
-                throat_area=throat_area,
-            )
-
-            perf_sl = calculate_performance(
-                T_chamber=eq_result.temperature,
-                P_chamber=P_chamber,
-                gamma=eq_result.gamma,
-                mean_molecular_weight=eq_result.mean_molecular_weight,
-                nozzle=nozzle_sl,
-                eta_cstar=self.params.eta_cstar,
-                eta_cf=self.params.eta_cf,
-                alpha_deg=self.params.alpha_deg,
-            )
-
-            self.log.emit(f"  Sea Level Isp = {perf_sl.isp:.1f} s")
-
-            operating_ambient_pressure = self.params.ambient_pressure_bar * 1e5
-            nozzle_operating = NozzleConditions(
-                area_ratio=self.params.expansion_ratio,
-                chamber_pressure=P_chamber,
-                ambient_pressure=operating_ambient_pressure,
-                throat_area=throat_area,
-            )
-            perf_operating = calculate_performance(
-                T_chamber=eq_result.temperature,
-                P_chamber=P_chamber,
-                gamma=eq_result.gamma,
-                mean_molecular_weight=eq_result.mean_molecular_weight,
-                nozzle=nozzle_operating,
-                eta_cstar=self.params.eta_cstar,
-                eta_cf=self.params.eta_cf,
-                alpha_deg=self.params.alpha_deg,
-            )
-
-            # Build species fractions dict
-            species_fractions = {}
-            for name, frac in zip(eq_result.species_names, eq_result.mole_fractions, strict=False):
-                if frac > 0.001:
-                    species_fractions[name] = frac
-
-            # Build result
-            result = SimulationResult(
-                temperature=eq_result.temperature,
-                gamma=eq_result.gamma,
-                mean_mw=eq_result.mean_molecular_weight,
-                species_fractions=species_fractions,
-                isp_vacuum=perf_vac.isp,
-                isp_sea_level=perf_sl.isp,
-                isp_operating=perf_operating.isp,
-                c_star=perf_vac.c_star,
-                exit_velocity=perf_vac.exit_velocity,
-                thrust_vacuum=perf_vac.thrust,
-                thrust_operating=perf_operating.thrust,
-                exit_mach=perf_vac.exit_mach,
-                exit_pressure=perf_vac.exit_pressure,
-                operating_ambient_pressure=operating_ambient_pressure,
-                mass_flow_rate=perf_vac.mass_flow_rate,
-                converged=eq_result.converged,
-                iterations=eq_result.iterations,
-            )
-
-            self.log.emit("Simulation complete!")
-            self.finished.emit(result)
-
+        except KeyError as e:
+            self.error.emit(str(e.args[0]) if e.args else str(e))
         except Exception as e:
             self.error.emit(str(e))
 

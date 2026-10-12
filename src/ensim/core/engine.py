@@ -2,10 +2,14 @@
 Engine analysis in one call: chamber equilibrium, then nozzle performance.
 
     >>> from ensim.core.engine import EngineInputs, analyze_engine
-    >>> result = analyze_engine(EngineInputs("RP1", "O2", of_ratio=2.6,
+    >>> result = analyze_engine(EngineInputs("RP-1", "LOX", of_ratio=2.6,
     ...                                      chamber_pressure=7e6, expansion_ratio=25))
     >>> round(result.vacuum.isp)  # doctest: +SKIP
-    336
+    326
+
+Propellants are named by the keys of :data:`ensim.core.propellants.PROPELLANTS`
+(LH2, LOX, RP-1, NTO, ...) and enter the chamber in their storage state. Any
+other name is looked up in the thermo database and treated as a gas.
 
 The chamber composition comes from Gibbs energy minimisation; the nozzle
 expands it frozen (no recombination), which slightly understates Isp
@@ -19,6 +23,7 @@ from typing import Any
 
 from .chemistry import CombustionProblem
 from .constants import P_ATM
+from .propellants import PROPELLANTS
 from .propulsion import NozzleConditions, PerformanceResult, calculate_performance
 from .types import ConvergenceError, EquilibriumResult, SpeciesDatabase
 
@@ -37,8 +42,8 @@ class EngineInputs:
     eta_cstar: float = 1.0
     eta_cf: float = 1.0
     nozzle_half_angle_deg: float = 15.0
-    fuel_temperature: float = 298.15  # K
-    oxidizer_temperature: float = 298.15  # K
+    fuel_temperature: float | None = None  # K, gas reactants only (default 298.15)
+    oxidizer_temperature: float | None = None  # K, gas reactants only (default 298.15)
 
     def __post_init__(self) -> None:
         if self.of_ratio <= 0.0:
@@ -124,6 +129,41 @@ def _performance(
     )
 
 
+@dataclass(frozen=True)
+class _Reactant:
+    label: str
+    molar_mass: float  # kg/mol
+    kwargs: dict
+
+
+def _reactant(
+    role: str, name: str, temperature: float | None, database: SpeciesDatabase
+) -> _Reactant:
+    propellant = PROPELLANTS.get(name.upper())
+    if propellant is not None:
+        if temperature is not None and abs(temperature - propellant.temperature) > 1e-6:
+            raise ValueError(
+                f"{propellant.name} is tabulated at {propellant.temperature:g} K; "
+                "use a database species name for a gas at another temperature"
+            )
+        return _Reactant(
+            propellant.key,
+            propellant.molar_mass,
+            {
+                "temperature": propellant.temperature,
+                "formula": propellant.formula,
+                "molar_enthalpy": propellant.molar_enthalpy,
+            },
+        )
+    if name not in database:
+        raise KeyError(f"{role} '{name}' is neither a known propellant nor a database species")
+    return _Reactant(
+        name,
+        database[name].molecular_weight / 1000.0,
+        {"temperature": 298.15 if temperature is None else temperature},
+    )
+
+
 def analyze_engine(inputs: EngineInputs, database: SpeciesDatabase | None = None) -> EngineResult:
     """Solve the chamber equilibrium and the nozzle for ``inputs``.
 
@@ -140,18 +180,14 @@ def analyze_engine(inputs: EngineInputs, database: SpeciesDatabase | None = None
         from ensim.utils.nasa_parser import load_default_database
 
         database = load_default_database()
-    for role, name in (("Fuel", inputs.fuel), ("Oxidizer", inputs.oxidizer)):
-        if name not in database:
-            raise KeyError(f"{role} '{name}' is not in the thermodynamic database")
+    fuel = _reactant("Fuel", inputs.fuel, inputs.fuel_temperature, database)
+    oxidizer = _reactant("Oxidizer", inputs.oxidizer, inputs.oxidizer_temperature, database)
 
-    fuel_mw = database[inputs.fuel].molecular_weight
-    oxidizer_mw = database[inputs.oxidizer].molecular_weight
+    # One kilogram of fuel and of_ratio kilograms of oxidizer
     problem = CombustionProblem(database)
-    problem.add_fuel(inputs.fuel, moles=1.0, temperature=inputs.fuel_temperature)
+    problem.add_fuel(fuel.label, moles=1.0 / fuel.molar_mass, **fuel.kwargs)
     problem.add_oxidizer(
-        inputs.oxidizer,
-        moles=inputs.of_ratio * fuel_mw / oxidizer_mw,
-        temperature=inputs.oxidizer_temperature,
+        oxidizer.label, moles=inputs.of_ratio / oxidizer.molar_mass, **oxidizer.kwargs
     )
     equilibrium = problem.solve(pressure=inputs.chamber_pressure)
     if not equilibrium.converged:

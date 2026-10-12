@@ -17,8 +17,8 @@ def test_main_window_constructs_and_contextual_input_panel_switches():
         assert window.engine_tabs.count() == 2
         assert window.engine_tabs.tabText(0) == "Cooling"
         assert window.engine_tabs.tabText(1) == "Optimize"
-        assert window.input_panel.fuel_combo.currentData() == "H2"
-        assert window.input_panel.oxidizer_combo.currentData() == "O2"
+        assert window.input_panel.fuel_combo.currentData() == "LH2"
+        assert window.input_panel.oxidizer_combo.currentData() == "LOX"
         assert window.input_scroll_area.isHidden() is False
 
         window.tabs.setCurrentIndex(2)

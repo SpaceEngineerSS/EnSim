@@ -1,0 +1,7 @@
+# NASA CEA 3.3.2 rocket problems, frozen at the chamber
+case,fuel,oxidizer,of_ratio,chamber_pressure_bar,area_ratio,chamber_temperature,molecular_weight,gamma_frozen,c_star,isp_vacuum_frozen
+hydrolox,H2(L),O2(L),6.0,68.9476,40.0,3483.352133,13.458139,1.195508,2263.758925,430.442571
+methalox,CH4(L),O2(L),3.4,100.0,35.0,3598.285481,21.770089,1.195567,1809.225928,343.252845
+kerolox,RP-1,O2(L),2.6,100.0,25.0,3723.634613,23.602903,1.209029,1760.500918,326.956366
+hydrazine_nto,N2H4(L),N2O4(L),1.3,20.0,60.0,3143.386384,20.532034,1.221320,1727.656210,327.752147
+mmh_nto,CH6N2(L),N2O4(L),2.0,10.0,100.0,3170.372042,21.867801,1.225509,1679.245496,322.623440

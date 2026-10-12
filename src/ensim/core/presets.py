@@ -20,8 +20,8 @@ ENGINE_PRESETS: dict[str, EnginePreset] = {
     "H2/O2 Vacuum Study": EnginePreset(
         name="H2/O2 Vacuum Study",
         group="Reference cases",
-        fuel="H2",
-        oxidizer="O2",
+        fuel="LH2",
+        oxidizer="LOX",
         chamber_pressure_bar=70.0,
         of_ratio=6.0,
         expansion_ratio=60.0,
@@ -31,8 +31,8 @@ ENGINE_PRESETS: dict[str, EnginePreset] = {
     "CH4/O2 Engine Study": EnginePreset(
         name="CH4/O2 Engine Study",
         group="Reference cases",
-        fuel="CH4",
-        oxidizer="O2",
+        fuel="LCH4",
+        oxidizer="LOX",
         chamber_pressure_bar=100.0,
         of_ratio=3.4,
         expansion_ratio=35.0,
@@ -42,8 +42,8 @@ ENGINE_PRESETS: dict[str, EnginePreset] = {
     "RP-1/O2 Engine Study": EnginePreset(
         name="RP-1/O2 Engine Study",
         group="Reference cases",
-        fuel="RP1",
-        oxidizer="O2",
+        fuel="RP-1",
+        oxidizer="LOX",
         chamber_pressure_bar=100.0,
         of_ratio=2.6,
         expansion_ratio=25.0,

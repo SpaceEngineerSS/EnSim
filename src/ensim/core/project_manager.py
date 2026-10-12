@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
+from ensim.core.propellants import LEGACY_NAMES
 from ensim.core.recovery import DeployTrigger, Parachute
 from ensim.core.rocket import BodyTube, EngineMount, Fin, FinSet, NoseCone, NoseShape, Rocket
 
@@ -34,9 +36,9 @@ class ProjectFileError(Exception):
 class EngineData:
     """Engine inputs."""
 
-    fuel: str = "H2"
-    oxidizer: str = "O2"
-    of_ratio: float = 8.0
+    fuel: str = "LH2"
+    oxidizer: str = "LOX"
+    of_ratio: float = 6.0
     chamber_pressure_bar: float = 68.0
     throat_area_cm2: float = 100.0
     expansion_ratio: float = 50.0
@@ -114,6 +116,11 @@ class ProjectData:
 
 
 T = TypeVar("T")
+
+
+def _major_version(text: str) -> int:
+    match = re.match(r"\s*(\d+)", text)
+    return int(match.group(1)) if match else 1
 
 
 def _section(cls: type[T], values: Any, name: str) -> T:
@@ -240,6 +247,11 @@ class ProjectManager:
             data.last_isp_vacuum = results.get("isp_vacuum")
             data.last_thrust = results.get("thrust")
             data.last_apogee = results.get("apogee")
+
+        if _major_version(data.version) < 4:
+            # 3.x and older treated every reactant as a 298 K gas under these names
+            data.engine.fuel = LEGACY_NAMES.get(data.engine.fuel, data.engine.fuel)
+            data.engine.oxidizer = LEGACY_NAMES.get(data.engine.oxidizer, data.engine.oxidizer)
 
         self.data = data
         self.current_path = path

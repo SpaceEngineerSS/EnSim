@@ -5,8 +5,8 @@
     "modified": "2026-08-13T00:00:00"
   },
   "engine": {
-    "fuel": "RP1",
-    "oxidizer": "O2",
+    "fuel": "RP-1",
+    "oxidizer": "LOX",
     "of_ratio": 2.6,
     "chamber_pressure_bar": 100.0,
     "throat_area_cm2": 100.0,

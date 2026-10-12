@@ -192,16 +192,21 @@ class Reactant:
     Input reactant (fuel or oxidizer) for combustion problem.
 
     Attributes:
-        species_name: Name matching species in database (e.g., 'H2', 'O2')
-        moles: Number of moles of this reactant
-        temperature: Initial temperature in Kelvin
-        enthalpy: Total enthalpy in J (calculated from moles × molar enthalpy)
+        species_name: Species in the thermo database, or a free label when
+            ``formula`` and ``molar_enthalpy`` are given
+        moles: Amount, mol
+        temperature: Inlet temperature, K
+        formula: Elemental formula overriding the database entry (may be
+            fractional, e.g. "CH1.9423")
+        molar_enthalpy: Assigned enthalpy at ``temperature``, J/mol. Use it for
+            liquids, whose enthalpy is not given by the gas polynomials.
     """
 
     species_name: str
     moles: float
     temperature: float = 298.15
-    enthalpy: float = 0.0  # Will be calculated during processing
+    formula: str | None = None
+    molar_enthalpy: float | None = None
 
     def __repr__(self) -> str:
         return f"Reactant({self.species_name}, n={self.moles:.4f} mol, T={self.temperature:.1f} K)"

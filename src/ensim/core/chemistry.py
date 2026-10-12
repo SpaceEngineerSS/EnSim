@@ -303,17 +303,12 @@ def lookup_combustion_properties(
 
 
 # Stoichiometry Utilities
-def parse_formula(formula: str) -> dict[str, int]:
-    """Parse chemical formula into element counts."""
-    formula = re.sub(r"\([GLSC]\)$", "", formula)
-    elements: dict[str, int] = {}
-    pattern = r"([A-Z][a-z]?)(\d*)"
-    for match in re.finditer(pattern, formula):
-        element = match.group(1)
-        count_str = match.group(2)
-        count = int(count_str) if count_str else 1
-        if element:
-            elements[element] = elements.get(element, 0) + count
+def parse_formula(formula: str) -> dict[str, float]:
+    """Element counts of a formula such as "N2H4" or "CH1.9423"."""
+    formula = re.sub(r"\([GLSCgl]\)$", "", formula)
+    elements: dict[str, float] = {}
+    for symbol, count in re.findall(r"([A-Z][a-z]?)(\d*\.?\d*)", formula):
+        elements[symbol] = elements.get(symbol, 0.0) + (float(count) if count else 1.0)
     return elements
 
 
@@ -331,16 +326,20 @@ def build_stoichiometry_matrix(
     return a_matrix
 
 
+def _reactant_formula(reactant: Reactant, species_db: SpeciesDatabase) -> str:
+    if reactant.formula:
+        return reactant.formula
+    species = species_db.get(reactant.species_name)
+    return species.formula if species and species.formula else reactant.species_name
+
+
 def calculate_element_totals(
     reactants: list[Reactant], species_db: SpeciesDatabase, element_list: list[str]
 ) -> NDArray[np.float64]:
     """Calculate total gram-atoms of each element from reactants."""
     b = np.zeros(len(element_list), dtype=np.float64)
     for reactant in reactants:
-        species = species_db.get(reactant.species_name)
-        formula = parse_formula(
-            species.formula if species and species.formula else reactant.species_name
-        )
+        formula = parse_formula(_reactant_formula(reactant, species_db))
         for i, element in enumerate(element_list):
             if element in formula:
                 b[i] += reactant.moles * formula[element]
@@ -567,13 +566,29 @@ class CombustionProblem:
             "NH2",
         ]
 
-    def add_fuel(self, species_name: str, moles: float = 1.0, temperature: float = 298.15) -> None:
-        self.reactants.append(Reactant(species_name, moles, temperature))
+    def add_fuel(
+        self,
+        species_name: str,
+        moles: float = 1.0,
+        temperature: float = 298.15,
+        *,
+        formula: str | None = None,
+        molar_enthalpy: float | None = None,
+    ) -> None:
+        """Add a fuel. ``formula`` and ``molar_enthalpy`` describe reactants not in the database."""
+        self.reactants.append(Reactant(species_name, moles, temperature, formula, molar_enthalpy))
 
     def add_oxidizer(
-        self, species_name: str, moles: float = 1.0, temperature: float = 298.15
+        self,
+        species_name: str,
+        moles: float = 1.0,
+        temperature: float = 298.15,
+        *,
+        formula: str | None = None,
+        molar_enthalpy: float | None = None,
     ) -> None:
-        self.reactants.append(Reactant(species_name, moles, temperature))
+        """Add an oxidizer; see :meth:`add_fuel`."""
+        self.reactants.append(Reactant(species_name, moles, temperature, formula, molar_enthalpy))
 
     def set_products(self, species_names: list[str]) -> None:
         self.product_species = species_names
@@ -581,9 +596,7 @@ class CombustionProblem:
     def _get_elements(self) -> list[str]:
         elements: set = set()
         for r in self.reactants:
-            species = self.species_db.get(r.species_name)
-            formula = species.formula if species and species.formula else r.species_name
-            elements.update(parse_formula(formula).keys())
+            elements.update(parse_formula(_reactant_formula(r, self.species_db)).keys())
         return sorted(elements)
 
     def _get_product_species(self, element_list: list[str]) -> list[SpeciesData]:
@@ -595,6 +608,9 @@ class CombustionProblem:
         """Total enthalpy of the reactants at their inlet temperatures, J."""
         h_total = 0.0
         for r in self.reactants:
+            if r.molar_enthalpy is not None:
+                h_total += r.moles * r.molar_enthalpy
+                continue
             if r.species_name not in self.species_db:
                 raise CalculationError(f"Reactant {r.species_name} is not in the thermo database")
             sp = self.species_db[r.species_name]

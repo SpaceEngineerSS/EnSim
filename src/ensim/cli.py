@@ -216,9 +216,10 @@ def cmd_check(_: argparse.Namespace) -> int:
             f"H2O heat capacity at 1000 K is {cp:.4g} J/(mol K), expected about 41.3"
         )
     result = analyze_engine(
-        EngineInputs("H2", "O2", of_ratio=7.9367, chamber_pressure=1.01325e6, expansion_ratio=40.0)
+        EngineInputs("LH2", "LOX", of_ratio=6.0, chamber_pressure=68.9476e5, expansion_ratio=40.0)
     )
-    if not 3000.0 < result.chamber_temperature < 3700.0 or result.vacuum.isp <= 0.0:
+    # NASA CEA 3.3.2 gives 3483.4 K for this case
+    if abs(result.chamber_temperature - 3483.4) > 5.0 or result.vacuum.isp <= 0.0:
         raise RuntimeError("Equilibrium and nozzle results are outside physical bounds")
     print(f"EnSim {__version__}")
     print(
@@ -226,7 +227,7 @@ def cmd_check(_: argparse.Namespace) -> int:
             [
                 ("species", str(len(database))),
                 ("H2O Cp(1000 K)", f"{cp:.3f} J/(mol K)"),
-                ("H2/O2 Tc, 10 bar", f"{result.chamber_temperature:.1f} K"),
+                ("LH2/LOX Tc, O/F 6, 68.9 bar", f"{result.chamber_temperature:.1f} K"),
                 ("Isp vacuum, eps 40", f"{result.vacuum.isp:.1f} s"),
             ]
         )
@@ -239,7 +240,7 @@ def cmd_gui(_: argparse.Namespace | None = None) -> int:
     try:
         from ensim.ui.app import run
     except ImportError as error:
-        print(f"{GUI_HINT}\n({error})", file=sys.stderr)
+        print(GUI_HINT if "PyQt6" in str(error) else f"{GUI_HINT}\n({error})", file=sys.stderr)
         return 2
     return run()
 
@@ -256,8 +257,8 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("gui", help="open the desktop application")
 
     engine = commands.add_parser("engine", help="analyse one engine operating point")
-    engine.add_argument("--fuel", required=True, help="fuel species, e.g. H2, CH4, RP1")
-    engine.add_argument("--oxidizer", default="O2", help="oxidizer species (default O2)")
+    engine.add_argument("--fuel", required=True, help="fuel, e.g. LH2, LCH4, RP-1, MMH")
+    engine.add_argument("--oxidizer", default="LOX", help="oxidizer, e.g. LOX, NTO (default LOX)")
     engine.add_argument("--of", type=float, required=True, help="oxidizer/fuel mass ratio")
     engine.add_argument("--pc", type=float, required=True, help="chamber pressure, bar")
     engine.add_argument("--eps", type=float, required=True, help="nozzle area ratio Ae/At")
