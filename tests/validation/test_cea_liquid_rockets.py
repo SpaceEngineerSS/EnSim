@@ -4,9 +4,8 @@ References come from scripts/generate_cea_references.py: reactants in their
 storage state (LH2 at 20.27 K, LOX at 90.17 K, LCH4 at 111.6 K, storables at
 298.15 K) and composition frozen at the chamber.
 
-Chamber properties agree to a few hundredths of a percent. The nozzle uses a
-constant frozen gamma, while CEA integrates the frozen mixture's
-temperature-dependent cp, so vacuum Isp is allowed 1.2 %.
+Both codes expand the frozen chamber mixture with temperature-dependent cp,
+so chamber state, c* and vacuum Isp all agree to better than 0.1 %.
 """
 
 import csv
@@ -44,13 +43,14 @@ def test_liquid_rocket_matches_cea(row):
             of_ratio=float(row["of_ratio"]),
             chamber_pressure=float(row["chamber_pressure_bar"]) * 1e5,
             expansion_ratio=float(row["area_ratio"]),
+            nozzle_half_angle_deg=0.0,  # CEA reports the loss-free nozzle
         )
     )
     assert result.chamber_temperature == pytest.approx(float(row["chamber_temperature"]), rel=5e-4)
     assert result.molecular_weight == pytest.approx(float(row["molecular_weight"]), rel=2e-3)
     assert result.gamma == pytest.approx(float(row["gamma_frozen"]), rel=1e-3)
     assert result.vacuum.c_star == pytest.approx(float(row["c_star"]), rel=1e-3)
-    assert result.vacuum.isp == pytest.approx(float(row["isp_vacuum_frozen"]), rel=1.2e-2)
+    assert result.vacuum.isp == pytest.approx(float(row["isp_vacuum_frozen"]), rel=1e-3)
 
 
 def test_liquid_reactants_run_cooler_than_gaseous_ones():

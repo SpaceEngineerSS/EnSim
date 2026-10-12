@@ -11,9 +11,14 @@ Propellants are named by the keys of :data:`ensim.core.propellants.PROPELLANTS`
 (LH2, LOX, RP-1, NTO, ...) and enter the chamber in their storage state. Any
 other name is looked up in the thermo database and treated as a gas.
 
-The chamber composition comes from Gibbs energy minimisation; the nozzle
-expands it frozen (no recombination), which slightly understates Isp
-compared with a shifting-equilibrium calculation.
+The chamber composition comes from Gibbs energy minimisation. The nozzle
+expands that composition frozen, with temperature-dependent heat capacity
+(:mod:`ensim.core.frozen_flow`); this matches NASA CEA's frozen rocket problem
+and slightly understates Isp compared with shifting equilibrium.
+
+Efficiencies scale the ideal result: c* by ``eta_cstar``, the thrust
+coefficient by ``eta_cf``, and the momentum term by the conical divergence
+factor (1 + cos alpha) / 2.
 """
 
 from __future__ import annotations
@@ -21,10 +26,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+import numpy as np
+
 from .chemistry import CombustionProblem
-from .constants import P_ATM
+from .constants import G0, P_ATM
+from .frozen_flow import FrozenNozzle, frozen_nozzle
 from .propellants import PROPELLANTS
-from .propulsion import NozzleConditions, PerformanceResult, calculate_performance
+from .propulsion import PerformanceResult
 from .types import ConvergenceError, EquilibriumResult, SpeciesDatabase
 
 
@@ -67,6 +75,7 @@ class EngineResult:
     vacuum: PerformanceResult
     operating: PerformanceResult
     sea_level: PerformanceResult | None  # None if the nozzle cannot run choked at 1 atm
+    nozzle: FrozenNozzle | None = None  # ideal frozen expansion behind the three results
     composition: dict[str, float] = field(default_factory=dict)  # mole fractions >= 1e-6
 
     @property
@@ -109,23 +118,28 @@ def _plain(value: Any) -> Any:
         return value
 
 
-def _performance(
-    inputs: EngineInputs, equilibrium: EquilibriumResult, ambient: float
-) -> PerformanceResult:
-    return calculate_performance(
-        T_chamber=equilibrium.temperature,
-        P_chamber=inputs.chamber_pressure,
-        gamma=equilibrium.gamma,
-        mean_molecular_weight=equilibrium.mean_molecular_weight,
-        nozzle=NozzleConditions(
-            area_ratio=inputs.expansion_ratio,
-            chamber_pressure=inputs.chamber_pressure,
-            ambient_pressure=ambient,
-            throat_area=inputs.throat_area,
-        ),
-        eta_cstar=inputs.eta_cstar,
-        eta_cf=inputs.eta_cf,
-        alpha_deg=inputs.nozzle_half_angle_deg,
+def _performance(inputs: EngineInputs, nozzle: FrozenNozzle, ambient: float) -> PerformanceResult:
+    if ambient > nozzle.throat.pressure:
+        raise ValueError("Ambient pressure is too high for choked nozzle flow")
+    divergence = 0.5 * (1.0 + np.cos(np.radians(inputs.nozzle_half_angle_deg)))
+    momentum = divergence * nozzle.exit.velocity / nozzle.c_star
+    pressure = (nozzle.exit.pressure - ambient) * nozzle.area_ratio / inputs.chamber_pressure
+    c_star = nozzle.c_star * inputs.eta_cstar
+    c_f = inputs.eta_cf * (momentum + pressure)
+    thrust = mass_flow = None
+    if inputs.throat_area is not None:
+        thrust = c_f * inputs.chamber_pressure * inputs.throat_area
+        mass_flow = inputs.chamber_pressure * inputs.throat_area / c_star
+    return PerformanceResult(
+        c_star=c_star,
+        c_f=c_f,
+        exit_velocity=nozzle.exit.velocity,
+        exit_mach=nozzle.exit.mach,
+        exit_pressure=nozzle.exit.pressure,
+        exit_temperature=nozzle.exit.temperature,
+        thrust=thrust if thrust is not None else c_f * inputs.chamber_pressure,
+        isp=c_f * c_star / G0,
+        mass_flow_rate=mass_flow,
     )
 
 
@@ -196,10 +210,11 @@ def analyze_engine(inputs: EngineInputs, database: SpeciesDatabase | None = None
             f"at O/F {inputs.of_ratio:g} and {inputs.chamber_pressure / 1e5:g} bar"
         )
 
-    vacuum = _performance(inputs, equilibrium, 0.0)
-    operating = _performance(inputs, equilibrium, inputs.ambient_pressure)
+    nozzle = frozen_nozzle(equilibrium, database, inputs.expansion_ratio)
+    vacuum = _performance(inputs, nozzle, 0.0)
+    operating = _performance(inputs, nozzle, inputs.ambient_pressure)
     try:
-        sea_level = _performance(inputs, equilibrium, P_ATM)
+        sea_level = _performance(inputs, nozzle, P_ATM)
     except ValueError:
         sea_level = None
 
@@ -217,5 +232,6 @@ def analyze_engine(inputs: EngineInputs, database: SpeciesDatabase | None = None
         vacuum=vacuum,
         operating=operating,
         sea_level=sea_level,
+        nozzle=nozzle,
         composition=composition,
     )
