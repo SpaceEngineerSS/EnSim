@@ -9,6 +9,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+# numpy 2 renamed trapz to trapezoid
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz
+
 
 @dataclass
 class NozzleContour:
@@ -163,3 +166,92 @@ def _parabolic_bell(
     r = (1 - t) ** 2 * r0 + 2 * (1 - t) * t * r_c + t**2 * r1
 
     return x, r
+
+
+@dataclass(frozen=True)
+class ChamberContour:
+    """Wall of a thrust chamber from injector face to nozzle exit.
+
+    ``x`` is measured from the throat (negative upstream); ``r`` is the wall
+    radius. ``supersonic`` flags stations downstream of the throat.
+    """
+
+    x: np.ndarray
+    r: np.ndarray
+    supersonic: np.ndarray
+    throat_radius: float
+    chamber_radius: float
+    chamber_length: float  # injector face to throat, m
+    nozzle_length: float  # throat to exit, m
+
+    @property
+    def area_ratio(self) -> np.ndarray:
+        return (self.r / self.throat_radius) ** 2
+
+
+def chamber_contour(
+    throat_area: float,
+    expansion_ratio: float,
+    contraction_ratio: float = 4.0,
+    characteristic_length: float = 1.0,
+    convergence_angle: float = 30.0,
+    percent_bell: float = 80.0,
+    n_points: int = 160,
+) -> ChamberContour:
+    """Cylinder, conical convergence, throat arc and Rao bell.
+
+    The cylinder length is chosen so that the chamber volume up to the
+    throat equals L* times the throat area. The upstream throat arc has
+    radius 1.5 Rt (Huzel & Huang).
+    """
+    if throat_area <= 0.0 or expansion_ratio <= 1.0 or contraction_ratio <= 1.0:
+        raise ValueError("Throat area, expansion ratio and contraction ratio are invalid")
+    if characteristic_length <= 0.0 or not 10.0 <= convergence_angle <= 60.0:
+        raise ValueError("L* must be positive and the convergence angle 10-60 degrees")
+
+    rt = np.sqrt(throat_area / np.pi)
+    rc = rt * np.sqrt(contraction_ratio)
+    theta = np.radians(convergence_angle)
+    arc_radius = 1.5 * rt
+
+    # Upstream throat arc, from the throat back to the tangent with the cone
+    phi = np.linspace(0.0, theta, 24)
+    x_arc = -arc_radius * np.sin(phi)
+    r_arc = rt + arc_radius * (1.0 - np.cos(phi))
+    cone_length = max(rc - r_arc[-1], 0.0) / np.tan(theta)
+    x_cone_start = x_arc[-1] - cone_length
+
+    r1 = r_arc[-1]
+    convergent_volume = np.pi / 3.0 * cone_length * (rc * rc + rc * r1 + r1 * r1)
+    convergent_volume += _trapezoid(np.pi * r_arc**2, -x_arc)
+    cylinder_length = max(characteristic_length * throat_area - convergent_volume, 0.0) / (
+        np.pi * rc * rc
+    )
+    x_face = x_cone_start - cylinder_length
+
+    bell = generate_bell_contour(rt, expansion_ratio, percent_bell=percent_bell, n_points=n_points)
+    upstream_x = np.concatenate(
+        [
+            np.linspace(x_face, x_cone_start, 12, endpoint=False),
+            np.linspace(x_cone_start, x_arc[-1], 16, endpoint=False),
+            x_arc[::-1],
+        ]
+    )
+    upstream_r = np.concatenate(
+        [
+            np.full(12, rc),
+            np.linspace(rc, r1, 16, endpoint=False),
+            r_arc[::-1],
+        ]
+    )
+    x = np.concatenate([upstream_x, bell.x[1:]])
+    r = np.concatenate([upstream_r, bell.r[1:]])
+    return ChamberContour(
+        x=x,
+        r=r,
+        supersonic=x > 0.0,
+        throat_radius=rt,
+        chamber_radius=rc,
+        chamber_length=-x_face,
+        nozzle_length=float(bell.x[-1]),
+    )

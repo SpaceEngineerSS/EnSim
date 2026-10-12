@@ -703,20 +703,37 @@ class CombustionProblem:
             evaluations[key] = value
             return value
 
-        sample_temperatures = np.linspace(lower_temperature, upper_temperature, 17)
-        sample_temperatures = np.unique(
-            np.append(
-                sample_temperatures,
-                np.clip(initial_temp_guess, lower_temperature, upper_temperature),
-            )
-        )
-        samples: list[tuple[float, float]] = []
-        for sample_temperature in sample_temperatures:
+        # The equilibrium enthalpy rises monotonically with temperature, so the
+        # root is bracketed by stepping outward from the guess.
+        def sample(temperature: float) -> tuple[float, float] | None:
             try:
-                residual = evaluate(float(sample_temperature))[5]
+                return temperature, evaluate(temperature)[5]
             except CalculationError:
-                continue
-            samples.append((float(sample_temperature), residual))
+                return None
+
+        samples: list[tuple[float, float]] = []
+        start = sample(float(np.clip(initial_temp_guess, lower_temperature, upper_temperature)))
+        if start is not None:
+            samples.append(start)
+            step = 400.0 if start[1] < 0.0 else -400.0
+            current = start[0]
+            while lower_temperature < current < upper_temperature:
+                current = float(np.clip(current + step, lower_temperature, upper_temperature))
+                point = sample(current)
+                if point is None:
+                    continue
+                samples.append(point)
+                if np.signbit(point[1]) != np.signbit(start[1]) or point[1] == 0.0:
+                    break
+        if not samples or not any(
+            np.signbit(a[1]) != np.signbit(b[1]) for a, b in zip(samples, samples[1:], strict=False)
+        ):
+            # Fall back to a full scan when stepping found no sign change
+            for temperature in np.linspace(lower_temperature, upper_temperature, 17):
+                point = sample(float(temperature))
+                if point is not None:
+                    samples.append(point)
+        samples.sort()
 
         exact = next((temperature for temperature, residual in samples if residual == 0.0), None)
         brackets = [

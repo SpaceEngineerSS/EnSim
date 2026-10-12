@@ -43,9 +43,11 @@ class EngineData:
     throat_area_cm2: float = 100.0
     expansion_ratio: float = 50.0
     ambient_pressure_bar: float = 0.0
-    eta_cstar: float = 0.95
-    eta_cf: float = 0.95
+    eta_cstar: float = 0.97
+    eta_cf: float = 0.98
     alpha_deg: float = 15.0
+    contraction_ratio: float = 4.0  # chamber to throat area
+    characteristic_length: float = 1.0  # L*, m
 
 
 @dataclass

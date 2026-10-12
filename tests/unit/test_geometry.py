@@ -36,3 +36,26 @@ def test_nozzle_profile_uses_supplied_local_area_ratios():
     assert np.array_equal(profile["area_ratio"], area_ratios)
     assert np.all(np.diff(profile["mach"]) > 0.0)
     assert np.all(np.diff(profile["temperature"]) < 0.0)
+
+
+def test_chamber_contour_honours_l_star_and_area_ratios():
+    import numpy as np
+
+    from ensim.core.geometry import chamber_contour
+
+    at = 1.0e-3
+    contour = chamber_contour(
+        at, expansion_ratio=25.0, contraction_ratio=4.0, characteristic_length=1.1
+    )
+    assert np.all(np.diff(contour.x) > 0.0)
+    assert contour.area_ratio[0] == pytest.approx(4.0)
+    assert contour.area_ratio[-1] == pytest.approx(25.0, rel=1e-6)
+    assert contour.r.min() == pytest.approx(contour.throat_radius)
+    upstream = contour.x <= 0.0
+    volume = np.sum(
+        np.pi
+        * 0.5
+        * (contour.r[upstream][1:] ** 2 + contour.r[upstream][:-1] ** 2)
+        * np.diff(contour.x[upstream])
+    )
+    assert volume == pytest.approx(1.1 * at, rel=0.02)

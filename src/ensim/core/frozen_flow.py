@@ -93,8 +93,8 @@ class _Mixture:
         )
         return float(np.dot(self.x, h_rt)) * GAS_CONSTANT * t
 
-    def entropy(self, temperature: float, pressure: float) -> float:
-        """J/(mol K), ideal mixture."""
+    def s0_over_r(self, temperature: float) -> float:
+        """Mixture standard-state entropy over R, without mixing or pressure terms."""
         c = self._coeffs(temperature)
         t = temperature
         s_r = (
@@ -102,26 +102,63 @@ class _Mixture:
             + t * (c[:, 1] + t * (c[:, 2] / 2 + t * (c[:, 3] / 3 + t * c[:, 4] / 4)))
             + c[:, 6]
         )
-        return (float(np.dot(self.x, s_r)) - self._mixing - np.log(pressure / P_REF)) * GAS_CONSTANT
+        return float(np.dot(self.x, s_r))
+
+    def entropy(self, temperature: float, pressure: float) -> float:
+        """J/(mol K), ideal mixture."""
+        return (
+            self.s0_over_r(temperature) - self._mixing - np.log(pressure / P_REF)
+        ) * GAS_CONSTANT
 
 
-def _station(
-    mixture: _Mixture, s_chamber: float, h_chamber: float, t_guess: float, pressure: float
-) -> FrozenStation:
-    temperature = t_guess
-    for _ in range(50):
-        residual = mixture.entropy(temperature, pressure) - s_chamber
-        step = residual * temperature / mixture.cp(temperature)
-        temperature = max(temperature - step, 0.5 * temperature)
-        if abs(step) < 1e-9 * temperature:
-            break
-    drop = h_chamber - mixture.enthalpy(temperature)
-    velocity = np.sqrt(max(2.0 * drop / mixture.molar_mass, 0.0))
-    cp = mixture.cp(temperature)
-    gamma = cp / (cp - GAS_CONSTANT)
-    sound = np.sqrt(gamma * GAS_CONSTANT * temperature / mixture.molar_mass)
-    density = pressure * mixture.molar_mass / (GAS_CONSTANT * temperature)
-    return FrozenStation(pressure, temperature, float(velocity), density, float(velocity / sound))
+class _Isentrope:
+    """The frozen isentrope through the chamber state, parametrised by temperature.
+
+    Along s = const the pressure follows in closed form,
+    ln(p / p0) = s0(T)/R - sum(x ln x) - s_c/R, so every quantity is an
+    explicit function of T and no inner iteration is needed.
+    """
+
+    def __init__(self, equilibrium: EquilibriumResult, database: SpeciesDatabase):
+        self.mix = _Mixture(equilibrium, database)
+        self.tc = equilibrium.temperature
+        self.pc = equilibrium.pressure
+        self._s_c_r = self.mix.entropy(self.tc, self.pc) / GAS_CONSTANT
+        self._h_c = self.mix.enthalpy(self.tc)
+
+    def station(self, temperature: float) -> FrozenStation:
+        mix = self.mix
+        pressure = P_REF * np.exp(mix.s0_over_r(temperature) - mix._mixing - self._s_c_r)
+        drop = self._h_c - mix.enthalpy(temperature)
+        velocity = np.sqrt(max(2.0 * drop / mix.molar_mass, 0.0))
+        cp = mix.cp(temperature)
+        sound = np.sqrt(cp / (cp - GAS_CONSTANT) * GAS_CONSTANT * temperature / mix.molar_mass)
+        density = pressure * mix.molar_mass / (GAS_CONSTANT * temperature)
+        return FrozenStation(
+            float(pressure), temperature, float(velocity), density, float(velocity / sound)
+        )
+
+    def throat(self) -> FrozenStation:
+        best = minimize_scalar(
+            lambda t: -self.station(t).mass_flux,
+            bounds=(0.6 * self.tc, 0.999 * self.tc),
+            method="bounded",
+            options={"xatol": 1e-9 * self.tc},
+        )
+        return self.station(float(best.x))
+
+    def supersonic_temperature(self, throat: FrozenStation, area_ratio: float) -> float:
+        target = np.log(area_ratio)
+
+        def residual(t: float) -> float:
+            return np.log(throat.mass_flux / self.station(t).mass_flux) - target
+
+        lower = 0.5 * throat.temperature
+        while residual(lower) < 0.0:
+            lower *= 0.5
+            if lower < 5.0:
+                raise ValueError("Area ratio is beyond the reach of the frozen expansion")
+        return brentq(residual, lower, throat.temperature, xtol=1e-10 * throat.temperature)
 
 
 def frozen_nozzle(
@@ -130,41 +167,15 @@ def frozen_nozzle(
     """Expand the chamber state of ``equilibrium`` to ``area_ratio`` with frozen composition."""
     if area_ratio <= 1.0:
         raise ValueError("Area ratio must be greater than one")
-    mixture = _Mixture(equilibrium, database)
-    pc = equilibrium.pressure
-    tc = equilibrium.temperature
-    s_c = mixture.entropy(tc, pc)
-    h_c = mixture.enthalpy(tc)
-
-    def at(pressure: float, guess: float) -> FrozenStation:
-        return _station(mixture, s_c, h_c, guess, pressure)
-
-    best = minimize_scalar(
-        lambda ratio: -at(ratio * pc, 0.9 * tc).mass_flux,
-        bounds=(0.3, 0.8),
-        method="bounded",
-        options={"xatol": 1e-10},
-    )
-    throat = at(best.x * pc, 0.9 * tc)
-
-    def area_residual(log_ratio: float) -> float:
-        station = at(np.exp(log_ratio) * throat.pressure, throat.temperature)
-        return np.log(throat.mass_flux / station.mass_flux) - np.log(area_ratio)
-
-    upper = 0.0
-    lower = -1.0
-    while area_residual(lower) < 0.0:
-        lower *= 2.0
-        if lower < -60.0:
-            raise ValueError("Area ratio is beyond the reach of the frozen expansion")
-    exit_log = brentq(area_residual, lower, upper - 1e-12, xtol=1e-13)
-    exit_station = at(np.exp(exit_log) * throat.pressure, throat.temperature)
+    isentrope = _Isentrope(equilibrium, database)
+    throat = isentrope.throat()
+    exit_station = isentrope.station(isentrope.supersonic_temperature(throat, area_ratio))
     return FrozenNozzle(
         throat=throat,
         exit=exit_station,
         area_ratio=area_ratio,
-        c_star=pc / throat.mass_flux,
-        chamber_pressure=pc,
+        c_star=isentrope.pc / throat.mass_flux,
+        chamber_pressure=isentrope.pc,
     )
 
 
@@ -176,56 +187,41 @@ def frozen_profile(
 ) -> dict[str, np.ndarray]:
     """Flow state at stations of known A/A*, subsonic or supersonic per station.
 
-    Returns arrays ``pressure``, ``temperature``, ``mach`` and ``velocity``.
+    The isentrope is tabulated once on a fine temperature grid and each
+    station interpolated in ln(A/A*). Returns arrays ``pressure``,
+    ``temperature``, ``mach`` and ``velocity``.
     """
     area_ratios = np.asarray(area_ratios, dtype=float)
     supersonic = np.asarray(supersonic, dtype=bool)
     if area_ratios.shape != supersonic.shape or np.any(area_ratios < 1.0 - 1e-9):
         raise ValueError("Area ratios must be at least one and match the branch flags")
-    mixture = _Mixture(equilibrium, database)
-    pc = equilibrium.pressure
-    tc = equilibrium.temperature
-    s_c = mixture.entropy(tc, pc)
-    h_c = mixture.enthalpy(tc)
+    isentrope = _Isentrope(equilibrium, database)
+    throat = isentrope.throat()
+    t_throat = throat.temperature
+    largest = float(area_ratios[supersonic].max()) if supersonic.any() else 1.0
+    t_exit = isentrope.supersonic_temperature(throat, largest) if largest > 1.0 + 1e-9 else t_throat
 
-    def at(pressure: float, guess: float) -> FrozenStation:
-        return _station(mixture, s_c, h_c, guess, pressure)
+    def table(temperatures: np.ndarray):
+        stations = [isentrope.station(float(t)) for t in temperatures]
+        log_area = np.log(throat.mass_flux / np.array([s.mass_flux for s in stations]))
+        columns = {
+            "pressure": np.array([s.pressure for s in stations]),
+            "temperature": temperatures,
+            "mach": np.array([s.mach for s in stations]),
+            "velocity": np.array([s.velocity for s in stations]),
+        }
+        return np.maximum(log_area, 0.0), columns
 
-    best = minimize_scalar(
-        lambda ratio: -at(ratio * pc, 0.9 * tc).mass_flux,
-        bounds=(0.3, 0.8),
-        method="bounded",
-        options={"xatol": 1e-10},
-    )
-    throat = at(best.x * pc, 0.9 * tc)
-    out = {
-        key: np.empty(len(area_ratios)) for key in ("pressure", "temperature", "mach", "velocity")
-    }
-    for i, (ratio, branch) in enumerate(zip(area_ratios, supersonic, strict=True)):
-        if ratio <= 1.0 + 1e-9:
-            station = throat
-        else:
-            target = np.log(ratio)
+    # Supersonic branch: area grows as T falls from the throat to the exit
+    super_t = np.geomspace(t_throat, t_exit, 400) if t_exit < t_throat else np.array([t_throat])
+    super_area, super_cols = table(super_t)
+    # Subsonic branch: area grows as T rises from the throat towards Tc
+    sub_t = t_throat + (isentrope.tc - t_throat) * (1.0 - np.geomspace(1.0, 1e-7, 400))
+    sub_area, sub_cols = table(sub_t)
 
-            def residual(log_p: float, target: float = target) -> float:
-                return (
-                    np.log(throat.mass_flux / at(np.exp(log_p), throat.temperature).mass_flux)
-                    - target
-                )
-
-            log_t = np.log(throat.pressure)
-            if branch:
-                lower = log_t - 1.0
-                while residual(lower) < 0.0:
-                    lower -= 1.0
-                    if lower < log_t - 60.0:
-                        raise ValueError("Area ratio is beyond the reach of the frozen expansion")
-                root = brentq(residual, lower, log_t - 1e-12, xtol=1e-12)
-            else:
-                root = brentq(residual, log_t + 1e-12, np.log(pc) - 1e-12, xtol=1e-12)
-            station = at(np.exp(root), throat.temperature)
-        out["pressure"][i] = station.pressure
-        out["temperature"][i] = station.temperature
-        out["mach"][i] = station.mach
-        out["velocity"][i] = station.velocity
+    out = {key: np.empty(len(area_ratios)) for key in super_cols}
+    log_ratio = np.log(np.maximum(area_ratios, 1.0))
+    for key in out:
+        out[key][supersonic] = np.interp(log_ratio[supersonic], super_area, super_cols[key])
+        out[key][~supersonic] = np.interp(log_ratio[~supersonic], sub_area, sub_cols[key])
     return out
