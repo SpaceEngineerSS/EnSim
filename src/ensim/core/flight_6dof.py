@@ -742,6 +742,15 @@ class _History:
         self.n += 1
 
 
+def _inflation(t: float, opened_at: float | None, fill_time: float) -> float:
+    """Fraction of a canopy's drag area available t seconds into the flight."""
+    if opened_at is None:
+        return 0.0
+    if fill_time == 0.0:
+        return 1.0
+    return min(1.0, (t - opened_at) / fill_time)
+
+
 def _pack_parameters(
     rocket: Rocket,
     *,
@@ -822,6 +831,7 @@ def simulate_flight_6dof(
     cancel: Callable[[], bool] | None = None,
     drogue_diameter: float = 0.0,
     drogue_cd: float = 1.2,
+    parachute_fill_time: float = 1.0,
 ) -> FlightResult6DOF:
     """Simulate a single-stage flight with 6-DOF rigid-body dynamics.
 
@@ -862,6 +872,9 @@ def simulate_flight_6dof(
             drogue opens at apogee and the main at ``main_deploy_altitude_m``;
             both then stay attached.
         drogue_cd: Drogue drag coefficient.
+        parachute_fill_time: Time for a canopy to inflate, s. Drag area grows
+            linearly over it; zero means instant inflation and overstates the
+            opening load.
         main_deploy_altitude_m: Height above the pad for a delayed deployment.
         wind_profile_top_m: The 1/7 power-law wind profile grows up to this
             height and stays constant above it.
@@ -883,6 +896,8 @@ def simulate_flight_6dof(
         raise PhysicsViolationError("Geometry and environmental magnitudes cannot be negative")
     if not 0.0 <= throttle <= 1.0:
         raise PhysicsViolationError("Throttle must be between zero and one")
+    if parachute_fill_time < 0.0:
+        raise PhysicsViolationError("Parachute fill time cannot be negative")
     if drogue_diameter < 0.0 or drogue_cd <= 0.0:
         raise PhysicsViolationError("Drogue diameter and drag coefficient are invalid")
     if rocket.axial_drag_coefficient < 0.0 or cd_factor <= 0.0 or chute_cd <= 0.0:
@@ -1132,22 +1147,21 @@ def simulate_flight_6dof(
             history.append(t, y, diag)
             next_output = t + output_dt
 
-        # Parachute deployment is an event: change the model between steps
-        model_changed = False
+        # Parachute deployment and inflation change the model between steps
         if has_apogee and drogue_cda > 0.0 and not drogue_deployed:
             drogue_deployed = True
             drogue_time = t
-            model_changed = True
         main_altitude_reached = z_new <= main_deploy_altitude_m
         deploy_now = main_altitude_reached or (deploy_at_apogee and drogue_cda == 0.0)
         if has_apogee and chute_cda > 0.0 and not chute_deployed and deploy_now:
             chute_deployed = True
             deploy_time = t
-            model_changed = True
-        if model_changed:
-            p[_P_CHUTE_CDA] = (drogue_cda if drogue_deployed else 0.0) + (
-                chute_cda if chute_deployed else 0.0
-            )
+
+        canopy_cda = drogue_cda * _inflation(t, drogue_time, parachute_fill_time) + (
+            chute_cda * _inflation(t, deploy_time, parachute_fill_time)
+        )
+        if canopy_cda != p[_P_CHUTE_CDA]:
+            p[_P_CHUTE_CDA] = canopy_cda
             deriv, diag = _flight_evaluate(t, y, p, launch_ecef, launch_c)
 
     n = history.n

@@ -1,10 +1,6 @@
-"""EnSim UI Package."""
+"""Desktop application (PyQt6). Install with ``pip install "ensim[gui]"``."""
 
-from .windows.main_window import MainWindow
-from .workers import CalculationWorker, SimulationParams
+import importlib.util
 
-__all__ = [
-    "CalculationWorker",
-    "SimulationParams",
-    "MainWindow",
-]
+if importlib.util.find_spec("PyQt6") is None:
+    raise ImportError('The EnSim desktop application needs PyQt6: pip install "ensim[gui]"')

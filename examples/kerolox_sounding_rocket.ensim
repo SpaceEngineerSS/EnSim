@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "version": "4.0",
+    "created": "2026-10-13T00:00:00",
+    "modified": "2026-10-13T00:00:00"
+  },
+  "engine": {
+    "fuel": "RP1",
+    "oxidizer": "O2",
+    "of_ratio": 2.3,
+    "chamber_pressure_bar": 20.0,
+    "throat_area_cm2": 1.4,
+    "expansion_ratio": 4.0,
+    "ambient": "Sea Level (1.01 bar)",
+    "eta_cstar": 0.95,
+    "eta_cf": 0.97,
+    "alpha_deg": 15.0
+  },
+  "rocket": {
+    "name": "Kerolox sounding rocket",
+    "nose_shape": "haack",
+    "nose_length": 0.45,
+    "nose_diameter": 0.12,
+    "nose_mass": 0.7,
+    "nose_material": "fiberglass",
+    "body_length": 1.8,
+    "body_diameter": 0.12,
+    "body_mass": 2.5,
+    "body_material": "fiberglass",
+    "axial_drag_coefficient": 0.42,
+    "fin_count": 4,
+    "fin_root_chord": 0.26,
+    "fin_tip_chord": 0.1,
+    "fin_span": 0.16,
+    "fin_sweep_angle": 35.0,
+    "fin_mass": 0.6,
+    "fin_material": "G10 fiberglass",
+    "engine_mass_dry": 2.0,
+    "tank_length": 0.45,
+    "fuel_mass": 0.97,
+    "oxidizer_mass": 2.23
+  },
+  "recovery": {
+    "dual_deploy": true,
+    "main_diameter": 1.5,
+    "main_cd": 1.5,
+    "main_deploy_altitude": 300.0,
+    "drogue_diameter": 0.45,
+    "drogue_cd": 1.2
+  },
+  "environment": {
+    "wind_speed": 4.0,
+    "wind_direction": 270.0,
+    "rail_length": 3.0,
+    "launch_altitude": 0.0,
+    "launch_angle": 87.0
+  },
+  "results": {}
+}

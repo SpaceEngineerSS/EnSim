@@ -37,6 +37,7 @@ _EXPORTS: dict[str, tuple[str, ...]] = {
         "coolant_heat_transfer_coefficient",
         "smooth_channel_darcy_friction_factor",
     ),
+    "engine": ("EngineInputs", "EngineResult", "analyze_engine"),
     "engine_uq": (
         "EngineUQAnalyzer",
         "EngineUQInput",

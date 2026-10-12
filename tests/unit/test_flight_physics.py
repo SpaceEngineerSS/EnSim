@@ -151,3 +151,10 @@ def test_dual_deploy_opens_drogue_at_apogee_and_main_low():
         result.time < result.parachute_deploy_time
     )
     assert abs(result.velocity_z[drogue_phase][-1]) > abs(result.velocity_z[-1])
+
+
+def test_canopy_fill_time_limits_opening_load():
+    common = {"max_time": 200.0, "chute_diameter": 1.5, "deploy_at_apogee": False}
+    instant = _flight(**common, main_deploy_altitude_m=150.0, parachute_fill_time=0.0)
+    gradual = _flight(**common, main_deploy_altitude_m=150.0, parachute_fill_time=1.5)
+    assert gradual.max_acceleration < instant.max_acceleration

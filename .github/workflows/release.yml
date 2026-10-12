@@ -28,7 +28,7 @@ jobs:
           PACKAGE_VERSION="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
           test "$TAG_VERSION" = "$PACKAGE_VERSION"
       - name: Install quality and build dependencies
-        run: python -m pip install --upgrade build ruff twine .[dev]
+        run: python -m pip install --upgrade build ruff twine ".[gui,dev]"
       - name: Run quality gate
         env:
           ENSIM_DISABLE_3D: "1"
@@ -37,7 +37,7 @@ jobs:
           ruff check src tests scripts .github/pyinstaller-hooks
           ruff format --check src tests scripts .github/pyinstaller-hooks
           pytest
-          ensim --test
+          ensim check
       - name: Build and inspect distributions
         run: |
           python -m build

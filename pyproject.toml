@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ensim"
-version = "3.0.1"
-description = "Rocket propulsion analysis and six-degree-of-freedom flight simulation"
+version = "4.0.0"
+description = "Liquid rocket engine analysis and six-degree-of-freedom flight simulation"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -35,24 +35,29 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Scientific/Engineering :: Visualization",
 ]
 requires-python = ">=3.10"
+# The library needs only the numerical stack. The desktop application is the
+# "gui" extra: pip install "ensim[gui]".
 dependencies = [
-    "numpy>=1.24.0,<2.0.0",
-    "scipy>=1.10.0",
-    "numba>=0.57.0,<0.63.0; platform_system == 'Darwin' and platform_machine == 'x86_64'",
-    "numba>=0.57.0; platform_system != 'Darwin' or platform_machine != 'x86_64'",
-    "PyQt6>=6.5.0",
-    "pyvista>=0.40.0",
-    "pyvistaqt>=0.11.0",
-    "matplotlib>=3.7.0",
-    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "numba>=0.59,<0.63; platform_system == 'Darwin' and platform_machine == 'x86_64'",
+    "numba>=0.59; platform_system != 'Darwin' or platform_machine != 'x86_64'",
 ]
 
 [project.optional-dependencies]
+gui = [
+    "PyQt6>=6.5",
+    "matplotlib>=3.7",
+    "pyvista>=0.40",
+    "pyvistaqt>=0.11",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -60,10 +65,11 @@ dev = [
     "ruff>=0.1.0",
 ]
 docs = [
-    "mkdocs>=1.5.0",
-    "mkdocs-material>=9.4.0",
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
 ]
-all = ["ensim[dev,docs]"]
+all = ["ensim[gui,dev,docs]"]
 
 [project.urls]
 Homepage = "https://github.com/SpaceEngineerSS/EnSim"
@@ -76,7 +82,7 @@ Changelog = "https://github.com/SpaceEngineerSS/EnSim/blob/main/CHANGELOG.md"
 ensim = "ensim.cli:main"
 
 [project.gui-scripts]
-ensim-gui = "ensim.cli:main"
+ensim-gui = "ensim.cli:gui_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -84,11 +90,15 @@ include = ["ensim*"]
 
 [tool.setuptools.package-data]
 ensim = [
+    "py.typed",
     "data/*.dat",
-    "assets/*.qss",
     "assets/*.png",
-    "assets/*.ico",
     "assets/*.svg",
+    "assets/*.ico",
+    "assets/*.icns",
+    "assets/fonts/*.ttf",
+    "assets/fonts/*.txt",
+    "assets/icons/*.svg",
     "assets/styles/*.qss",
 ]
 
