@@ -6,15 +6,13 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 
+from .constants import EARTH_ROTATION_RATE
 from .geodesy import (
-    EARTH_GRAVITATIONAL_PARAMETER,
-    EARTH_J2,
-    EARTH_ROTATION_RATE,
-    WGS84_SEMI_MAJOR_AXIS,
     ecef_to_enu_matrix,
     ecef_to_geodetic,
     eci_to_ecef,
     geodetic_to_ecef,
+    j2_acceleration,
 )
 
 VectorHistory = NDArray[np.float64]
@@ -31,21 +29,6 @@ class BallisticTrajectory:
     longitude_deg: NDArray[np.float64]
     ellipsoid_altitude_m: NDArray[np.float64]
     ned_velocity_m_s: VectorHistory
-
-
-def _j2_acceleration_eci(position: NDArray[np.float64]) -> NDArray[np.float64]:
-    radius_squared = float(position @ position)
-    radius = np.sqrt(radius_squared)
-    z_ratio_squared = position[2] ** 2 / radius_squared
-    correction = 1.5 * EARTH_J2 * (WGS84_SEMI_MAJOR_AXIS / radius) ** 2
-    common = -EARTH_GRAVITATIONAL_PARAMETER / radius**3
-    return common * np.array(
-        [
-            position[0] * (1.0 + correction * (1.0 - 5.0 * z_ratio_squared)),
-            position[1] * (1.0 + correction * (1.0 - 5.0 * z_ratio_squared)),
-            position[2] * (1.0 + correction * (3.0 - 5.0 * z_ratio_squared)),
-        ]
-    )
 
 
 def propagate_dragless_wgs84(
@@ -100,7 +83,7 @@ def propagate_dragless_wgs84(
     initial_state = np.concatenate((initial_position, initial_eci_velocity))
 
     def derivative(_time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        return np.concatenate((state[3:6], _j2_acceleration_eci(state[0:3])))
+        return np.concatenate((state[3:6], j2_acceleration(state[0:3])))
 
     sample_count = int(np.floor(duration / output_step + 1e-12))
     output_times = output_step * np.arange(sample_count + 1, dtype=np.float64)

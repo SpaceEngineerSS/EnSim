@@ -1,47 +1,53 @@
 """
-6-DOF Rigid Body Flight Simulator.
+Six-degree-of-freedom rigid-body flight simulation.
 
-Simulates rocket flight using full 6 Degrees of Freedom physics:
-- 3 translational (x, y, z position)
-- 3 rotational (roll, pitch, yaw via quaternion)
+State vector (14 elements)::
 
-State Vector (13 elements):
-    [x, y, z, vx, vy, vz, q0, q1, q2, q3, wx, wy, wz]
+    [x, y, z, vx, vy, vz, q0, q1, q2, q3, wx, wy, wz, m_prop]
 
-    Position:  [x, y, z]      (m) - Inertial frame (ENU: East-North-Up)
-    Velocity:  [vx, vy, vz]   (m/s) - Inertial frame
-    Quaternion: [q0, q1, q2, q3] (w, x, y, z) - Body to inertial rotation
-    Angular Velocity: [wx, wy, wz] (rad/s) - Body frame
+    position        x, y, z     m      inertial frame (local ENU, or ECI in WGS-84 mode)
+    velocity        vx, vy, vz  m/s    inertial frame
+    attitude        q0..q3             unit quaternion, body -> inertial, scalar first
+    angular rate    wx, wy, wz  rad/s  body frame
+    propellant      m_prop      kg
 
-Physics:
-    Translational: m(dv/dt) = F_gravity + F_thrust + F_aero
-    Rotational: I(dω/dt) + ω × (Iω) = τ_aero + τ_thrust
-    Quaternion: dq/dt = ½ ω ⊗ q
+Equations of motion::
+
+    dr/dt = v
+    dv/dt = R(q) (F_thrust + F_aero) / m + g(r)
+    dq/dt = 1/2 q (x) [0, w]
+    dw/dt = I^-1 (M - w x I w)
+    dm/dt = -mdot while burning
+
+Every Runge-Kutta stage re-evaluates thrust, aerodynamics, mass, inertia and
+gravity from that stage's state, so the integrators keep their nominal order.
+
+Body axes: x forward through the nose, y and z complete a right-handed set.
+Positions along the airframe (CG, CP) are measured aft from the nose tip.
 
 References:
-    - Stevens & Lewis, "Aircraft Control and Simulation", 3rd ed.
-    - Zipfel, "Modeling and Simulation of Aerospace Vehicle Dynamics", 3rd ed.
+    Stevens, Lewis & Johnson, "Aircraft Control and Simulation", 3rd ed.
+    Zipfel, "Modeling and Simulation of Aerospace Vehicle Dynamics", 3rd ed.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
 
 from ensim.core.aero import calculate_total_cp
+from ensim.core.constants import EARTH_RADIUS_MEAN, EARTH_ROTATION_RATE, G0
 from ensim.core.geodesy import (
-    EARTH_GRAVITATIONAL_PARAMETER,
-    EARTH_J2,
-    EARTH_ROTATION_RATE,
-    WGS84_SEMI_MAJOR_AXIS,
     ecef_to_eci,
     ecef_to_eci_matrix,
     ecef_to_enu_matrix,
-    ecef_to_geodetic,
     eci_to_ecef,
     eci_to_ecef_matrix,
-    enu_to_ecef,
+    geodetic_from_ecef,
     geodetic_to_ecef,
-    j2_gravity_ecef,
+    j2_acceleration,
 )
 from ensim.core.integrators import (
     DP5_A,
@@ -54,127 +60,114 @@ from ensim.core.math_utils import (
     cross_product,
     q_conjugate,
     q_derivative,
+    q_from_dcm,
     q_from_euler,
-    q_from_rotation_matrix,
-    q_mult,
     q_normalize,
     q_rotate_vector,
     q_to_euler,
     q_to_rotation_matrix,
 )
-from ensim.core.mission import get_atmosphere
+from ensim.core.mission import atmosphere_properties
 from ensim.core.rocket import Rocket
 from ensim.utils.numba_support import jit
 
-# =============================================================================
-# Physical Constants
-# =============================================================================
+R_EARTH = EARTH_RADIUS_MEAN
 
-G0 = 9.80665  # m/s² - Standard gravity at sea level
-R_EARTH = 6371000.0  # m - Mean Earth radius
-MU_EARTH = 3.986004418e14  # m³/s² - Earth gravitational parameter
-
-
-# =============================================================================
-# Custom Exceptions
-# =============================================================================
+__all__ = [
+    "G0",
+    "R_EARTH",
+    "FlightResult6DOF",
+    "PhysicsViolationError",
+    "SimulationCancelled",
+    "calculate_aero_angles",
+    "calculate_aerodynamic_moment",
+    "calculate_gravity_vector",
+    "calculate_inertia_principal",
+    "calculate_inertia_tensor_cylindrical",
+    "derivatives_6dof",
+    "rk4_step_6dof",
+    "rk45_step_rocket",
+    "simulate_flight_6dof",
+]
 
 
 class PhysicsViolationError(Exception):
-    """
-    Raised when physically impossible state is detected.
-
-    Examples:
-        - Negative mass
-        - NaN in state vector
-        - Negative chamber pressure
-    """
-
-    pass
+    """Raised when the inputs or the integrated state are not physical."""
 
 
-# =============================================================================
-# Data Classes
-# =============================================================================
+class SimulationCancelled(Exception):
+    """Raised when the caller's cancel callback asks the simulation to stop."""
 
 
 @dataclass
 class FlightResult6DOF:
-    """Complete 6-DOF flight simulation results."""
+    """Time histories and summary values of one 6-DOF run.
 
-    # Time history
-    time: np.ndarray  # [s]
+    Positions and velocities are reported in the local ENU frame of the launch
+    site in both integration modes.
+    """
 
-    # Position (inertial frame)
-    position_x: np.ndarray  # [m] East
-    position_y: np.ndarray  # [m] North
-    position_z: np.ndarray  # [m] Up (altitude)
+    time: np.ndarray  # s
 
-    # Velocity (inertial frame)
-    velocity_x: np.ndarray  # [m/s]
-    velocity_y: np.ndarray  # [m/s]
-    velocity_z: np.ndarray  # [m/s]
-    velocity_magnitude: np.ndarray  # [m/s]
+    position_x: np.ndarray  # m, east
+    position_y: np.ndarray  # m, north
+    position_z: np.ndarray  # m, up (height above the launch site)
 
-    # Orientation (quaternion history)
-    quaternion_w: np.ndarray  # Scalar part
-    quaternion_x: np.ndarray  # Vector x
-    quaternion_y: np.ndarray  # Vector y
-    quaternion_z: np.ndarray  # Vector z
+    velocity_x: np.ndarray  # m/s
+    velocity_y: np.ndarray  # m/s
+    velocity_z: np.ndarray  # m/s
+    velocity_magnitude: np.ndarray  # m/s
 
-    # Euler angles (derived from quaternion)
-    roll: np.ndarray  # [deg] - φ
-    pitch: np.ndarray  # [deg] - θ
-    yaw: np.ndarray  # [deg] - ψ
+    quaternion_w: np.ndarray  # body -> local ENU
+    quaternion_x: np.ndarray
+    quaternion_y: np.ndarray
+    quaternion_z: np.ndarray
 
-    # Angular velocity (body frame)
-    omega_x: np.ndarray  # [rad/s] - Roll rate
-    omega_y: np.ndarray  # [rad/s] - Pitch rate
-    omega_z: np.ndarray  # [rad/s] - Yaw rate
+    roll: np.ndarray  # deg
+    pitch: np.ndarray  # deg
+    yaw: np.ndarray  # deg
 
-    # Forces (inertial frame magnitude)
-    thrust: np.ndarray  # [N]
-    drag: np.ndarray  # [N]
-    gravity_force: np.ndarray  # [N]
+    omega_x: np.ndarray  # rad/s, body frame
+    omega_y: np.ndarray  # rad/s
+    omega_z: np.ndarray  # rad/s
 
-    # Atmospheric data
-    mach: np.ndarray  # [-]
-    dynamic_pressure: np.ndarray  # [Pa]
+    thrust: np.ndarray  # N
+    drag: np.ndarray  # N, airframe plus parachute
+    gravity_force: np.ndarray  # N, magnitude of m*g
 
-    # Mass and inertia
-    mass: np.ndarray  # [kg] - Total mass
-    propellant_mass: np.ndarray  # [kg] - Remaining propellant (state[13])
+    mach: np.ndarray  # -
+    dynamic_pressure: np.ndarray  # Pa
 
-    # Engine performance (from RocketEngine)
-    isp: np.ndarray  # [s] - Specific impulse
-    thrust_loss_factor: np.ndarray  # [-] - Flow separation loss (0.5-1.0)
-    flow_regime: np.ndarray  # [-] - 0=Attached, 1=Over, 2=Separated, 3=Under
+    mass: np.ndarray  # kg, total
+    propellant_mass: np.ndarray  # kg, state[13]
 
-    # Stability
-    angle_of_attack: np.ndarray  # [deg] - α
-    sideslip_angle: np.ndarray  # [deg] - β
-    stability_margin: np.ndarray  # [calibers]
+    isp: np.ndarray  # s, delivered at local ambient pressure
+    thrust_loss_factor: np.ndarray  # -, 1.0 while burning: separation losses are not modelled
+    flow_regime: (
+        np.ndarray
+    )  # -1 off/unknown, 0 matched, 1 over-, 2 strongly over-, 3 under-expanded
 
-    # Geodetic coordinates (WGS-84 mode; NaN in local mode)
-    geodetic_latitude: np.ndarray  # [deg]
-    geodetic_longitude: np.ndarray  # [deg]
-    geodetic_altitude: np.ndarray  # [m] above ellipsoid
+    angle_of_attack: np.ndarray  # deg
+    sideslip_angle: np.ndarray  # deg
+    stability_margin: np.ndarray  # calibers
 
-    # Key events
-    liftoff_time: float = 0.0  # [s]
-    burnout_time: float = 0.0  # [s]
-    burnout_altitude: float = 0.0  # [m]
-    burnout_velocity: float = 0.0  # [m/s]
-    apogee_time: float = 0.0  # [s]
-    apogee_altitude: float = 0.0  # [m]
-    max_velocity: float = 0.0  # [m/s]
-    max_mach: float = 0.0  # [-]
-    max_acceleration: float = 0.0  # [G]
-    max_q: float = 0.0  # [Pa]
-    max_alpha: float = 0.0  # [deg]
-    flight_time: float = 0.0  # [s] - Total flight duration
+    geodetic_latitude: np.ndarray  # deg, NaN in local mode
+    geodetic_longitude: np.ndarray  # deg, NaN in local mode
+    geodetic_altitude: np.ndarray  # m above the ellipsoid, NaN in local mode
 
-    # Status
+    liftoff_time: float = 0.0  # s
+    burnout_time: float = 0.0  # s
+    burnout_altitude: float = 0.0  # m
+    burnout_velocity: float = 0.0  # m/s
+    apogee_time: float = 0.0  # s
+    apogee_altitude: float = 0.0  # m
+    max_velocity: float = 0.0  # m/s
+    max_mach: float = 0.0  # -
+    max_acceleration: float = 0.0  # g, sensed (non-gravitational) acceleration
+    max_q: float = 0.0  # Pa
+    max_alpha: float = 0.0  # deg, total angle of attack while powered or coasting up
+    flight_time: float = 0.0  # s
+
     success: bool = True
     abort_reason: str | None = None
     apogee_reached: bool = False
@@ -184,167 +177,75 @@ class FlightResult6DOF:
     launch_latitude_deg: float | None = None
     launch_longitude_deg: float | None = None
     launch_altitude_m: float = 0.0
+    parachute_deploy_time: float | None = None  # s
+    landing_x: float | None = None  # m east of the pad, None without ground impact
+    landing_y: float | None = None  # m north of the pad
+    forced_min_steps: int = 0  # adaptive steps accepted at h_min above tolerance
 
 
-# =============================================================================
-# Inertia Tensor Calculation (Cylindrical Approximation)
-# =============================================================================
+# Mass properties, gravity and aerodynamic primitives
 
 
 @jit(nopython=True, cache=True)
 def calculate_inertia_tensor_cylindrical(mass: float, length: float, radius: float) -> np.ndarray:
-    """
-    Calculate moment of inertia tensor for a cylinder.
-
-    Approximates rocket as a uniform solid cylinder aligned with X-axis.
-
-    For a cylinder of mass m, length L, radius r:
-        Ixx = ½ m r²           (roll - about longitudinal axis)
-        Iyy = Izz = m(3r² + L²)/12   (pitch/yaw - transverse axes)
-
-    Args:
-        mass: Total mass (kg)
-        length: Cylinder length (m)
-        radius: Cylinder radius (m)
-
-    Returns:
-        3x3 inertia tensor [kg·m²]
-    """
-    # Moments of inertia (principal axes)
-    Ixx = 0.5 * mass * radius * radius
-    Iyy = mass * (3.0 * radius * radius + length * length) / 12.0
-    Izz = Iyy  # Symmetric about longitudinal axis
-
-    # Return diagonal inertia tensor (principal axes aligned with body)
+    """Inertia tensor of a uniform solid cylinder whose axis is body x, kg m^2."""
     inertia = np.zeros((3, 3))
-    inertia[0, 0] = Ixx
-    inertia[1, 1] = Iyy
-    inertia[2, 2] = Izz
-
+    inertia[0, 0] = 0.5 * mass * radius * radius
+    inertia[1, 1] = mass * (3.0 * radius * radius + length * length) / 12.0
+    inertia[2, 2] = inertia[1, 1]
     return inertia
 
 
 @jit(nopython=True, cache=True)
 def calculate_inertia_principal(mass: float, length: float, radius: float) -> np.ndarray:
-    """
-    Calculate principal moments of inertia [Ixx, Iyy, Izz].
-
-    Faster than full tensor for diagonal case.
-
-    Args:
-        mass: Total mass (kg)
-        length: Cylinder length (m)
-        radius: Cylinder radius (m)
-
-    Returns:
-        Array [Ixx, Iyy, Izz] in kg·m²
-    """
-    Ixx = 0.5 * mass * radius * radius
-    Iyy = mass * (3.0 * radius * radius + length * length) / 12.0
-    Izz = Iyy
-
-    return np.array([Ixx, Iyy, Izz])
-
-
-# =============================================================================
-# Gravity Model
-# =============================================================================
+    """Principal moments [Ixx, Iyy, Izz] of a uniform solid cylinder, kg m^2."""
+    ixx = 0.5 * mass * radius * radius
+    iyy = mass * (3.0 * radius * radius + length * length) / 12.0
+    return np.array([ixx, iyy, iyy])
 
 
 @jit(nopython=True, cache=True)
 def calculate_gravity_vector(altitude: float) -> np.ndarray:
+    """Inverse-square gravity in local ENU axes, m/s^2.
+
+    g(h) = g0 (Re / (Re + h))^2, pointing down. Negative altitudes are treated
+    as sea level.
     """
-    Calculate gravitational acceleration vector at altitude.
-
-    Uses inverse square law in local vertical direction (ENU frame):
-        g(h) = g0 × (R_e / (R_e + h))² × [0, 0, -1]
-
-    Args:
-        altitude: Altitude above sea level (m)
-
-    Returns:
-        Gravity vector [gx, gy, gz] in m/s² (ENU frame)
-    """
-    g_magnitude = G0 * (R_EARTH / (R_EARTH + max(0.0, altitude))) ** 2
+    g_magnitude = G0 * (EARTH_RADIUS_MEAN / (EARTH_RADIUS_MEAN + max(0.0, altitude))) ** 2
     return np.array([0.0, 0.0, -g_magnitude])
-
-
-# =============================================================================
-# Aerodynamic Forces and Moments
-# =============================================================================
 
 
 @jit(nopython=True, cache=True)
 def calculate_aero_angles(velocity_body: np.ndarray) -> tuple[float, float]:
-    """
-    Calculate angle of attack (α) and sideslip (β) from body velocity.
-
-    Body frame convention:
-        X = forward (thrust direction)
-        Y = right wing
-        Z = down
-
-    Args:
-        velocity_body: Velocity vector in body frame [vx, vy, vz] (m/s)
-
-    Returns:
-        Tuple of (alpha, beta) in radians
-    """
+    """Angle of attack and sideslip (rad) from the air-relative body velocity."""
     vx = velocity_body[0]
     vy = velocity_body[1]
     vz = velocity_body[2]
-
-    V = np.sqrt(vx * vx + vy * vy + vz * vz)
-
-    if V < 1e-6:
+    speed = np.sqrt(vx * vx + vy * vy + vz * vz)
+    if speed < 1e-6:
         return 0.0, 0.0
-
-    # Angle of attack: angle in vertical plane
     alpha = np.arctan2(-vz, vx)
-
-    # Sideslip: angle in horizontal plane
-    sinb = vy / V
-    if sinb > 1.0:
-        sinb = 1.0
-    elif sinb < -1.0:
-        sinb = -1.0
-    beta = np.arcsin(sinb)
-
-    return alpha, beta
+    sin_beta = min(1.0, max(-1.0, vy / speed))
+    return alpha, np.arcsin(sin_beta)
 
 
 @jit(nopython=True, cache=True)
 def calculate_aerodynamic_moment(
     cp_position: float, cg_position: float, force_aero_body: np.ndarray
 ) -> np.ndarray:
+    """Moment about the CG of a force acting at the CP, N m, body frame.
+
+    Both positions are measured aft from the nose tip while body x points
+    forward, so the lever arm from CG to CP is (cg - cp) along x. With the CP
+    aft of the CG the moment turns the nose into the relative wind.
     """
-    Calculate aerodynamic moment about CG.
-
-    The moment arm is the vector from CG to CP (in body frame):
-        r_cp = [cp_position - cg_position, 0, 0]  (assuming CP on centerline)
-
-    Moment = r_cp × F_aero
-
-    Args:
-        cp_position: CP distance from nose tip (m)
-        cg_position: CG distance from nose tip (m)
-        force_aero_body: Aerodynamic force in body frame [Fx, Fy, Fz] (N)
-
-    Returns:
-        Moment vector [Mx, My, Mz] in N·m (body frame)
-    """
-    # Moment arm from CG to CP (in body X direction)
-    r_arm = np.array([cp_position - cg_position, 0.0, 0.0])
-
-    # τ = r × F
-    moment = cross_product(r_arm, force_aero_body)
-
-    return moment
+    r_arm = np.array([cg_position - cp_position, 0.0, 0.0])
+    return cross_product(r_arm, force_aero_body)
 
 
-# =============================================================================
-# 6-DOF State Derivatives (Core Physics)
-# =============================================================================
+# Constant-load primitives. These integrate one step with the applied forces
+# held fixed and are kept for verification cases (NESC tumbling brick) and for
+# users who drive their own force model. simulate_flight_6dof does not use them.
 
 
 @jit(nopython=True, cache=True)
@@ -359,142 +260,40 @@ def derivatives_6dof(
     altitude: float,
     use_earth_model: bool = False,
 ) -> np.ndarray:
+    """State derivative for given body-frame loads.
+
+    ``use_earth_model`` switches gravity from the flat-Earth inverse-square law
+    to point mass plus J2 evaluated at ``state[0:3]`` in ECI. The propellant
+    rate (element 13) is left at zero for the caller to set.
     """
-    Calculate state derivatives for 6-DOF rigid body dynamics.
+    deriv = np.zeros(14)
+    if mass <= 0.0:
+        return deriv
 
-    State: [x, y, z, vx, vy, vz, q0, q1, q2, q3, wx, wy, wz]
-
-    Physics:
-        ṗ = v                                    (position rate)
-        v̇ = (F_thrust + F_aero)/m + g            (velocity rate)
-        q̇ = ½ ω ⊗ q                              (quaternion rate)
-        ω̇ = I⁻¹ (τ - ω × Iω)                     (Euler's equations)
-
-    Args:
-        state: 13-element state vector
-        mass: Current mass (kg)
-        I_principal: Principal moments [Ixx, Iyy, Izz] (kg·m²)
-        F_thrust_body: Thrust force in body frame (N)
-        F_aero_body: Aerodynamic force in body frame (N)
-        M_aero: Aerodynamic moment about CG (N·m)
-        M_thrust: Thrust moment about CG (N·m) - for thrust vectoring
-        altitude: Current altitude (m) - for gravity calculation
-
-    Returns:
-        13-element state derivative vector
-    """
-    # Validate mass
-    if mass <= 0:
-        # Return zero derivatives to halt simulation
-        return np.zeros(13)
-
-    # Extract state components
-    # Position
-    # x, y, z = state[0], state[1], state[2]
-
-    # Velocity (inertial frame)
-    vx, vy, vz = state[3], state[4], state[5]
-
-    # Quaternion (body → inertial)
     q = state[6:10].copy()
-
-    # Angular velocity (body frame)
     omega = state[10:13].copy()
-    wx, wy, wz = omega[0], omega[1], omega[2]
 
-    # =========================================================================
-    # Position derivatives: ṗ = v
-    # =========================================================================
-    dx = vx
-    dy = vy
-    dz = vz
+    g = j2_acceleration(state[0:3]) if use_earth_model else calculate_gravity_vector(altitude)
 
-    # =========================================================================
-    # Velocity derivatives: v̇ = F_total/m + g
-    # =========================================================================
-
-    # Transform forces from body to inertial frame
-    F_thrust_inertial = q_rotate_vector(q, F_thrust_body)
-    F_aero_inertial = q_rotate_vector(q, F_aero_body)
-
-    if use_earth_model:
-        position = state[0:3]
-        radius_squared = position @ position
-        radius = np.sqrt(radius_squared)
-        z_ratio_squared = position[2] * position[2] / radius_squared
-        correction = 1.5 * EARTH_J2 * (WGS84_SEMI_MAJOR_AXIS / radius) ** 2
-        common = -EARTH_GRAVITATIONAL_PARAMETER / radius**3
-        g = common * np.array(
-            [
-                position[0] * (1.0 + correction * (1.0 - 5.0 * z_ratio_squared)),
-                position[1] * (1.0 + correction * (1.0 - 5.0 * z_ratio_squared)),
-                position[2] * (1.0 + correction * (3.0 - 5.0 * z_ratio_squared)),
-            ]
-        )
-    else:
-        g = calculate_gravity_vector(altitude)
-
-    # Total acceleration
-    dvx = (F_thrust_inertial[0] + F_aero_inertial[0]) / mass + g[0]
-    dvy = (F_thrust_inertial[1] + F_aero_inertial[1]) / mass + g[1]
-    dvz = (F_thrust_inertial[2] + F_aero_inertial[2]) / mass + g[2]
-
-    # =========================================================================
-    # Quaternion derivatives: q̇ = ½ ω ⊗ q
-    # =========================================================================
+    force_inertial = q_rotate_vector(q, F_thrust_body + F_aero_body)
     q_dot = q_derivative(q, omega)
 
-    # =========================================================================
-    # Angular velocity derivatives: Euler's equations
-    # I·ω̇ + ω × (I·ω) = τ
-    # ω̇ = I⁻¹·(τ - ω × I·ω)
-    # =========================================================================
-
-    Ixx, Iyy, Izz = I_principal[0], I_principal[1], I_principal[2]
-
-    # I·ω
-    I_omega = np.array([Ixx * wx, Iyy * wy, Izz * wz])
-
-    # ω × I·ω (gyroscopic term)
+    I_omega = I_principal * omega
     gyro = cross_product(omega, I_omega)
+    moment = M_aero + M_thrust
 
-    # Total moment
-    M_total = M_aero + M_thrust
-
-    # ω̇ = I⁻¹·(τ - ω × I·ω)
-    dwx = (M_total[0] - gyro[0]) / Ixx if Ixx > 1e-10 else 0.0
-    dwy = (M_total[1] - gyro[1]) / Iyy if Iyy > 1e-10 else 0.0
-    dwz = (M_total[2] - gyro[2]) / Izz if Izz > 1e-10 else 0.0
-
-    # =========================================================================
-    # Assemble derivative vector (14 elements for 14-state vector)
-    # =========================================================================
-    # Propellant depletion is assigned by the integration step.
-    deriv = np.array(
-        [
-            dx,
-            dy,
-            dz,  # Position [0:3]
-            dvx,
-            dvy,
-            dvz,  # Velocity [3:6]
-            q_dot[0],
-            q_dot[1],
-            q_dot[2],
-            q_dot[3],  # Quaternion [6:10]
-            dwx,
-            dwy,
-            dwz,  # Angular velocity [10:13]
-            0.0,
-        ]
-    )
-
+    deriv[0:3] = state[3:6]
+    deriv[3:6] = force_inertial / mass + g
+    deriv[6:10] = q_dot
+    for axis in range(3):
+        if I_principal[axis] > 1e-12:
+            deriv[10 + axis] = (moment[axis] - gyro[axis]) / I_principal[axis]
     return deriv
 
 
-# =============================================================================
-# RK4 Integrator with Quaternion Normalization
-# =============================================================================
+@jit(nopython=True, cache=True)
+def _stage_mass(state: np.ndarray, dry_mass: float) -> float:
+    return max(dry_mass + max(state[13], 0.0), 1e-12)
 
 
 @jit(nopython=True, cache=True)
@@ -511,27 +310,7 @@ def rk4_step_6dof(
     mdot: float = 0.0,
     use_earth_model: bool = False,
 ) -> np.ndarray:
-    """
-    Single RK4 integration step for 6-DOF dynamics with propellant mass.
-
-    Uses 4th-order Runge-Kutta method with quaternion renormalization.
-    Integrates propellant mass as state[13].
-
-    Args:
-        state: Current 14-element state vector
-        dt: Time step (s)
-        mass: Current mass (kg)
-        I_principal: Principal moments of inertia (kg·m²)
-        F_thrust_body: Thrust force in body frame (N)
-        F_aero_body: Aerodynamic force in body frame (N)
-        M_aero: Aerodynamic moment (N·m)
-        M_thrust: Thrust moment (N·m)
-        altitude: Current altitude (m)
-        mdot: Mass flow rate (kg/s)
-
-    Returns:
-        New 14-element state vector
-    """
+    """One classical RK4 step with constant loads and per-stage mass."""
     dry_mass = mass - max(state[13], 0.0)
 
     k1 = derivatives_6dof(
@@ -545,82 +324,52 @@ def rk4_step_6dof(
         altitude,
         use_earth_model,
     )
-    k1[13] = -mdot  # Propellant depletion
-
-    # k2 (at t + dt/2)
-    state2 = state + 0.5 * dt * k1
-    alt2 = max(0.0, state2[2])
-    mass2 = max(dry_mass + max(state2[13], 0.0), 1e-12)
+    k1[13] = -mdot
+    s2 = state + 0.5 * dt * k1
     k2 = derivatives_6dof(
-        state2,
-        mass2,
+        s2,
+        _stage_mass(s2, dry_mass),
         I_principal,
         F_thrust_body,
         F_aero_body,
         M_aero,
         M_thrust,
-        alt2,
+        max(0.0, s2[2]),
         use_earth_model,
     )
     k2[13] = -mdot
-
-    # k3 (at t + dt/2)
-    state3 = state + 0.5 * dt * k2
-    alt3 = max(0.0, state3[2])
-    mass3 = max(dry_mass + max(state3[13], 0.0), 1e-12)
+    s3 = state + 0.5 * dt * k2
     k3 = derivatives_6dof(
-        state3,
-        mass3,
+        s3,
+        _stage_mass(s3, dry_mass),
         I_principal,
         F_thrust_body,
         F_aero_body,
         M_aero,
         M_thrust,
-        alt3,
+        max(0.0, s3[2]),
         use_earth_model,
     )
     k3[13] = -mdot
-
-    # k4 (at t + dt)
-    state4 = state + dt * k3
-    alt4 = max(0.0, state4[2])
-    mass4 = max(dry_mass + max(state4[13], 0.0), 1e-12)
+    s4 = state + dt * k3
     k4 = derivatives_6dof(
-        state4,
-        mass4,
+        s4,
+        _stage_mass(s4, dry_mass),
         I_principal,
         F_thrust_body,
         F_aero_body,
         M_aero,
         M_thrust,
-        alt4,
+        max(0.0, s4[2]),
         use_earth_model,
     )
     k4[13] = -mdot
 
-    # RK4 update
-    state_new = state + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
-
-    # =========================================================================
-    # CRITICAL: Quaternion Normalization
-    # =========================================================================
-    q = state_new[6:10].copy()
-    q_normalized = q_normalize(q)
-    state_new[6] = q_normalized[0]
-    state_new[7] = q_normalized[1]
-    state_new[8] = q_normalized[2]
-    state_new[9] = q_normalized[3]
-
-    # Clamp propellant mass to non-negative
-    if state_new[13] < 0.0:
-        state_new[13] = 0.0
-
-    return state_new
-
-
-# =============================================================================
-# RK45 Adaptive Integrator (Dormand-Prince 5(4))
-# =============================================================================
+    out = state + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+    out[6:10] = q_normalize(out[6:10].copy())
+    if out[13] < 0.0:
+        out[13] = 0.0
+    return out
 
 
 @jit(nopython=True, cache=True)
@@ -637,37 +386,13 @@ def rk45_step_rocket(
     mdot: float = 0.0,
     use_earth_model: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """One Dormand-Prince 5(4) step with constant loads.
+
+    Returns the fifth-order state, the embedded error estimate and the
+    derivative at the new state.
     """
-    Single Dormand-Prince 5(4) adaptive step for rocket dynamics.
-
-    Uses 7-stage FSAL (First Same As Last) RK method for efficient
-    error estimation and dense output.
-
-    Args:
-        state: Current 14-element state vector
-        h: Step size
-        mass: Current mass (kg)
-        I_principal: Principal moments of inertia (kg·m²)
-        F_thrust_body: Thrust force in body frame (N)
-        F_aero_body: Aerodynamic force in body frame (N)
-        M_aero: Aerodynamic moment (N·m)
-        M_thrust: Thrust moment (N·m)
-        altitude: Current altitude (m)
-        mdot: Mass flow rate (kg/s)
-
-    Returns:
-        Tuple of:
-            y_new: 5th-order accurate new state (14 elements)
-            y_error: Error estimate (y5 - y4) for step-size control
-            dy_new: Derivative at new point (for FSAL and interpolation)
-    """
-    n = 14  # State dimension
-
-    # Allocate k stages
-    k = np.zeros((7, n), dtype=np.float64)
+    k = np.zeros((7, 14))
     dry_mass = mass - max(state[13], 0.0)
-
-    # Stage 1: k1 = f(t, y)
     k[0] = derivatives_6dof(
         state,
         mass,
@@ -680,147 +405,385 @@ def rk45_step_rocket(
         use_earth_model,
     )
     k[0, 13] = -mdot
+    for stage in range(1, 6):
+        stage_state = state.copy()
+        for j in range(stage):
+            stage_state += h * DP5_A[stage, j] * k[j]
+        k[stage] = derivatives_6dof(
+            stage_state,
+            _stage_mass(stage_state, dry_mass),
+            I_principal,
+            F_thrust_body,
+            F_aero_body,
+            M_aero,
+            M_thrust,
+            max(0.0, stage_state[2]),
+            use_earth_model,
+        )
+        k[stage, 13] = -mdot
 
-    # Stage 2: k2 = f(t + c2*h, y + h*a21*k1)
-    y2 = state + h * (DP5_A[1, 0] * k[0])
-    alt2 = max(0.0, y2[2])
-    mass2 = max(dry_mass + max(y2[13], 0.0), 1e-12)
-    k[1] = derivatives_6dof(
-        y2,
-        mass2,
-        I_principal,
-        F_thrust_body,
-        F_aero_body,
-        M_aero,
-        M_thrust,
-        alt2,
-        use_earth_model,
-    )
-    k[1, 13] = -mdot
-
-    # Stage 3: k3 = f(t + c3*h, y + h*(a31*k1 + a32*k2))
-    y3 = state + h * (DP5_A[2, 0] * k[0] + DP5_A[2, 1] * k[1])
-    alt3 = max(0.0, y3[2])
-    mass3 = max(dry_mass + max(y3[13], 0.0), 1e-12)
-    k[2] = derivatives_6dof(
-        y3,
-        mass3,
-        I_principal,
-        F_thrust_body,
-        F_aero_body,
-        M_aero,
-        M_thrust,
-        alt3,
-        use_earth_model,
-    )
-    k[2, 13] = -mdot
-
-    # Stage 4
-    y4 = state + h * (DP5_A[3, 0] * k[0] + DP5_A[3, 1] * k[1] + DP5_A[3, 2] * k[2])
-    alt4 = max(0.0, y4[2])
-    mass4 = max(dry_mass + max(y4[13], 0.0), 1e-12)
-    k[3] = derivatives_6dof(
-        y4,
-        mass4,
-        I_principal,
-        F_thrust_body,
-        F_aero_body,
-        M_aero,
-        M_thrust,
-        alt4,
-        use_earth_model,
-    )
-    k[3, 13] = -mdot
-
-    # Stage 5
-    y5 = state + h * (
-        DP5_A[4, 0] * k[0] + DP5_A[4, 1] * k[1] + DP5_A[4, 2] * k[2] + DP5_A[4, 3] * k[3]
-    )
-    alt5 = max(0.0, y5[2])
-    mass5 = max(dry_mass + max(y5[13], 0.0), 1e-12)
-    k[4] = derivatives_6dof(
-        y5,
-        mass5,
-        I_principal,
-        F_thrust_body,
-        F_aero_body,
-        M_aero,
-        M_thrust,
-        alt5,
-        use_earth_model,
-    )
-    k[4, 13] = -mdot
-
-    # Stage 6
-    y6 = state + h * (
-        DP5_A[5, 0] * k[0]
-        + DP5_A[5, 1] * k[1]
-        + DP5_A[5, 2] * k[2]
-        + DP5_A[5, 3] * k[3]
-        + DP5_A[5, 4] * k[4]
-    )
-    alt6 = max(0.0, y6[2])
-    mass6 = max(dry_mass + max(y6[13], 0.0), 1e-12)
-    k[5] = derivatives_6dof(
-        y6,
-        mass6,
-        I_principal,
-        F_thrust_body,
-        F_aero_body,
-        M_aero,
-        M_thrust,
-        alt6,
-        use_earth_model,
-    )
-    k[5, 13] = -mdot
-
-    # Compute 5th-order solution (y_new)
     y_new = state.copy()
-    for i in range(n):
-        for j in range(6):
-            y_new[i] += h * DP5_B5[j] * k[j, i]
-
-    # Stage 7 (FSAL): k7 = f(t + h, y_new) - this becomes k1 for next step
-    alt_new = max(0.0, y_new[2])
-    mass_new = max(dry_mass + max(y_new[13], 0.0), 1e-12)
+    for j in range(6):
+        y_new += h * DP5_B5[j] * k[j]
     k[6] = derivatives_6dof(
         y_new,
-        mass_new,
+        _stage_mass(y_new, dry_mass),
         I_principal,
         F_thrust_body,
         F_aero_body,
         M_aero,
         M_thrust,
-        alt_new,
+        max(0.0, y_new[2]),
         use_earth_model,
     )
     k[6, 13] = -mdot
 
-    # Compute error estimate: y_error = h * sum(E_i * k_i)
-    y_error = np.zeros(n, dtype=np.float64)
-    for i in range(n):
-        for j in range(7):
-            y_error[i] += h * DP5_E[j] * k[j, i]
+    y_error = np.zeros(14)
+    for j in range(7):
+        y_error += h * DP5_E[j] * k[j]
 
-    # Normalize quaternion
-    q = y_new[6:10].copy()
-    q_norm = np.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3])
-    if q_norm > 1e-10:
-        y_new[6] = q[0] / q_norm
-        y_new[7] = q[1] / q_norm
-        y_new[8] = q[2] / q_norm
-        y_new[9] = q[3] / q_norm
-
-    # Clamp propellant mass
+    y_new[6:10] = q_normalize(y_new[6:10].copy())
     if y_new[13] < 0.0:
         y_new[13] = 0.0
-
     return y_new, y_error, k[6]
 
 
-# =============================================================================
-# Main Simulation Function
-# =============================================================================
+# Full-state flight kernel.
+#
+# All vehicle and environment parameters travel in one float vector so the
+# Numba-compiled right-hand side has a fixed signature. Indices:
+
+_P_THRUST_VAC = 0  # throttled vacuum thrust, N
+_P_EXIT_AREA = 1  # m^2
+_P_BURN_TIME = 2  # s
+_P_MDOT = 3  # kg/s
+_P_CD = 4  # axial drag coefficient incl. multiplier
+_P_AREF = 5  # m^2
+_P_CN_ALPHA = 6  # 1/rad, whole vehicle
+_P_CP = 7  # m from nose
+_P_DRY_MASS = 8  # kg
+_P_DRY_MOMENT = 9  # kg m, first moment of dry mass about the nose tip
+_P_X_PROP = 10  # m, propellant CG from nose
+_P_LENGTH = 11  # m
+_P_RADIUS = 12  # m
+_P_WIND_SPEED = 13  # m/s at the reference height
+_P_WIND_TO = 14  # rad, direction the wind blows toward, clockwise from north
+_P_WIND_TOP = 15  # m, height above which the wind no longer grows
+_P_CHUTE_CDA = 16  # m^2, zero until deployment
+_P_EARTH = 17  # 1.0 for WGS-84/ECI mode
+_P_LAUNCH_ALT = 18  # m above the ellipsoid
+_P_CN_FINS = 19  # 1/rad, fin set
+_P_CP_FINS = 20  # m from nose
+_P_FIN_DELTA = 21  # rad, fin incidence error in the body x-z plane
+_P_EXIT_PRESSURE = 22  # Pa, <= 0 when unknown
+_P_REF_DIAMETER = 23  # m
+_P_SIZE = 24
+
+_WIND_REFERENCE_HEIGHT = 10.0  # m, anemometer height for the surface wind
+_WIND_SHEAR_EXPONENT = 1.0 / 7.0  # neutral-stability power law
+
+# Diagnostic vector layout, one entry per output sample
+_D_THRUST = 0
+_D_DRAG = 1
+_D_GRAVITY = 2
+_D_MACH = 3
+_D_QBAR = 4
+_D_MASS = 5
+_D_ISP = 6
+_D_REGIME = 7
+_D_ALPHA = 8
+_D_BETA = 9
+_D_MARGIN = 10
+_D_ACCEL = 11
+_D_HEIGHT = 12
+_D_LAT = 13
+_D_LON = 14
+_D_GEOD_ALT = 15
+_D_POS = 16  # 3 entries, ENU
+_D_VEL = 19  # 3 entries, ENU
+_D_QUAT = 22  # 4 entries, body -> ENU
+_D_SIZE = 26
+
+
+@jit(nopython=True, cache=True)
+def _flight_evaluate(
+    t: float,
+    y: np.ndarray,
+    p: np.ndarray,
+    launch_ecef: np.ndarray,
+    launch_c: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Right-hand side and diagnostics of the full flight model at (t, y)."""
+    deriv = np.zeros(14)
+    diag = np.zeros(_D_SIZE)
+    earth_mode = p[_P_EARTH] > 0.5
+
+    r = y[0:3]
+    v = y[3:6]
+    q = y[6:10].copy()
+    omega = y[10:13].copy()
+    m_prop = max(y[13], 0.0)
+
+    # Local frame, height and air-relative velocity
+    if earth_mode:
+        c_i2e = eci_to_ecef_matrix(t)
+        r_ecef = c_i2e @ r
+        lat, lon, h_geod = geodetic_from_ecef(r_ecef)
+        c_enu = ecef_to_enu_matrix(lat, lon)
+        height = h_geod - p[_P_LAUNCH_ALT]
+        air_altitude = max(0.0, h_geod)
+        earth_rate = np.array([0.0, 0.0, EARTH_ROTATION_RATE])
+        v_ecef = c_i2e @ (v - cross_product(earth_rate, r))
+        pos_enu = launch_c @ (r_ecef - launch_ecef)
+        vel_enu = c_enu @ v_ecef
+        g = j2_acceleration(r)
+    else:
+        lat = 0.0
+        lon = 0.0
+        h_geod = 0.0
+        height = r[2]
+        air_altitude = max(0.0, height)
+        pos_enu = r.copy()
+        vel_enu = v.copy()
+        g = calculate_gravity_vector(air_altitude)
+
+    wind_height = min(max(height, 0.0), p[_P_WIND_TOP])
+    if wind_height > 0.0:
+        wind_speed = (
+            p[_P_WIND_SPEED] * (wind_height / _WIND_REFERENCE_HEIGHT) ** _WIND_SHEAR_EXPONENT
+        )
+    else:
+        wind_speed = 0.0
+    wind_enu = np.array(
+        [wind_speed * np.sin(p[_P_WIND_TO]), wind_speed * np.cos(p[_P_WIND_TO]), 0.0]
+    )
+    if earth_mode:
+        wind_inertial = ecef_to_eci_matrix(t) @ (c_enu.T @ wind_enu)
+        v_rel = v - cross_product(np.array([0.0, 0.0, EARTH_ROTATION_RATE]), r) - wind_inertial
+    else:
+        v_rel = v - wind_enu
+    speed_rel = np.sqrt(v_rel[0] ** 2 + v_rel[1] ** 2 + v_rel[2] ** 2)
+
+    _, pressure, density, sound_speed = atmosphere_properties(air_altitude)
+    qbar = 0.5 * density * speed_rel * speed_rel
+
+    # Mass properties
+    mass = p[_P_DRY_MASS] + m_prop
+    cg = (p[_P_DRY_MOMENT] + m_prop * p[_P_X_PROP]) / mass
+    inertia = calculate_inertia_principal(mass, p[_P_LENGTH], p[_P_RADIUS])
+
+    # Propulsion
+    burning = t < p[_P_BURN_TIME] and y[13] > 0.0
+    thrust = 0.0
+    regime = -1.0
+    if burning:
+        thrust = max(0.0, p[_P_THRUST_VAC] - pressure * p[_P_EXIT_AREA])
+        if p[_P_EXIT_PRESSURE] > 0.0 and pressure > 0.0:
+            ratio = p[_P_EXIT_PRESSURE] / pressure
+            if ratio < 0.4:
+                regime = 2.0
+            elif ratio < 1.0:
+                regime = 1.0
+            elif ratio > 1.05:
+                regime = 3.0
+            else:
+                regime = 0.0
+    force_body = np.array([thrust, 0.0, 0.0])
+
+    # Aerodynamics
+    v_body = q_rotate_vector(q_conjugate(q), v_rel)
+    alpha, beta = calculate_aero_angles(v_body)
+    drag = 0.0
+    moment_body = np.zeros(3)
+    if speed_rel > 1e-6:
+        unit = v_body / speed_rel
+        drag = qbar * p[_P_AREF] * (p[_P_CD] + p[_P_CHUTE_CDA] / p[_P_AREF])
+        force_body -= drag * unit
+        # Normal force from the crossflow: |F| = qbar A CN_alpha sin(total alpha)
+        normal = np.array([0.0, -unit[1], -unit[2]]) * (qbar * p[_P_AREF] * p[_P_CN_ALPHA])
+        force_body += normal
+        moment_body += calculate_aerodynamic_moment(p[_P_CP], cg, normal)
+        if p[_P_FIN_DELTA] != 0.0:
+            fin_force = np.array([0.0, 0.0, -qbar * p[_P_AREF] * p[_P_CN_FINS] * p[_P_FIN_DELTA]])
+            force_body += fin_force
+            moment_body += calculate_aerodynamic_moment(p[_P_CP_FINS], cg, fin_force)
+
+    # Derivatives
+    deriv[0:3] = v
+    deriv[3:6] = q_rotate_vector(q, force_body) / mass + g
+    deriv[6:10] = q_derivative(q, omega)
+    gyro = cross_product(omega, inertia * omega)
+    for axis in range(3):
+        deriv[10 + axis] = (moment_body[axis] - gyro[axis]) / inertia[axis]
+    deriv[13] = -p[_P_MDOT] if burning else 0.0
+
+    # Diagnostics
+    diag[_D_THRUST] = thrust
+    diag[_D_DRAG] = drag
+    diag[_D_GRAVITY] = mass * np.sqrt(g[0] ** 2 + g[1] ** 2 + g[2] ** 2)
+    diag[_D_MACH] = speed_rel / sound_speed
+    diag[_D_QBAR] = qbar
+    diag[_D_MASS] = mass
+    diag[_D_ISP] = thrust / (p[_P_MDOT] * G0) if burning and p[_P_MDOT] > 0.0 else 0.0
+    diag[_D_REGIME] = regime
+    diag[_D_ALPHA] = np.degrees(alpha)
+    diag[_D_BETA] = np.degrees(beta)
+    diag[_D_MARGIN] = (p[_P_CP] - cg) / p[_P_REF_DIAMETER]
+    diag[_D_ACCEL] = np.sqrt(force_body[0] ** 2 + force_body[1] ** 2 + force_body[2] ** 2) / (
+        mass * G0
+    )
+    diag[_D_HEIGHT] = height
+    diag[_D_LAT] = np.degrees(lat)
+    diag[_D_LON] = np.degrees(lon)
+    diag[_D_GEOD_ALT] = h_geod
+    diag[_D_POS : _D_POS + 3] = pos_enu
+    diag[_D_VEL : _D_VEL + 3] = vel_enu
+    if earth_mode:
+        body_to_enu = c_enu @ eci_to_ecef_matrix(t) @ q_to_rotation_matrix(q)
+        diag[_D_QUAT : _D_QUAT + 4] = q_from_dcm(body_to_enu)
+    else:
+        diag[_D_QUAT : _D_QUAT + 4] = q
+    return deriv, diag
+
+
+@jit(nopython=True, cache=True)
+def _flight_rhs(
+    t: float, y: np.ndarray, p: np.ndarray, launch_ecef: np.ndarray, launch_c: np.ndarray
+) -> np.ndarray:
+    deriv, _ = _flight_evaluate(t, y, p, launch_ecef, launch_c)
+    return deriv
+
+
+@jit(nopython=True, cache=True)
+def _finish_state(y: np.ndarray) -> np.ndarray:
+    y[6:10] = q_normalize(y[6:10].copy())
+    if y[13] < 0.0:
+        y[13] = 0.0
+    return y
+
+
+@jit(nopython=True, cache=True)
+def _flight_rk4(
+    t: float, y: np.ndarray, h: float, p: np.ndarray, launch_ecef: np.ndarray, launch_c: np.ndarray
+) -> np.ndarray:
+    k1 = _flight_rhs(t, y, p, launch_ecef, launch_c)
+    k2 = _flight_rhs(t + 0.5 * h, y + 0.5 * h * k1, p, launch_ecef, launch_c)
+    k3 = _flight_rhs(t + 0.5 * h, y + 0.5 * h * k2, p, launch_ecef, launch_c)
+    k4 = _flight_rhs(t + h, y + h * k3, p, launch_ecef, launch_c)
+    return _finish_state(y + (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4))
+
+
+_DP5_C = np.array([0.0, 1.0 / 5.0, 3.0 / 10.0, 4.0 / 5.0, 8.0 / 9.0, 1.0, 1.0])
+
+
+@jit(nopython=True, cache=True)
+def _flight_dp45(
+    t: float,
+    y: np.ndarray,
+    k_first: np.ndarray,
+    h: float,
+    p: np.ndarray,
+    launch_ecef: np.ndarray,
+    launch_c: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Dormand-Prince 5(4) step reusing the FSAL derivative ``k_first``."""
+    k = np.zeros((7, 14))
+    k[0] = k_first
+    for stage in range(1, 6):
+        stage_state = y.copy()
+        for j in range(stage):
+            stage_state += h * DP5_A[stage, j] * k[j]
+        k[stage] = _flight_rhs(t + _DP5_C[stage] * h, stage_state, p, launch_ecef, launch_c)
+    y_new = y.copy()
+    for j in range(6):
+        y_new += h * DP5_B5[j] * k[j]
+    k[6] = _flight_rhs(t + h, y_new, p, launch_ecef, launch_c)
+    y_error = np.zeros(14)
+    for j in range(7):
+        y_error += h * DP5_E[j] * k[j]
+    return _finish_state(y_new), y_error, k[6]
+
+
+@jit(nopython=True, cache=True)
+def _hermite(
+    y0: np.ndarray, f0: np.ndarray, y1: np.ndarray, f1: np.ndarray, h: float, s: float
+) -> np.ndarray:
+    """Cubic Hermite interpolation at fraction s of a step of length h."""
+    s2 = s * s
+    s3 = s2 * s
+    out = (
+        (2.0 * s3 - 3.0 * s2 + 1.0) * y0
+        + (s3 - 2.0 * s2 + s) * h * f0
+        + (-2.0 * s3 + 3.0 * s2) * y1
+        + (s3 - s2) * h * f1
+    )
+    return _finish_state(out)
+
+
+class _History:
+    """Growable column store for output samples."""
+
+    def __init__(self, capacity: int):
+        self.n = 0
+        self.t = np.zeros(capacity)
+        self.y = np.zeros((capacity, 14))
+        self.d = np.zeros((capacity, _D_SIZE))
+
+    def append(self, t: float, y: np.ndarray, d: np.ndarray) -> None:
+        if self.n == self.t.size:
+            grow = max(16, self.t.size // 2)
+            self.t = np.concatenate((self.t, np.zeros(grow)))
+            self.y = np.vstack((self.y, np.zeros((grow, 14))))
+            self.d = np.vstack((self.d, np.zeros((grow, _D_SIZE))))
+        self.t[self.n] = t
+        self.y[self.n] = y
+        self.d[self.n] = d
+        self.n += 1
+
+
+def _pack_parameters(
+    rocket: Rocket,
+    *,
+    thrust_vac: float,
+    throttle: float,
+    exit_area: float,
+    burn_time: float,
+    mdot: float,
+    cd_factor: float,
+    wind_speed: float,
+    wind_direction_deg: float,
+    wind_profile_top_m: float,
+    use_wgs84: bool,
+    launch_altitude_m: float,
+    fin_misalignment_deg: float,
+    nozzle_exit_pressure: float | None,
+) -> np.ndarray:
+    cp_total, cn_total, components = calculate_total_cp(rocket)
+    p = np.zeros(_P_SIZE)
+    p[_P_THRUST_VAC] = thrust_vac * throttle
+    p[_P_EXIT_AREA] = exit_area
+    p[_P_BURN_TIME] = burn_time
+    p[_P_MDOT] = mdot
+    p[_P_CD] = rocket.axial_drag_coefficient * cd_factor
+    p[_P_AREF] = rocket.reference_area
+    p[_P_CN_ALPHA] = cn_total
+    p[_P_CP] = cp_total
+    p[_P_DRY_MASS] = rocket.dry_mass
+    p[_P_DRY_MOMENT] = rocket.dry_mass * rocket.get_cg_from_propellant(0.0)
+    p[_P_X_PROP] = rocket.engine.position
+    p[_P_LENGTH] = rocket.total_length
+    p[_P_RADIUS] = 0.5 * rocket.reference_diameter
+    p[_P_WIND_SPEED] = wind_speed
+    p[_P_WIND_TO] = np.radians(wind_direction_deg + 180.0)
+    p[_P_WIND_TOP] = wind_profile_top_m
+    p[_P_EARTH] = 1.0 if use_wgs84 else 0.0
+    p[_P_LAUNCH_ALT] = launch_altitude_m if use_wgs84 else 0.0
+    p[_P_CN_FINS] = components["cn_fins"]
+    p[_P_CP_FINS] = components["cp_fins"]
+    p[_P_FIN_DELTA] = np.radians(fin_misalignment_deg)
+    p[_P_EXIT_PRESSURE] = nozzle_exit_pressure if nozzle_exit_pressure else 0.0
+    p[_P_REF_DIAMETER] = rocket.reference_diameter
+    return p
 
 
 def simulate_flight_6dof(
@@ -836,18 +799,15 @@ def simulate_flight_6dof(
     rail_length: float = 3.0,
     wind_speed: float = 0.0,
     wind_direction_deg: float = 0.0,
-    # Adaptive mode parameters
     use_adaptive: bool = False,
     rtol: float = 1e-6,
     atol: float = 1e-6,
     h_min: float = 1e-5,
     h_max: float = 1.0,
-    output_dt: float = 0.01,  # Fixed output sampling rate (Dense Output)
-    # Perturbation parameters (Monte Carlo)
+    output_dt: float = 0.01,
     throttle: float = 1.0,
     cd_factor: float = 1.0,
     fin_misalignment_deg: float = 0.0,
-    # Recovery parameters
     chute_diameter: float = 0.0,
     deploy_at_apogee: bool = True,
     nozzle_exit_pressure: float | None = None,
@@ -855,53 +815,60 @@ def simulate_flight_6dof(
     launch_latitude_deg: float = 0.0,
     launch_longitude_deg: float = 0.0,
     launch_altitude_m: float = 0.0,
+    chute_cd: float = 1.5,
+    main_deploy_altitude_m: float = 300.0,
+    wind_profile_top_m: float = 1000.0,
+    cancel: Callable[[], bool] | None = None,
 ) -> FlightResult6DOF:
-    """
-    Simulate rocket flight using 6-DOF rigid body dynamics.
-
-    Output coordinate system (ENU - East-North-Up):
-        X: East
-        Y: North
-        Z: Up (altitude)
-
-    Body Frame (aligned at launch):
-        X: Forward (thrust direction)
-        Y: Right
-        Z: Down
+    """Simulate a single-stage flight with 6-DOF rigid-body dynamics.
 
     Args:
-        rocket: Rocket vehicle definition
-        thrust_vac: Vacuum thrust (N)
-        isp_vac: Vacuum specific impulse (s)
-        burn_time: Engine burn duration (s)
-        exit_area: Nozzle exit area (m²)
-        dt: Integration time step (s)
-        max_time: Maximum simulation time (s)
-        launch_angle_deg: Pitch angle from horizontal (90 = vertical)
-        launch_azimuth_deg: Heading from North (0 = North, 90 = East)
-        rail_length: Launch rail length (m)
-        wind_speed: Wind speed (m/s)
-        wind_direction_deg: Wind direction FROM (meteorological convention)
-        throttle: Engine throttle (0.0-1.0), affects thrust and mass flow
-        cd_factor: Drag coefficient multiplier for perturbation
-        fin_misalignment_deg: Fin misalignment angle for quaternion perturbation
-        use_wgs84: Integrate position and attitude in ECI with WGS-84/J2 gravity
-        launch_latitude_deg: Geodetic launch latitude for WGS-84 mode
-        launch_longitude_deg: Geodetic launch longitude for WGS-84 mode
-        launch_altitude_m: Geodetic launch altitude above the WGS-84 ellipsoid
-
-    Returns:
-        FlightResult6DOF with complete trajectory history
+        rocket: Vehicle definition. It is not modified.
+        thrust_vac: Vacuum thrust, N.
+        isp_vac: Vacuum specific impulse, s.
+        burn_time: Burn duration, s. The engine also stops when the
+            propellant is exhausted.
+        exit_area: Nozzle exit area, m^2, for the ambient-pressure thrust loss.
+        dt: Step for the fixed-step RK4 integrator, s.
+        max_time: Simulation end time, s.
+        launch_angle_deg: Rail elevation above the horizon (90 = vertical).
+        launch_azimuth_deg: Rail heading, clockwise from north.
+        rail_length: Rail length, m. Attitude is held until the vehicle
+            clears it.
+        wind_speed: Surface wind at 10 m, m/s.
+        wind_direction_deg: Direction the wind blows from, clockwise from north.
+        use_adaptive: Use Dormand-Prince 5(4) with error control instead of RK4.
+        rtol, atol: Error tolerances for the adaptive integrator.
+        h_min, h_max: Step bounds for the adaptive integrator, s.
+        output_dt: Spacing of output samples, s. Adaptive steps are not limited
+            by it; samples are interpolated from the step polynomial.
+        throttle: Thrust and mass-flow multiplier in [0, 1].
+        cd_factor: Multiplier on the vehicle drag coefficient.
+        fin_misalignment_deg: Fin incidence error in the pitch plane. Produces a
+            normal force and a trim moment proportional to dynamic pressure.
+        chute_diameter: Recovery parachute diameter, m (0 = no parachute).
+        deploy_at_apogee: Deploy at apogee; otherwise deploy after apogee once
+            below ``main_deploy_altitude_m``.
+        nozzle_exit_pressure: Nozzle exit pressure, Pa, for the
+            expansion-regime label. Does not change thrust.
+        use_wgs84: Integrate in ECI with WGS-84 J2 gravity and Earth rotation.
+        launch_latitude_deg, launch_longitude_deg, launch_altitude_m:
+            Launch site for WGS-84 mode.
+        chute_cd: Parachute drag coefficient on its nominal area.
+        main_deploy_altitude_m: Height above the pad for a delayed deployment.
+        wind_profile_top_m: The 1/7 power-law wind profile grows up to this
+            height and stays constant above it.
+        cancel: Optional callable polled once per step; return True to stop.
 
     Raises:
-        PhysicsViolationError: If non-physical state is detected
+        PhysicsViolationError: Invalid inputs or a non-finite state.
+        SimulationCancelled: ``cancel`` returned True.
     """
-    # Validate inputs
-    if thrust_vac < 0:
+    if thrust_vac < 0.0:
         raise PhysicsViolationError(f"Negative thrust: {thrust_vac} N")
-    if isp_vac <= 0:
+    if isp_vac <= 0.0:
         raise PhysicsViolationError(f"Invalid Isp: {isp_vac} s")
-    if rocket.wet_mass <= 0:
+    if rocket.wet_mass <= 0.0 or rocket.dry_mass <= 0.0:
         raise PhysicsViolationError(f"Invalid mass: {rocket.wet_mass} kg")
     if burn_time < 0.0 or dt <= 0.0 or max_time <= 0.0 or output_dt <= 0.0:
         raise PhysicsViolationError("Burn time must be nonnegative and time steps positive")
@@ -909,8 +876,10 @@ def simulate_flight_6dof(
         raise PhysicsViolationError("Geometry and environmental magnitudes cannot be negative")
     if not 0.0 <= throttle <= 1.0:
         raise PhysicsViolationError("Throttle must be between zero and one")
-    if rocket.axial_drag_coefficient < 0.0 or cd_factor <= 0.0:
-        raise PhysicsViolationError("Drag coefficient and its multiplier must be nonnegative")
+    if rocket.axial_drag_coefficient < 0.0 or cd_factor <= 0.0 or chute_cd <= 0.0:
+        raise PhysicsViolationError("Drag coefficients must be positive")
+    if use_adaptive and not 0.0 < h_min <= h_max:
+        raise PhysicsViolationError("Adaptive step bounds must satisfy 0 < h_min <= h_max")
     if use_wgs84 and not -90.0 <= launch_latitude_deg <= 90.0:
         raise PhysicsViolationError("Launch latitude must be between -90 and 90 degrees")
     if use_wgs84 and not -180.0 <= launch_longitude_deg <= 180.0:
@@ -918,794 +887,325 @@ def simulate_flight_6dof(
     if use_wgs84 and not np.isfinite(launch_altitude_m):
         raise PhysicsViolationError("Launch altitude must be finite")
 
-    # Setup engine parameters
-    rocket.engine.thrust_vac = thrust_vac
-    rocket.engine.isp_vac = isp_vac
-    rocket.engine.burn_time = burn_time
-    rocket.engine.mass_flow_rate = thrust_vac / (isp_vac * G0) if isp_vac > 0 else 0
+    mdot = thrust_vac * throttle / (isp_vac * G0)
+    p = _pack_parameters(
+        rocket,
+        thrust_vac=thrust_vac,
+        throttle=throttle,
+        exit_area=exit_area,
+        burn_time=burn_time,
+        mdot=mdot,
+        cd_factor=cd_factor,
+        wind_speed=wind_speed,
+        wind_direction_deg=wind_direction_deg,
+        wind_profile_top_m=wind_profile_top_m,
+        use_wgs84=use_wgs84,
+        launch_altitude_m=launch_altitude_m,
+        fin_misalignment_deg=fin_misalignment_deg,
+        nozzle_exit_pressure=nozzle_exit_pressure,
+    )
+    chute_cda = chute_cd * np.pi * (0.5 * chute_diameter) ** 2
 
-    nominal_output_step = min(dt, output_dt) if use_adaptive else dt
-    n_steps = int(np.ceil(max_time / nominal_output_step)) + 3
-
-    # =========================================================================
-    # Allocate output arrays
-    # =========================================================================
-    time_arr = np.zeros(n_steps)
-    pos_x = np.zeros(n_steps)
-    pos_y = np.zeros(n_steps)
-    pos_z = np.zeros(n_steps)
-    vel_x = np.zeros(n_steps)
-    vel_y = np.zeros(n_steps)
-    vel_z = np.zeros(n_steps)
-    vel_mag = np.zeros(n_steps)
-    quat_w = np.zeros(n_steps)
-    quat_x = np.zeros(n_steps)
-    quat_y = np.zeros(n_steps)
-    quat_z = np.zeros(n_steps)
-    roll_arr = np.zeros(n_steps)
-    pitch_arr = np.zeros(n_steps)
-    yaw_arr = np.zeros(n_steps)
-    omega_x_arr = np.zeros(n_steps)
-    omega_y_arr = np.zeros(n_steps)
-    omega_z_arr = np.zeros(n_steps)
-    thrust_arr = np.zeros(n_steps)
-    drag_arr = np.zeros(n_steps)
-    gravity_arr = np.zeros(n_steps)
-    mach_arr = np.zeros(n_steps)
-    q_dynamic = np.zeros(n_steps)
-    mass_arr = np.zeros(n_steps)
-    prop_mass_arr = np.zeros(n_steps)  # Propellant mass (state[13])
-    isp_arr = np.zeros(n_steps)  # Specific impulse [s]
-    thrust_loss_arr = np.zeros(n_steps)
-    flow_regime_arr = np.full(n_steps, -1.0)
-    alpha_arr = np.zeros(n_steps)
-    beta_arr = np.zeros(n_steps)
-    stability_arr = np.zeros(n_steps)
-    latitude_arr = np.full(n_steps, np.nan)
-    longitude_arr = np.full(n_steps, np.nan)
-    geodetic_altitude_arr = np.full(n_steps, np.nan)
-
-    # =========================================================================
-    # Initial State
-    # =========================================================================
+    # Launch site and initial attitude
     elevation = np.radians(launch_angle_deg)
     azimuth = np.radians(launch_azimuth_deg)
-    q_init_local = q_from_euler(0.0, -elevation, np.pi / 2.0 - azimuth)
-
-    # Apply fin misalignment perturbation (small rotation in pitch/yaw)
-    if abs(fin_misalignment_deg) > 1e-6:
-        # Convert misalignment to radians and apply as small pitch perturbation
-        misalign_rad = np.radians(fin_misalignment_deg)
-        q_perturb = q_from_euler(0.0, misalign_rad, misalign_rad * 0.5)
-        q_init_local = q_mult(q_init_local, q_perturb)
-        q_init_local = q_normalize(q_init_local)
-
-    launch_latitude = np.radians(launch_latitude_deg) if use_wgs84 else 0.0
-    launch_longitude = np.radians(launch_longitude_deg) if use_wgs84 else 0.0
-    geodesy_launch_altitude = launch_altitude_m if use_wgs84 else 0.0
-    launch_ecef = geodetic_to_ecef(
-        launch_latitude,
-        launch_longitude,
-        geodesy_launch_altitude,
-    )
-    launch_ecef_to_enu = ecef_to_enu_matrix(launch_latitude, launch_longitude)
-    earth_rate_vector = np.array([0.0, 0.0, EARTH_ROTATION_RATE])
-    if use_wgs84:
-        body_to_eci = launch_ecef_to_enu.T @ q_to_rotation_matrix(q_init_local)
-        q_init = q_from_rotation_matrix(body_to_eci)
-    else:
-        q_init = q_init_local
-
-    # Initial propellant mass
-    m_prop_initial = rocket.initial_propellant_mass
-
-    # Throttled mass flow rate (used throughout simulation)
-    throttle_clamped = throttle
-    base_mdot = thrust_vac / (isp_vac * G0) if isp_vac > 0 else 0
-    throttled_mdot = base_mdot * throttle_clamped
-
-    # Rail unit vector for initial state
-    sin_la_init = np.sin(np.radians(launch_angle_deg))
-    cos_la_init = np.cos(np.radians(launch_angle_deg))
-    sin_az_init = np.sin(np.radians(launch_azimuth_deg))
-    cos_az_init = np.cos(np.radians(launch_azimuth_deg))
-    rail_dx_init = cos_la_init * sin_az_init
-    rail_dy_init = cos_la_init * cos_az_init
-    rail_dz_init = sin_la_init
-
-    # Initial state vector: [x, y, z, vx, vy, vz, q0, q1, q2, q3, wx, wy, wz, m_prop]
-    # 14 elements: 3 position + 3 velocity + 4 quaternion + 3 angular velocity + 1 propellant mass
-    rail_direction_enu = np.array([rail_dx_init, rail_dy_init, rail_dz_init])
-    if use_wgs84:
-        initial_position = launch_ecef.copy()
-        initial_velocity = np.cross(earth_rate_vector, initial_position) + enu_to_ecef(
-            0.001 * rail_direction_enu, launch_latitude, launch_longitude
-        )
-    else:
-        initial_position = np.zeros(3)
-        initial_velocity = 0.001 * rail_direction_enu
-
-    state = np.array(
+    q_rail_local = q_from_euler(0.0, -elevation, np.pi / 2.0 - azimuth)
+    rail_dir = np.array(
         [
-            initial_position[0],
-            initial_position[1],
-            initial_position[2],
-            initial_velocity[0],
-            initial_velocity[1],
-            initial_velocity[2],
-            q_init[0],
-            q_init[1],
-            q_init[2],
-            q_init[3],  # Quaternion
-            0.0,
-            0.0,
-            0.0,  # Angular velocity (stationary)
-            m_prop_initial,  # Propellant mass (kg)
+            np.cos(elevation) * np.sin(azimuth),
+            np.cos(elevation) * np.cos(azimuth),
+            np.sin(elevation),
         ]
     )
+    lat0 = np.radians(launch_latitude_deg) if use_wgs84 else 0.0
+    lon0 = np.radians(launch_longitude_deg) if use_wgs84 else 0.0
+    launch_ecef = geodetic_to_ecef(lat0, lon0, launch_altitude_m if use_wgs84 else 0.0)
+    launch_c = ecef_to_enu_matrix(lat0, lon0)
+    earth_rate = np.array([0.0, 0.0, EARTH_ROTATION_RATE])
+    rail_body_to_enu = q_to_rotation_matrix(q_rail_local)
+
+    def held_state(t: float, y: np.ndarray, along_rail: float) -> np.ndarray:
+        """Pin the vehicle to the rail: attitude fixed, velocity along the rail."""
+        y = y.copy()
+        if use_wgs84:
+            c_e2i = ecef_to_eci_matrix(t)
+            body_to_eci = c_e2i @ launch_c.T @ rail_body_to_enu
+            y[0:3] = c_e2i @ (launch_ecef + launch_c.T @ (along_rail * rail_dir))
+            relative = eci_to_ecef(y[3:6] - np.cross(earth_rate, y[0:3]), t)
+            speed = max(0.0, float(relative @ (launch_c.T @ rail_dir)))
+            y[3:6] = np.cross(earth_rate, y[0:3]) + ecef_to_eci(launch_c.T @ (speed * rail_dir), t)
+            y[6:10] = q_from_dcm(body_to_eci)
+            y[10:13] = body_to_eci.T @ earth_rate
+        else:
+            speed = max(0.0, float(y[3:6] @ rail_dir))
+            y[0:3] = along_rail * rail_dir
+            y[3:6] = speed * rail_dir
+            y[6:10] = q_rail_local
+            y[10:13] = 0.0
+        return y
+
+    def rail_distance(t: float, y: np.ndarray) -> float:
+        if use_wgs84:
+            return float((launch_c @ (eci_to_ecef(y[0:3], t) - launch_ecef)) @ rail_dir)
+        return float(y[0:3] @ rail_dir)
+
+    y = np.zeros(14)
+    y[13] = rocket.initial_propellant_mass
+    y = held_state(0.0, y, 0.0)
 
     t = 0.0
-    A_ref = rocket.reference_area
-    rocket_length = rocket.total_length
-    rocket_radius = rocket.reference_diameter / 2.0
-    cp_position, cn_alpha, _ = calculate_total_cp(rocket)
+    history = _History(int(min(max_time, 600.0) / output_dt) + 8)
+    deriv, diag = _flight_evaluate(t, y, p, launch_ecef, launch_c)
+    history.append(t, y, diag)
+    next_output = output_dt
 
-    # Event tracking
+    has_lifted = False
     liftoff_time = 0.0
+    on_rail = rail_length > 0.0
+    has_apogee = False
+    apogee_time = 0.0
+    apogee_alt = 0.0
+    chute_deployed = False
+    deploy_time: float | None = None
     burnout_time = burn_time
     burnout_alt = 0.0
     burnout_vel = 0.0
-    apogee_time = 0.0
-    apogee_alt = 0.0
-    max_vel = 0.0
-    max_mach_val = 0.0
-    max_accel = 0.0
-    max_q = 0.0
-    max_alpha_val = 0.0
-
-    has_lifted = False
-    has_burnout = False
-    has_apogee = False
-    max_alt_reached = False
-    prev_vz = 0.0
-    prev_z = 0.0
-    prev_time = 0.0
-    chute_deployed = False
-    adaptive_h = min(dt, output_dt, h_max)
+    has_burnout = burn_time <= 0.0 or y[13] <= 0.0
     ground_impact = False
-    samples_used = 0
+    cleared_ground = False
+    landing: tuple[float, float] | None = None
+    adaptive_h = min(dt, h_max) if use_adaptive else dt
+    prev_err = 1.0
+    forced_min_steps = 0
+    termination = "maximum_time"
 
-    # =========================================================================
-    # Main simulation loop
-    # =========================================================================
-    for i in range(n_steps):
-        if t > max_time + 1e-12:
-            break
-        samples_used = i + 1
-        # Store time
-        time_arr[i] = t
+    while t < max_time - 1e-12:
+        if cancel is not None and cancel():
+            raise SimulationCancelled(f"Cancelled at t={t:.3f} s")
 
-        # Extract state components
-        state_position = state[0:3]
-        state_velocity = state[3:6]
-        q_dynamics = state[6:10]
-        omega = state[10:13]
-        m_prop = state[13]  # Current propellant mass
-
-        if use_wgs84:
-            position_ecef = eci_to_ecef(state_position, t)
-            velocity_ecef = eci_to_ecef(
-                state_velocity - np.cross(earth_rate_vector, state_position),
-                t,
-            )
-            latitude, longitude, geodetic_altitude = ecef_to_geodetic(position_ecef)
-            current_ecef_to_enu = ecef_to_enu_matrix(latitude, longitude)
-            position_enu = launch_ecef_to_enu @ (position_ecef - launch_ecef)
-            velocity_enu = current_ecef_to_enu @ velocity_ecef
-            x, y = position_enu[0], position_enu[1]
-            z = geodetic_altitude - launch_altitude_m
-            vx, vy, vz = velocity_enu
-            atmosphere_altitude = max(0.0, geodetic_altitude)
-            body_to_local = (
-                current_ecef_to_enu @ eci_to_ecef_matrix(t) @ q_to_rotation_matrix(q_dynamics)
-            )
-            q_output = q_from_rotation_matrix(body_to_local)
-        else:
-            x, y, z = state_position
-            vx, vy, vz = state_velocity
-            latitude = launch_latitude
-            longitude = launch_longitude
-            current_ecef_to_enu = launch_ecef_to_enu
-            atmosphere_altitude = max(0.0, z)
-            q_output = q_dynamics
-
-        altitude = max(0.0, z)
-        V = float(np.linalg.norm([vx, vy, vz]))
-
-        wind_to_dir_rad = np.radians(wind_direction_deg + 180.0)
-        local_wind_speed = wind_speed * (altitude / 10.0) ** 0.143 if altitude > 0.0 else 0.0
-        wind_velocity_enu = np.array(
-            [
-                local_wind_speed * np.sin(wind_to_dir_rad),
-                local_wind_speed * np.cos(wind_to_dir_rad),
-                0.0,
-            ]
-        )
-        if use_wgs84:
-            wind_velocity_ecef = current_ecef_to_enu.T @ wind_velocity_enu
-            atmosphere_velocity_eci = np.cross(earth_rate_vector, state_position) + ecef_to_eci(
-                wind_velocity_ecef, t
-            )
-            v_rel_inertial = state_velocity - atmosphere_velocity_eci
-        else:
-            v_rel_inertial = state_velocity - wind_velocity_enu
-        V_rel = float(np.linalg.norm(v_rel_inertial))
-
-        # Store position and velocity
-        pos_x[i] = x
-        pos_y[i] = y
-        pos_z[i] = altitude
-        vel_x[i] = vx
-        vel_y[i] = vy
-        vel_z[i] = vz
-        vel_mag[i] = V
-        if use_wgs84:
-            latitude_arr[i] = np.degrees(latitude)
-            longitude_arr[i] = np.degrees(longitude)
-            geodetic_altitude_arr[i] = geodetic_altitude
-
-        # Store quaternion
-        quat_w[i] = q_output[0]
-        quat_x[i] = q_output[1]
-        quat_y[i] = q_output[2]
-        quat_z[i] = q_output[3]
-
-        # Convert to Euler angles for output
-        euler = q_to_euler(q_output)
-        roll_arr[i] = np.degrees(euler[0])
-        pitch_arr[i] = np.degrees(euler[1])
-        yaw_arr[i] = np.degrees(euler[2])
-
-        # Store angular velocity
-        omega_x_arr[i] = omega[0]
-        omega_y_arr[i] = omega[1]
-        omega_z_arr[i] = omega[2]
-
-        # =====================================================================
-        # Atmospheric conditions
-        # =====================================================================
-        atm = get_atmosphere(atmosphere_altitude)
-        rho = atm.density
-        speed_of_sound = atm.speed_of_sound
-        P_ambient = atm.pressure
-
-        # Mach number
-        M = V_rel / speed_of_sound if speed_of_sound > 0 else 0.0
-        mach_arr[i] = M
-
-        # Dynamic pressure
-        q_dyn = 0.5 * rho * V_rel * V_rel
-        q_dynamic[i] = q_dyn
-        max_q = max(max_q, q_dyn)
-
-        # =====================================================================
-        # Mass and Inertia (using propellant mass from state[13])
-        # =====================================================================
-        current_mass = rocket.get_mass_from_propellant(m_prop)
-        mass_arr[i] = current_mass
-        prop_mass_arr[i] = max(0.0, m_prop)
-
-        # Verify mass is physical
-        if current_mass <= 0 or np.isnan(current_mass):
-            raise PhysicsViolationError(f"Invalid mass at t={t:.2f}s: {current_mass} kg")
-
-        # Calculate inertia tensor (cylindrical approximation)
-        I_principal = calculate_inertia_principal(current_mass, rocket_length, rocket_radius)
-
-        # =====================================================================
-        # Thrust (with throttle and flow separation)
-        # =====================================================================
-        # Check if propellant is available
-        has_propellant = m_prop > 0.0 and t < burn_time - 1e-12
-
-        if has_propellant:
-            # Throttled thrust and mass flow
-            F_thrust_base = (thrust_vac * throttle_clamped) - (P_ambient * exit_area)
-            F_thrust_base = max(0.0, F_thrust_base)
-
-            thrust_loss = 1.0
-            flow_regime = -1
-            if nozzle_exit_pressure is not None and P_ambient > 0.0:
-                pressure_ratio = nozzle_exit_pressure / P_ambient
-                if pressure_ratio < 0.4:
-                    flow_regime = 2
-                elif pressure_ratio < 1.0:
-                    flow_regime = 1
-                elif pressure_ratio > 1.05:
-                    flow_regime = 3
-                else:
-                    flow_regime = 0
-
-            F_thrust_mag = F_thrust_base * thrust_loss
-            thrust_arr[i] = F_thrust_mag
-            thrust_loss_arr[i] = thrust_loss
-            flow_regime_arr[i] = flow_regime
-
-            # Current ISP (altitude-corrected)
-            isp_current = F_thrust_mag / (throttled_mdot * G0) if throttled_mdot > 0 else isp_vac
-            isp_arr[i] = isp_current
-
-            # Thrust in body frame (along +X axis)
-            F_thrust_body = np.array([F_thrust_mag, 0.0, 0.0])
-
-            # Mass flow (throttled)
-            mdot = throttled_mdot
-        else:
-            thrust_arr[i] = 0.0
-            isp_arr[i] = 0.0
-            thrust_loss_arr[i] = 0.0
-            flow_regime_arr[i] = -1
-            F_thrust_body = np.array([0.0, 0.0, 0.0])
-            mdot = 0.0
-
-            if not has_burnout:
-                has_burnout = True
-                burnout_time = t
-                burnout_alt = altitude
-                burnout_vel = V
-
-        # =====================================================================
-        # Aerodynamic Forces
-        # =====================================================================
-        # Transform relative velocity to body frame
-        q_inv = q_conjugate(q_dynamics)
-        v_body = q_rotate_vector(q_inv, v_rel_inertial)
-
-        # Calculate aerodynamic angles from relative wind
-        alpha, beta = calculate_aero_angles(v_body)
-        alpha_arr[i] = np.degrees(alpha)
-        beta_arr[i] = np.degrees(beta)
-        max_alpha_val = max(max_alpha_val, abs(np.degrees(alpha)))
-
-        cd = rocket.axial_drag_coefficient * cd_factor
-
-        # Drag force magnitude: D = 0.5 ρ V² Cd A
-        D = q_dyn * cd * A_ref
-        drag_arr[i] = D
-
-        # Drag in body frame (opposes air-relative velocity)
-        F_normal_body = np.zeros(3)
-        if V_rel > 1e-6:
-            v_body_unit = v_body / V_rel
-            F_aero_body = -D * v_body_unit
-            if v_body[0] > 0.0 and abs(alpha) <= np.radians(20.0) and abs(beta) <= np.radians(20.0):
-                normal_scale = q_dyn * A_ref * cn_alpha
-                F_normal_body[1] = -normal_scale * beta
-                F_normal_body[2] = normal_scale * alpha
-                F_aero_body += F_normal_body
-        else:
-            F_aero_body = np.array([0.0, 0.0, 0.0])
-
-        # Parachute recovery drag integration
-        if chute_deployed and chute_diameter > 0:
-            chute_cda = 1.5 * np.pi * (chute_diameter / 2) ** 2
-            D_chute = q_dyn * chute_cda
-            if V_rel > 1e-6:
-                F_aero_body += -D_chute * v_body_unit
-
-        # Gravity magnitude for output
-        if use_wgs84:
-            g_vec = j2_gravity_ecef(position_ecef)
-            gravity_arr[i] = current_mass * np.linalg.norm(g_vec)
-        else:
-            g_vec = calculate_gravity_vector(altitude)
-            gravity_arr[i] = current_mass * abs(g_vec[2])
-
-        # =====================================================================
-        # Aerodynamic Moments
-        # =====================================================================
-        cg_pos = rocket.get_cg_from_propellant(m_prop)
-        cp_pos = cp_position
-
-        # Stability margin
-        stability_cal = (cp_pos - cg_pos) / rocket.reference_diameter
-        stability_arr[i] = stability_cal
-
-        # Aerodynamic moment about CG
-        M_aero = calculate_aerodynamic_moment(cp_pos, cg_pos, F_normal_body)
-
-        # Thrust moment (assuming no thrust vectoring)
-        M_thrust = np.array([0.0, 0.0, 0.0])
-
-        # =====================================================================
-        # Liftoff detection
-        # =====================================================================
+        # Hold on the pad until thrust exceeds weight along the rail
         if not has_lifted:
-            weight = current_mass * G0
-            if thrust_arr[i] > weight:
+            weight_along_rail = diag[_D_MASS] * G0 * np.sin(elevation)
+            if diag[_D_THRUST] > weight_along_rail:
                 has_lifted = True
                 liftoff_time = t
-
-        # Acceleration (scalar, for max tracking)
-        if current_mass > 0:
-            accel = (
-                np.sqrt((thrust_arr[i] - drag_arr[i]) ** 2 + gravity_arr[i] ** 2)
-                / current_mass
-                / G0
-            )
-            max_accel = max(max_accel, accel)
-
-        max_vel = max(max_vel, V)
-        max_mach_val = max(max_mach_val, M)
-
-        # =====================================================================
-        # Apogee detection
-        # =====================================================================
-        if has_lifted and prev_vz > 0.0 and vz <= 0.0 and not has_apogee:
-            has_apogee = True
-            interval = t - prev_time
-            fraction = prev_vz / (prev_vz - vz)
-            fraction = float(np.clip(fraction, 0.0, 1.0))
-            apogee_time = prev_time + fraction * interval
-            s2 = fraction * fraction
-            s3 = s2 * fraction
-            apogee_alt = (
-                (2.0 * s3 - 3.0 * s2 + 1.0) * prev_z
-                + (s3 - 2.0 * s2 + fraction) * interval * prev_vz
-                + (-2.0 * s3 + 3.0 * s2) * z
-                + (s3 - s2) * interval * vz
-            )
-
-        # =====================================================================
-        # Parachute Deployment Logic
-        # =====================================================================
-        if has_apogee and chute_diameter > 0.0 and (deploy_at_apogee or altitude <= 300.0):
-            chute_deployed = True
-
-        # =====================================================================
-        # Ground impact detection
-        # =====================================================================
-        # Only detect impact if we've actually gained altitude (avoid false trigger at t=0)
-        if has_lifted and altitude > 1.0:
-            max_alt_reached = True
-        if has_lifted and z <= 0 and max_alt_reached:
-            ground_impact = True
-            interval = t - prev_time
-            if prev_z > 0.0 and interval > 0.0:
-                fraction = prev_z / (prev_z - z)
-                impact_time = prev_time + fraction * interval
-                time_arr[i] = impact_time
-                pos_x[i] = pos_x[i - 1] + fraction * (x - pos_x[i - 1])
-                pos_y[i] = pos_y[i - 1] + fraction * (y - pos_y[i - 1])
-                pos_z[i] = 0.0
-                vel_x[i] = vel_x[i - 1] + fraction * (vx - vel_x[i - 1])
-                vel_y[i] = vel_y[i - 1] + fraction * (vy - vel_y[i - 1])
-                vel_z[i] = vel_z[i - 1] + fraction * (vz - vel_z[i - 1])
-                vel_mag[i] = np.linalg.norm([vel_x[i], vel_y[i], vel_z[i]])
-                if use_wgs84:
-                    latitude_arr[i] = latitude_arr[i - 1] + fraction * (
-                        latitude_arr[i] - latitude_arr[i - 1]
-                    )
-                    longitude_arr[i] = longitude_arr[i - 1] + fraction * (
-                        longitude_arr[i] - longitude_arr[i - 1]
-                    )
-                    geodetic_altitude_arr[i] = launch_altitude_m
-            # Truncate arrays
-            time_arr = time_arr[: i + 1]
-            pos_x = pos_x[: i + 1]
-            pos_y = pos_y[: i + 1]
-            pos_z = pos_z[: i + 1]
-            vel_x = vel_x[: i + 1]
-            vel_y = vel_y[: i + 1]
-            vel_z = vel_z[: i + 1]
-            vel_mag = vel_mag[: i + 1]
-            quat_w = quat_w[: i + 1]
-            quat_x = quat_x[: i + 1]
-            quat_y = quat_y[: i + 1]
-            quat_z = quat_z[: i + 1]
-            roll_arr = roll_arr[: i + 1]
-            pitch_arr = pitch_arr[: i + 1]
-            yaw_arr = yaw_arr[: i + 1]
-            omega_x_arr = omega_x_arr[: i + 1]
-            omega_y_arr = omega_y_arr[: i + 1]
-            omega_z_arr = omega_z_arr[: i + 1]
-            thrust_arr = thrust_arr[: i + 1]
-            drag_arr = drag_arr[: i + 1]
-            gravity_arr = gravity_arr[: i + 1]
-            mach_arr = mach_arr[: i + 1]
-            q_dynamic = q_dynamic[: i + 1]
-            mass_arr = mass_arr[: i + 1]
-            prop_mass_arr = prop_mass_arr[: i + 1]
-            isp_arr = isp_arr[: i + 1]
-            thrust_loss_arr = thrust_loss_arr[: i + 1]
-            flow_regime_arr = flow_regime_arr[: i + 1]
-            alpha_arr = alpha_arr[: i + 1]
-            beta_arr = beta_arr[: i + 1]
-            stability_arr = stability_arr[: i + 1]
-            latitude_arr = latitude_arr[: i + 1]
-            longitude_arr = longitude_arr[: i + 1]
-            geodetic_altitude_arr = geodetic_altitude_arr[: i + 1]
-            break
-
-        if t >= max_time - 1e-12:
-            break
-
-        # =====================================================================
-        # Integration step (RK4 fixed or RK45 adaptive with dense output)
-        # =====================================================================
-        if has_lifted:
-            if use_adaptive:
-                # Save previous state for interpolation
-                state_prev = state.copy()
-                t_prev = t
-
-                # Compute derivative at previous state (for Hermite interpolation)
-                dy_prev = derivatives_6dof(
-                    state_prev,
-                    current_mass,
-                    I_principal,
-                    F_thrust_body,
-                    F_aero_body,
-                    M_aero,
-                    M_thrust,
-                    altitude,
-                    use_wgs84,
-                )
-                dy_prev[13] = -mdot
-
-                # Adaptive RK45 mode with step-size control
-                prev_err_norm = 1.0
-                h = adaptive_h
-                if t < burn_time < t + h:
-                    h = burn_time - t
-                h = min(h, max_time - t)
-
-                # Keep trying until step is accepted
-                step_accepted = False
-                max_attempts = 20
-                attempts = 0
-
-                while not step_accepted and attempts < max_attempts:
-                    attempts += 1
-
-                    # Try RK45 step
-                    y_new, y_error, dy_new = rk45_step_rocket(
-                        state,
-                        h,
-                        current_mass,
-                        I_principal,
-                        F_thrust_body,
-                        F_aero_body,
-                        M_aero,
-                        M_thrust,
-                        altitude,
-                        mdot,
-                        use_wgs84,
-                    )
-
-                    # Compute error norm
-                    if use_wgs84:
-                        scaled_new = y_new.copy()
-                        scaled_old = state.copy()
-                        launch_position_old = ecef_to_eci(launch_ecef, t)
-                        launch_position_new = ecef_to_eci(launch_ecef, t + h)
-                        scaled_old[0:3] -= launch_position_old
-                        scaled_new[0:3] -= launch_position_new
-                        scaled_old[3:6] -= np.cross(earth_rate_vector, launch_position_old)
-                        scaled_new[3:6] -= np.cross(earth_rate_vector, launch_position_new)
-                        err_norm = rk45_error_norm(
-                            scaled_new,
-                            scaled_old,
-                            y_error,
-                            atol,
-                            rtol,
-                        )
-                    else:
-                        err_norm = rk45_error_norm(
-                            y_new,
-                            state,
-                            y_error,
-                            atol,
-                            rtol,
-                        )
-
-                    if err_norm <= 1.0:
-                        # Step accepted
-                        state = y_new
-                        step_accepted = True
-                        accepted_h = h
-
-                        # Compute new step size for next iteration
-                        adaptive_h = min(
-                            dt,
-                            output_dt,
-                            compute_new_step_size(h, err_norm, prev_err_norm, h_min, h_max),
-                        )
-                        prev_err_norm = max(err_norm, 1e-10)
-                    else:
-                        # Step rejected - reduce step size
-                        h = compute_new_step_size(h, err_norm, prev_err_norm, h_min, h_max)
-                        if h <= h_min:
-                            state = y_new
-                            step_accepted = True
-                            accepted_h = h
-
-                if not step_accepted:
-                    raise PhysicsViolationError(
-                        f"Adaptive integrator failed to accept a step at t={t:.6f}s"
-                    )
-                t = t_prev + accepted_h
-
             else:
-                # Fixed step RK4 mode
-                step_dt = min(dt, max_time - t)
-                if t < burn_time < t + step_dt:
-                    step_dt = burn_time - t
-                state = rk4_step_6dof(
-                    state,
-                    step_dt,
-                    current_mass,
-                    I_principal,
-                    F_thrust_body,
-                    F_aero_body,
-                    M_aero,
-                    M_thrust,
-                    altitude,
-                    mdot,
-                    use_wgs84,
-                )
-                t += step_dt
+                step = min(dt, max_time - t)
+                if t < burn_time < t + step:
+                    step = burn_time - t
+                if diag[_D_THRUST] > 0.0:
+                    y[13] = max(0.0, y[13] - mdot * step)
+                t += step
+                y = held_state(t, y, 0.0)
+                deriv, diag = _flight_evaluate(t, y, p, launch_ecef, launch_c)
+                if t >= next_output - 1e-12 or t >= max_time - 1e-12:
+                    history.append(t, y, diag)
+                    next_output = t + output_dt
+                if burn_time <= t and not has_burnout:
+                    has_burnout = True
+                    burnout_time = t
+                continue
 
-            # Check for NaN (physics violation)
-            if np.any(np.isnan(state)):
-                raise PhysicsViolationError(f"NaN detected in state at t={t:.2f}s")
+        # Step size, landing exactly on burnout
+        h_cap = max_time - t
+        if t < burn_time:
+            h_cap = min(h_cap, burn_time - t)
+        if on_rail:
+            # The rail constraint is applied between steps, so keep them short there.
+            h_cap = min(h_cap, dt)
+        h = min(adaptive_h if use_adaptive else dt, h_cap)
 
-            # Apply launch rail constraint (project velocity and lock orientation)
-            if use_wgs84:
-                constrained_ecef = eci_to_ecef(state[0:3], t)
-                constrained_enu = launch_ecef_to_enu @ (constrained_ecef - launch_ecef)
-                dist_traveled = float(np.linalg.norm(constrained_enu))
-            else:
-                dist_traveled = float(np.linalg.norm(state[0:3]))
-            if dist_traveled < rail_length:
+        if use_adaptive:
+            while True:
+                y_new, y_err, k_new = _flight_dp45(t, y, deriv, h, p, launch_ecef, launch_c)
                 if use_wgs84:
-                    rail_body_to_eci = (
-                        ecef_to_eci_matrix(t)
-                        @ launch_ecef_to_enu.T
-                        @ q_to_rotation_matrix(q_init_local)
-                    )
-                    rail_quaternion = q_from_rotation_matrix(rail_body_to_eci)
-                    state[6:10] = rail_quaternion
-                    state[10:13] = rail_body_to_eci.T @ earth_rate_vector
-                    relative_speed = float(
-                        np.linalg.norm(
-                            eci_to_ecef(
-                                state[3:6] - np.cross(earth_rate_vector, state[0:3]),
-                                t,
-                            )
-                        )
-                    )
-                    rail_velocity_ecef = launch_ecef_to_enu.T @ (
-                        relative_speed * rail_direction_enu
-                    )
-                    state[3:6] = np.cross(earth_rate_vector, state[0:3]) + ecef_to_eci(
-                        rail_velocity_ecef, t
-                    )
+                    offset_old = ecef_to_eci(launch_ecef, t)
+                    offset_new = ecef_to_eci(launch_ecef, t + h)
+                    scaled_old = y.copy()
+                    scaled_new = y_new.copy()
+                    scaled_old[0:3] -= offset_old
+                    scaled_new[0:3] -= offset_new
+                    scaled_old[3:6] -= np.cross(earth_rate, offset_old)
+                    scaled_new[3:6] -= np.cross(earth_rate, offset_new)
+                    err = rk45_error_norm(scaled_new, scaled_old, y_err, atol, rtol)
                 else:
-                    state[6:10] = q_init
-                    state[10:13] = 0.0
-                    relative_speed = float(np.linalg.norm(state[3:6]))
-                    state[3:6] = relative_speed * rail_direction_enu
+                    err = rk45_error_norm(y_new, y, y_err, atol, rtol)
+                if err <= 1.0 or h <= h_min * (1.0 + 1e-9):
+                    if err > 1.0:
+                        forced_min_steps += 1
+                    adaptive_h = compute_new_step_size(h, err, prev_err, h_min, h_max)
+                    prev_err = max(err, 1e-10)
+                    break
+                h = min(compute_new_step_size(h, err, prev_err, h_min, h_max), h_cap)
+            k_new_state = k_new
         else:
-            t = min(t + dt, max_time)
-            if use_wgs84:
-                state[0:3] = ecef_to_eci(launch_ecef, t)
-                state[3:6] = np.cross(earth_rate_vector, state[0:3])
-                held_body_to_eci = (
-                    ecef_to_eci_matrix(t)
-                    @ launch_ecef_to_enu.T
-                    @ q_to_rotation_matrix(q_init_local)
-                )
-                state[6:10] = q_from_rotation_matrix(held_body_to_eci)
-                state[10:13] = held_body_to_eci.T @ earth_rate_vector
+            y_new = _flight_rk4(t, y, h, p, launch_ecef, launch_c)
+            k_new_state = None
 
-        prev_vz = vz
-        prev_z = z
-        prev_time = time_arr[i]
+        if not np.all(np.isfinite(y_new)):
+            raise PhysicsViolationError(f"Non-finite state at t={t + h:.3f} s")
 
-    if samples_used < len(time_arr):
-        time_arr = time_arr[:samples_used]
-        pos_x = pos_x[:samples_used]
-        pos_y = pos_y[:samples_used]
-        pos_z = pos_z[:samples_used]
-        vel_x = vel_x[:samples_used]
-        vel_y = vel_y[:samples_used]
-        vel_z = vel_z[:samples_used]
-        vel_mag = vel_mag[:samples_used]
-        quat_w = quat_w[:samples_used]
-        quat_x = quat_x[:samples_used]
-        quat_y = quat_y[:samples_used]
-        quat_z = quat_z[:samples_used]
-        roll_arr = roll_arr[:samples_used]
-        pitch_arr = pitch_arr[:samples_used]
-        yaw_arr = yaw_arr[:samples_used]
-        omega_x_arr = omega_x_arr[:samples_used]
-        omega_y_arr = omega_y_arr[:samples_used]
-        omega_z_arr = omega_z_arr[:samples_used]
-        thrust_arr = thrust_arr[:samples_used]
-        drag_arr = drag_arr[:samples_used]
-        gravity_arr = gravity_arr[:samples_used]
-        mach_arr = mach_arr[:samples_used]
-        q_dynamic = q_dynamic[:samples_used]
-        mass_arr = mass_arr[:samples_used]
-        prop_mass_arr = prop_mass_arr[:samples_used]
-        isp_arr = isp_arr[:samples_used]
-        thrust_loss_arr = thrust_loss_arr[:samples_used]
-        flow_regime_arr = flow_regime_arr[:samples_used]
-        alpha_arr = alpha_arr[:samples_used]
-        beta_arr = beta_arr[:samples_used]
-        stability_arr = stability_arr[:samples_used]
-        latitude_arr = latitude_arr[:samples_used]
-        longitude_arr = longitude_arr[:samples_used]
-        geodetic_altitude_arr = geodetic_altitude_arr[:samples_used]
+        t_new = t + h
+        if on_rail:
+            along = rail_distance(t_new, y_new)
+            if along < rail_length:
+                y_new = held_state(t_new, y_new, max(0.0, along))
+                k_new_state = None
+            else:
+                on_rail = False
 
-    # =========================================================================
-    # Build result
-    # =========================================================================
+        deriv_new, diag_new = _flight_evaluate(t_new, y_new, p, launch_ecef, launch_c)
+        if k_new_state is None:
+            k_new_state = deriv_new
+
+        # Burnout (by time or by propellant exhaustion)
+        if not has_burnout and (t_new >= burn_time - 1e-12 or y_new[13] <= 0.0):
+            has_burnout = True
+            burnout_time = t_new
+            burnout_alt = diag_new[_D_HEIGHT]
+            burnout_vel = float(np.linalg.norm(diag_new[_D_VEL : _D_VEL + 3]))
+
+        vz_old = diag[_D_VEL + 2]
+        vz_new = diag_new[_D_VEL + 2]
+        z_old = diag[_D_HEIGHT]
+        z_new = diag_new[_D_HEIGHT]
+
+        # Apogee: vertical velocity changes sign, refined with the cubic in time
+        if not has_apogee and t > liftoff_time and vz_old > 0.0 >= vz_new:
+            s = float(np.clip(vz_old / (vz_old - vz_new), 0.0, 1.0))
+            s2 = s * s
+            s3 = s2 * s
+            apogee_time = t + s * h
+            apogee_alt = (
+                (2.0 * s3 - 3.0 * s2 + 1.0) * z_old
+                + (s3 - 2.0 * s2 + s) * h * vz_old
+                + (-2.0 * s3 + 3.0 * s2) * z_new
+                + (s3 - s2) * h * vz_new
+            )
+            has_apogee = True
+
+        if z_new > 1.0:
+            cleared_ground = True
+        impact = cleared_ground and z_new <= 0.0
+
+        # Output samples inside (t, t_new]
+        end = t_new
+        impact_fraction = 1.0
+        if impact:
+            impact_fraction = (
+                float(np.clip(z_old / (z_old - z_new), 0.0, 1.0)) if z_old > 0 else 1.0
+            )
+            end = t + impact_fraction * h
+        while next_output < end - 1e-12:
+            s = (next_output - t) / h
+            y_s = _hermite(y, deriv, y_new, k_new_state, h, s)
+            _, diag_s = _flight_evaluate(next_output, y_s, p, launch_ecef, launch_c)
+            history.append(next_output, y_s, diag_s)
+            next_output += output_dt
+
+        if impact:
+            y_hit = _hermite(y, deriv, y_new, k_new_state, h, impact_fraction)
+            _, diag_hit = _flight_evaluate(end, y_hit, p, launch_ecef, launch_c)
+            diag_hit[_D_POS + 2] = 0.0
+            diag_hit[_D_HEIGHT] = 0.0
+            history.append(end, y_hit, diag_hit)
+            landing = (float(diag_hit[_D_POS]), float(diag_hit[_D_POS + 1]))
+            ground_impact = True
+            termination = "ground_impact"
+            t = end
+            break
+
+        t, y, deriv, diag = t_new, y_new, deriv_new, diag_new
+        if t >= next_output - 1e-12 or t >= max_time - 1e-12:
+            history.append(t, y, diag)
+            next_output = t + output_dt
+
+        # Parachute deployment is an event: change the model between steps
+        deploy_now = deploy_at_apogee or z_new <= main_deploy_altitude_m
+        if not chute_deployed and has_apogee and chute_diameter > 0.0 and deploy_now:
+            chute_deployed = True
+            deploy_time = t
+            p[_P_CHUTE_CDA] = chute_cda
+            deriv, diag = _flight_evaluate(t, y, p, launch_ecef, launch_c)
+
+    n = history.n
+    times = history.t[:n]
+    states = history.y[:n]
+    diags = history.d[:n]
+    if n and not has_burnout:
+        burnout_time = float(times[-1])
+    if burnout_alt == 0.0 and has_burnout and n:
+        index = int(np.searchsorted(times, burnout_time))
+        index = min(index, n - 1)
+        burnout_alt = float(diags[index, _D_HEIGHT])
+        burnout_vel = float(np.linalg.norm(diags[index, _D_VEL : _D_VEL + 3]))
+
+    euler = np.array([q_to_euler(diags[i, _D_QUAT : _D_QUAT + 4]) for i in range(n)]).reshape(n, 3)
+    speed = np.linalg.norm(diags[:, _D_VEL : _D_VEL + 3], axis=1)
+    ascending = times <= (apogee_time if has_apogee else times[-1] if n else 0.0)
+    nan = np.full(n, np.nan)
+    burning = diags[:, _D_THRUST] > 0.0
+
     return FlightResult6DOF(
-        time=time_arr,
-        position_x=pos_x,
-        position_y=pos_y,
-        position_z=pos_z,
-        velocity_x=vel_x,
-        velocity_y=vel_y,
-        velocity_z=vel_z,
-        velocity_magnitude=vel_mag,
-        quaternion_w=quat_w,
-        quaternion_x=quat_x,
-        quaternion_y=quat_y,
-        quaternion_z=quat_z,
-        roll=roll_arr,
-        pitch=pitch_arr,
-        yaw=yaw_arr,
-        omega_x=omega_x_arr,
-        omega_y=omega_y_arr,
-        omega_z=omega_z_arr,
-        thrust=thrust_arr,
-        drag=drag_arr,
-        gravity_force=gravity_arr,
-        mach=mach_arr,
-        dynamic_pressure=q_dynamic,
-        mass=mass_arr,
-        propellant_mass=prop_mass_arr,
-        isp=isp_arr,
-        thrust_loss_factor=thrust_loss_arr,
-        flow_regime=flow_regime_arr,
-        angle_of_attack=alpha_arr,
-        sideslip_angle=beta_arr,
-        stability_margin=stability_arr,
-        geodetic_latitude=latitude_arr,
-        geodetic_longitude=longitude_arr,
-        geodetic_altitude=geodetic_altitude_arr,
+        time=times.copy(),
+        position_x=diags[:, _D_POS].copy(),
+        position_y=diags[:, _D_POS + 1].copy(),
+        position_z=np.maximum(diags[:, _D_HEIGHT], 0.0),
+        velocity_x=diags[:, _D_VEL].copy(),
+        velocity_y=diags[:, _D_VEL + 1].copy(),
+        velocity_z=diags[:, _D_VEL + 2].copy(),
+        velocity_magnitude=speed,
+        quaternion_w=diags[:, _D_QUAT].copy(),
+        quaternion_x=diags[:, _D_QUAT + 1].copy(),
+        quaternion_y=diags[:, _D_QUAT + 2].copy(),
+        quaternion_z=diags[:, _D_QUAT + 3].copy(),
+        roll=np.degrees(euler[:, 0]),
+        pitch=np.degrees(euler[:, 1]),
+        yaw=np.degrees(euler[:, 2]),
+        omega_x=states[:, 10].copy(),
+        omega_y=states[:, 11].copy(),
+        omega_z=states[:, 12].copy(),
+        thrust=diags[:, _D_THRUST].copy(),
+        drag=diags[:, _D_DRAG].copy(),
+        gravity_force=diags[:, _D_GRAVITY].copy(),
+        mach=diags[:, _D_MACH].copy(),
+        dynamic_pressure=diags[:, _D_QBAR].copy(),
+        mass=diags[:, _D_MASS].copy(),
+        propellant_mass=np.maximum(states[:, 13], 0.0),
+        isp=diags[:, _D_ISP].copy(),
+        thrust_loss_factor=np.where(burning, 1.0, 0.0),
+        flow_regime=diags[:, _D_REGIME].copy(),
+        angle_of_attack=diags[:, _D_ALPHA].copy(),
+        sideslip_angle=diags[:, _D_BETA].copy(),
+        stability_margin=diags[:, _D_MARGIN].copy(),
+        geodetic_latitude=diags[:, _D_LAT].copy() if use_wgs84 else nan,
+        geodetic_longitude=diags[:, _D_LON].copy() if use_wgs84 else nan.copy(),
+        geodetic_altitude=diags[:, _D_GEOD_ALT].copy() if use_wgs84 else nan.copy(),
         liftoff_time=liftoff_time,
         burnout_time=burnout_time,
         burnout_altitude=burnout_alt,
         burnout_velocity=burnout_vel,
         apogee_time=apogee_time,
         apogee_altitude=apogee_alt,
-        max_velocity=max_vel,
-        max_mach=max_mach_val,
-        max_acceleration=max_accel,
-        max_q=max_q,
-        max_alpha=max_alpha_val,
-        flight_time=time_arr[-1] if len(time_arr) > 0 else 0.0,
+        max_velocity=float(speed.max()) if n else 0.0,
+        max_mach=float(diags[:, _D_MACH].max()) if n else 0.0,
+        max_acceleration=float(diags[times >= liftoff_time, _D_ACCEL].max()) if has_lifted else 0.0,
+        max_q=float(diags[:, _D_QBAR].max()) if n else 0.0,
+        max_alpha=float(
+            np.abs(diags[ascending & (times > liftoff_time), _D_ALPHA]).max(initial=0.0)
+        ),
+        flight_time=float(times[-1]) if n else 0.0,
         success=has_lifted,
         abort_reason=None if has_lifted else "Vehicle did not lift off",
         apogee_reached=has_apogee,
         ground_impact=ground_impact,
-        termination_reason="ground_impact" if ground_impact else "maximum_time",
+        termination_reason=termination,
         reference_frame="wgs84_eci" if use_wgs84 else "local_enu",
         launch_latitude_deg=launch_latitude_deg if use_wgs84 else None,
         launch_longitude_deg=launch_longitude_deg if use_wgs84 else None,
         launch_altitude_m=launch_altitude_m if use_wgs84 else 0.0,
+        parachute_deploy_time=deploy_time,
+        landing_x=landing[0] if landing else None,
+        landing_y=landing[1] if landing else None,
+        forced_min_steps=forced_min_steps,
     )

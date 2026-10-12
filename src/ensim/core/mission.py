@@ -10,33 +10,40 @@ import numpy as np
 
 from ensim.utils.numba_support import jit
 
-# US Standard Atmosphere 1976 Constants
-# Geopotential altitude layers (m)
-H_LAYERS = np.array([0, 11000, 20000, 32000, 47000, 51000, 71000, 84852])
-# Base temperatures (K)
-T_LAYERS = np.array([288.15, 216.65, 216.65, 228.65, 270.65, 270.65, 214.65, 186.95])
-# Lapse rates (K/m)
-L_LAYERS = np.array([-0.0065, 0.0, 0.001, 0.0028, 0.0, -0.0028, -0.002, 0.0])
-# Base pressures (Pa)
-P_LAYERS = np.array([101325, 22632.1, 5474.89, 868.019, 110.906, 66.9389, 3.95642, 0.3734])
+from .constants import EARTH_RADIUS_US76, G0
 
-# Physical constants
-G0 = 9.80665  # m/s² standard gravity
-R_AIR = 287.058  # J/(kg·K) gas constant for air
-GAMMA_AIR = 1.4  # ratio of specific heats for air
-ATMOSPHERE_MODEL_TOP = 84_852.0
+# U.S. Standard Atmosphere 1976, layers 0-7. Base altitudes are geopotential (m').
+H_LAYERS = np.array([0.0, 11000.0, 20000.0, 32000.0, 47000.0, 51000.0, 71000.0, 84852.0])
+T_LAYERS = np.array([288.15, 216.65, 216.65, 228.65, 270.65, 270.65, 214.65, 186.946])
+L_LAYERS = np.array([-0.0065, 0.0, 0.001, 0.0028, 0.0, -0.0028, -0.002, 0.0])
+P_LAYERS = np.array(
+    [101325.0, 22632.06, 5474.889, 868.0187, 110.9063, 66.93887, 3.956420, 0.3733836]
+)
+
+R_AIR = 8314.32 / 28.9644
+"""Specific gas constant of air as defined by US76, J/(kg K)."""
+GAMMA_AIR = 1.4
+
+ATMOSPHERE_MODEL_TOP = 86_000.0
+"""Geometric altitude where the US76 lower-atmosphere tables end, m.
+
+Above it the temperature is held at the 86 km value and pressure decays
+isothermally. That keeps density and sound speed continuous for trajectories
+that leave the sensible atmosphere, but it is not the 1976 thermosphere model.
+"""
 
 
 @dataclass
 class AtmosphereState:
     """Atmospheric conditions at an altitude."""
 
-    altitude: float  # m
+    altitude: float  # m, geometric
     temperature: float  # K
     pressure: float  # Pa
     density: float  # kg/m³
     speed_of_sound: float  # m/s
     viscosity: float  # Pa·s
+    within_model: bool = True  # False above ATMOSPHERE_MODEL_TOP
 
 
 @dataclass
@@ -68,79 +75,55 @@ class MissionProfile:
 
 
 @jit(nopython=True, cache=True)
-def _atmosphere_layer(h: float) -> int:
-    """Find atmosphere layer index for given altitude."""
-    for i in range(len(H_LAYERS) - 1):
-        if h < H_LAYERS[i + 1]:
-            return i
-    return len(H_LAYERS) - 2
+def geopotential_altitude(z: float) -> float:
+    """Convert geometric altitude z (m) to US76 geopotential altitude (m')."""
+    return EARTH_RADIUS_US76 * z / (EARTH_RADIUS_US76 + z)
 
 
 @jit(nopython=True, cache=True)
-def _atmosphere_pressure(h: float) -> tuple[float, float]:
+def atmosphere_properties(z: float) -> tuple[float, float, float, float]:
+    """Temperature, pressure, density and speed of sound at geometric altitude z.
+
+    Negative altitudes are clamped to sea level. Returns (T [K], P [Pa],
+    rho [kg/m³], a [m/s]). Numba-compiled so the flight kernel can call it.
     """
-    Calculate pressure and temperature at altitude using US Std Atm 1976.
-
-    Returns: (pressure, temperature)
-    """
-    if h < 0:
-        h = 0
-    if h > 84852:
-        h = 84852
-
-    layer = _atmosphere_layer(h)
-
-    h_base = H_LAYERS[layer]
-    T_base = T_LAYERS[layer]
-    L = L_LAYERS[layer]
-    P_base = P_LAYERS[layer]
-
-    dh = h - h_base
-
-    if abs(L) > 1e-10:
-        # Non-isothermal layer
-        T = T_base + L * dh
-        P = P_base * (T / T_base) ** (-G0 / (R_AIR * L))
+    if z < 0.0:
+        z = 0.0
+    h = geopotential_altitude(z)
+    layer = len(H_LAYERS) - 1
+    for i in range(len(H_LAYERS) - 1):
+        if h < H_LAYERS[i + 1]:
+            layer = i
+            break
+    dh = h - H_LAYERS[layer]
+    t_base = T_LAYERS[layer]
+    lapse = L_LAYERS[layer]
+    if lapse != 0.0:
+        temperature = t_base + lapse * dh
+        pressure = P_LAYERS[layer] * (t_base / temperature) ** (G0 / (R_AIR * lapse))
     else:
-        # Isothermal layer
-        T = T_base
-        P = P_base * np.exp(-G0 * dh / (R_AIR * T))
-
-    return P, T
+        temperature = t_base
+        pressure = P_LAYERS[layer] * np.exp(-G0 * dh / (R_AIR * t_base))
+    density = pressure / (R_AIR * temperature)
+    sound_speed = np.sqrt(GAMMA_AIR * R_AIR * temperature)
+    return temperature, pressure, density, sound_speed
 
 
 def get_atmosphere(altitude: float) -> AtmosphereState:
-    """
-    Get complete atmospheric state at altitude.
-
-    Args:
-        altitude: Geometric altitude (m)
-
-    Returns:
-        AtmosphereState object
-    """
+    """Atmospheric state at a geometric altitude (m), US Standard Atmosphere 1976."""
     if not np.isfinite(altitude) or altitude < 0.0:
         raise ValueError("Atmospheric altitude must be finite and nonnegative")
-    if altitude > ATMOSPHERE_MODEL_TOP:
-        return AtmosphereState(
-            altitude=altitude,
-            temperature=T_LAYERS[-1],
-            pressure=0.0,
-            density=0.0,
-            speed_of_sound=0.0,
-            viscosity=0.0,
-        )
-
-    P, T = _atmosphere_pressure(altitude)
-
-    rho = P / (R_AIR * T)
-    a = np.sqrt(GAMMA_AIR * R_AIR * T)
-
-    # Sutherland's law for viscosity
+    T, P, rho, a = atmosphere_properties(float(altitude))
+    # Sutherland's law with the US76 constants
     mu = 1.458e-6 * T**1.5 / (T + 110.4)
-
     return AtmosphereState(
-        altitude=altitude, temperature=T, pressure=P, density=rho, speed_of_sound=a, viscosity=mu
+        altitude=altitude,
+        temperature=T,
+        pressure=P,
+        density=rho,
+        speed_of_sound=a,
+        viscosity=mu,
+        within_model=altitude <= ATMOSPHERE_MODEL_TOP,
     )
 
 
@@ -281,27 +264,3 @@ def analyze_altitude_sweep(
         max_thrust_altitude=max_thrust_alt,
         max_isp_altitude=max_isp_alt,
     )
-
-
-def get_atmosphere_table(max_alt: float = 100000, step: float = 5000) -> dict:
-    """
-    Generate atmosphere property table.
-
-    Returns dict with arrays of altitude, P, T, rho, a.
-    """
-    alts = np.arange(0, max_alt + step, step)
-    n = len(alts)
-
-    P = np.zeros(n)
-    T = np.zeros(n)
-    rho = np.zeros(n)
-    a = np.zeros(n)
-
-    for i, alt in enumerate(alts):
-        atm = get_atmosphere(alt)
-        P[i] = atm.pressure
-        T[i] = atm.temperature
-        rho[i] = atm.density
-        a[i] = atm.speed_of_sound
-
-    return {"altitude": alts, "pressure": P, "temperature": T, "density": rho, "speed_of_sound": a}

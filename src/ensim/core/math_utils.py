@@ -503,6 +503,42 @@ def cross_product(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     )
 
 
+@jit(nopython=True, cache=True)
+def q_from_dcm(matrix: np.ndarray) -> np.ndarray:
+    """Convert a rotation matrix to a unit quaternion without validation.
+
+    Shepperd's method; picks the largest pivot so the result stays accurate
+    for every attitude. Use :func:`q_from_rotation_matrix` for untrusted input.
+    """
+    trace = matrix[0, 0] + matrix[1, 1] + matrix[2, 2]
+    quaternion = np.empty(4)
+    if trace > 0.0:
+        scale = 2.0 * np.sqrt(trace + 1.0)
+        quaternion[0] = 0.25 * scale
+        quaternion[1] = (matrix[2, 1] - matrix[1, 2]) / scale
+        quaternion[2] = (matrix[0, 2] - matrix[2, 0]) / scale
+        quaternion[3] = (matrix[1, 0] - matrix[0, 1]) / scale
+    elif matrix[0, 0] >= matrix[1, 1] and matrix[0, 0] >= matrix[2, 2]:
+        scale = 2.0 * np.sqrt(1.0 + matrix[0, 0] - matrix[1, 1] - matrix[2, 2])
+        quaternion[0] = (matrix[2, 1] - matrix[1, 2]) / scale
+        quaternion[1] = 0.25 * scale
+        quaternion[2] = (matrix[0, 1] + matrix[1, 0]) / scale
+        quaternion[3] = (matrix[0, 2] + matrix[2, 0]) / scale
+    elif matrix[1, 1] >= matrix[2, 2]:
+        scale = 2.0 * np.sqrt(1.0 + matrix[1, 1] - matrix[0, 0] - matrix[2, 2])
+        quaternion[0] = (matrix[0, 2] - matrix[2, 0]) / scale
+        quaternion[1] = (matrix[0, 1] + matrix[1, 0]) / scale
+        quaternion[2] = 0.25 * scale
+        quaternion[3] = (matrix[1, 2] + matrix[2, 1]) / scale
+    else:
+        scale = 2.0 * np.sqrt(1.0 + matrix[2, 2] - matrix[0, 0] - matrix[1, 1])
+        quaternion[0] = (matrix[1, 0] - matrix[0, 1]) / scale
+        quaternion[1] = (matrix[0, 2] + matrix[2, 0]) / scale
+        quaternion[2] = (matrix[1, 2] + matrix[2, 1]) / scale
+        quaternion[3] = 0.25 * scale
+    return q_normalize(quaternion)
+
+
 def q_from_rotation_matrix(matrix: np.ndarray) -> np.ndarray:
     """Convert a proper 3D rotation matrix to a unit quaternion."""
     matrix = np.asarray(matrix, dtype=np.float64)
@@ -514,52 +550,7 @@ def q_from_rotation_matrix(matrix: np.ndarray) -> np.ndarray:
         raise ValueError("Rotation matrix must be orthonormal")
     if not np.isclose(np.linalg.det(matrix), 1.0, atol=1e-8):
         raise ValueError("Rotation matrix must have determinant +1")
-
-    trace = float(np.trace(matrix))
-    if trace > 0.0:
-        scale = 2.0 * np.sqrt(trace + 1.0)
-        quaternion = np.array(
-            [
-                0.25 * scale,
-                (matrix[2, 1] - matrix[1, 2]) / scale,
-                (matrix[0, 2] - matrix[2, 0]) / scale,
-                (matrix[1, 0] - matrix[0, 1]) / scale,
-            ]
-        )
-    else:
-        diagonal = np.diag(matrix)
-        index = int(np.argmax(diagonal))
-        if index == 0:
-            scale = 2.0 * np.sqrt(1.0 + matrix[0, 0] - matrix[1, 1] - matrix[2, 2])
-            quaternion = np.array(
-                [
-                    (matrix[2, 1] - matrix[1, 2]) / scale,
-                    0.25 * scale,
-                    (matrix[0, 1] + matrix[1, 0]) / scale,
-                    (matrix[0, 2] + matrix[2, 0]) / scale,
-                ]
-            )
-        elif index == 1:
-            scale = 2.0 * np.sqrt(1.0 + matrix[1, 1] - matrix[0, 0] - matrix[2, 2])
-            quaternion = np.array(
-                [
-                    (matrix[0, 2] - matrix[2, 0]) / scale,
-                    (matrix[0, 1] + matrix[1, 0]) / scale,
-                    0.25 * scale,
-                    (matrix[1, 2] + matrix[2, 1]) / scale,
-                ]
-            )
-        else:
-            scale = 2.0 * np.sqrt(1.0 + matrix[2, 2] - matrix[0, 0] - matrix[1, 1])
-            quaternion = np.array(
-                [
-                    (matrix[1, 0] - matrix[0, 1]) / scale,
-                    (matrix[0, 2] + matrix[2, 0]) / scale,
-                    (matrix[1, 2] + matrix[2, 1]) / scale,
-                    0.25 * scale,
-                ]
-            )
-    return q_normalize(quaternion)
+    return q_from_dcm(np.ascontiguousarray(matrix))
 
 
 @jit(nopython=True, cache=True)

@@ -241,136 +241,69 @@ class Rocket:
         """Total mass with full propellant (kg)."""
         return self.dry_mass + self.engine.propellant_mass
 
+    def propellant_at_time(self, t: float) -> float:
+        """Propellant left at time t after ignition, kg.
+
+        Uses ``engine.mass_flow_rate`` and ``engine.burn_time`` when they are
+        set. Without a burn definition the tanks are reported full, which is
+        the liftoff configuration stability checks need.
+        """
+        full = self.engine.propellant_mass
+        if t <= 0.0 or self.engine.mass_flow_rate <= 0.0:
+            return full
+        if self.engine.burn_time > 0.0 and t >= self.engine.burn_time:
+            return max(0.0, full - self.engine.mass_flow_rate * self.engine.burn_time)
+        return max(0.0, full - self.engine.mass_flow_rate * t)
+
     def get_mass_at_time(self, t: float) -> float:
-        """
-        Get rocket mass at time t during burn.
-
-        Args:
-            t: Time since ignition (s)
-
-        Returns:
-            Current mass (kg)
-        """
-        if t < 0:
-            return self.wet_mass
-        if t >= self.engine.burn_time:
-            return self.dry_mass
-
-        propellant_consumed = self.engine.mass_flow_rate * t
-        remaining_propellant = max(0, self.engine.propellant_mass - propellant_consumed)
-        return self.dry_mass + remaining_propellant
+        """Total mass at time t after ignition, kg."""
+        return self.get_mass_from_propellant(self.propellant_at_time(t))
 
     def get_cg_at_time(self, t: float) -> float:
-        """
-        Calculate CG position from nose tip at time t.
-
-        Args:
-            t: Time since ignition (s)
-
-        Returns:
-            CG position from nose (m)
-        """
-        # Component CG positions (from nose tip)
-        x_nose = self.nose.position_cg
-        x_body = self.nose.length + self.body.length / 2
-        x_fins = self.fins.position + self.fins.fin.root_chord / 2
-        x_engine = self.engine.position
-
-        # Masses
-        m_nose = self.nose.mass
-        m_body = self.body.mass
-        m_fins = self.fins.mass
-        m_engine_dry = self.engine.engine_mass_dry
-
-        # Propellant mass at time t
-        if t < 0:
-            m_prop = self.engine.propellant_mass
-        elif t >= self.engine.burn_time:
-            m_prop = 0
-        else:
-            consumed = self.engine.mass_flow_rate * t
-            m_prop = max(0, self.engine.propellant_mass - consumed)
-
-        # Weighted CG
-        total_moment = (
-            m_nose * x_nose + m_body * x_body + m_fins * x_fins + (m_engine_dry + m_prop) * x_engine
-        )
-        total_mass = m_nose + m_body + m_fins + m_engine_dry + m_prop
-
-        return total_moment / total_mass if total_mass > 0 else 0
+        """CG position from the nose tip at time t after ignition, m."""
+        return self.get_cg_from_propellant(self.propellant_at_time(t))
 
     @property
     def initial_propellant_mass(self) -> float:
-        """
-        Get initial propellant mass for state vector initialization.
-
-        This is the value that should be used for state[13] at t=0.
-
-        Returns:
-            Initial propellant mass (kg)
-        """
+        """Propellant loaded at liftoff, kg (initial value of state[13])."""
         return self.engine.propellant_mass
 
     def get_mass_from_propellant(self, m_prop: float) -> float:
-        """
-        Calculate total rocket mass from current propellant mass.
-
-        This method is used by the 14-element state vector solver where
-        m_prop is integrated as state[13].
-
-        Args:
-            m_prop: Current propellant mass from state vector (kg)
-
-        Returns:
-            Total rocket mass (kg)
-        """
+        """Total mass for a given remaining propellant mass, kg."""
         return self.dry_mass + max(0.0, m_prop)
 
     def get_cg_from_propellant(self, m_prop: float) -> float:
+        """CG position from the nose tip for a given remaining propellant mass, m.
+
+        The propellant is lumped at ``engine.position`` (the tank centre).
         """
-        Calculate CG position from current propellant mass.
-
-        This method is used by the 14-element state vector solver where
-        m_prop is integrated as state[13].
-
-        Args:
-            m_prop: Current propellant mass from state vector (kg)
-
-        Returns:
-            CG position from nose tip (m)
-        """
-        # Component CG positions (from nose tip)
-        x_nose = self.nose.position_cg
+        m_prop = max(0.0, m_prop)
         x_body = self.nose.length + self.body.length / 2
         x_fins = self.fins.position + self.fins.fin.root_chord / 2
-        x_engine = self.engine.position
-
-        # Component masses
-        m_nose = self.nose.mass
-        m_body = self.body.mass
-        m_fins = self.fins.mass
-        m_engine_dry = self.engine.engine_mass_dry
-
-        # Clamp propellant
-        m_prop = max(0.0, m_prop)
-
-        # Weighted CG
-        total_moment = (
-            m_nose * x_nose + m_body * x_body + m_fins * x_fins + (m_engine_dry + m_prop) * x_engine
+        moment = (
+            self.nose.mass * self.nose.position_cg
+            + self.body.mass * x_body
+            + self.fins.mass * x_fins
+            + (self.engine.engine_mass_dry + m_prop) * self.engine.position
         )
-        total_mass = m_nose + m_body + m_fins + m_engine_dry + m_prop
-
-        return total_moment / total_mass if total_mass > 0 else 0
+        total_mass = self.dry_mass + m_prop
+        if total_mass <= 0.0:
+            raise ValueError("Rocket mass must be positive")
+        return moment / total_mass
 
 
 def create_default_rocket() -> Rocket:
-    """Create a default small rocket configuration."""
+    """A small liquid-propellant sounding rocket, 9 kg at liftoff.
+
+    The tank holds 3.2 kg of LOX/kerosene at O/F 3 in 0.45 m of a 0.12 m
+    airframe, and the static margin is about 1.4 calibers with full tanks.
+    """
     return Rocket(
         name="Default Rocket",
-        nose=NoseCone(shape=NoseShape.OGIVE, length=0.25, diameter=0.1, mass=0.3),
-        body=BodyTube(length=1.0, diameter=0.1, mass=1.0),
+        nose=NoseCone(shape=NoseShape.OGIVE, length=0.45, diameter=0.12, mass=0.7),
+        body=BodyTube(length=1.8, diameter=0.12, mass=2.5),
         fins=FinSet(
-            fin=Fin(root_chord=0.12, tip_chord=0.04, span=0.12, sweep_angle=35.0), count=4, mass=0.2
+            fin=Fin(root_chord=0.26, tip_chord=0.10, span=0.16, sweep_angle=35.0), count=4, mass=0.6
         ),
-        engine=EngineMount(engine_mass_dry=2.0, fuel_mass=5.0, oxidizer_mass=25.0, tank_length=0.4),
+        engine=EngineMount(engine_mass_dry=2.0, fuel_mass=0.8, oxidizer_mass=2.4, tank_length=0.45),
     )

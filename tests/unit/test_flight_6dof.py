@@ -513,10 +513,22 @@ class TestFullSimulation:
         }
         fixed = simulate_flight_6dof(fixed_rocket, use_adaptive=False, **common)
         adaptive = simulate_flight_6dof(adaptive_rocket, use_adaptive=True, **common)
+        reference_rocket = Rocket()
+        reference_rocket.engine.fuel_mass = 1.0
+        reference_rocket.engine.oxidizer_mass = 3.0
+        reference = simulate_flight_6dof(
+            reference_rocket, use_adaptive=False, **{**common, "dt": 0.001}
+        )
 
+        # Same output grid, and both integrators converge to the fine-step solution.
         assert_allclose(adaptive.time, fixed.time, atol=1e-12)
-        assert_allclose(adaptive.position_z, fixed.position_z, rtol=1e-3, atol=1e-5)
-        assert_allclose(adaptive.velocity_z, fixed.velocity_z, rtol=2e-6, atol=1e-6)
+        assert_allclose(reference.time, fixed.time, atol=1e-9)
+        for result in (fixed, adaptive):
+            assert_allclose(result.position_z, reference.position_z, rtol=2e-3, atol=1e-3)
+            assert_allclose(result.velocity_z, reference.velocity_z, atol=0.2)
+        adaptive_error = np.max(np.abs(adaptive.position_z - reference.position_z))
+        fixed_error = np.max(np.abs(fixed.position_z - reference.position_z))
+        assert adaptive_error <= fixed_error
 
     def test_wgs84_eci_mode_returns_local_enu_history(self, basic_rocket):
         result = simulate_flight_6dof(
