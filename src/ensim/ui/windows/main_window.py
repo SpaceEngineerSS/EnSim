@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ...core.constants import GAS_CONSTANT
-from ...core.project_manager import ProjectManager
+from ...core.project_manager import ProjectFileError, ProjectManager
 from ...core.propulsion import get_nozzle_profile
 from ...utils.exporter import export_nozzle_profile_csv, export_report
 from ..widgets.advanced_engineering import AdvancedEngineeringWidget
@@ -38,6 +38,8 @@ from ..workers import (
     SimulationParams,
     SimulationResult,
 )
+
+PROJECT_FILE_FILTER = "EnSim project (*.ensim);;All files (*)"
 
 
 class KPICard(QFrame):
@@ -479,16 +481,20 @@ class MainWindow(QMainWindow):
 
     def _open_project(self):
         """Open an existing project."""
-        path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", ProjectManager.FILE_FILTER)
+        path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", PROJECT_FILE_FILTER)
         if path:
-            data = self._project.load(Path(path))
+            try:
+                data = self._project.load(Path(path))
+            except ProjectFileError as error:
+                QMessageBox.warning(self, "Open Project", str(error))
+                return
             if data:
                 # Populate UI with loaded data
-                self.input_panel.set_propellant_species(data.fuel, data.oxidizer)
-                self.input_panel.of_ratio_spin.setValue(data.of_ratio)
-                self.input_panel.pressure_spin.setValue(data.chamber_pressure_bar)
-                self.input_panel.throat_area_spin.setValue(data.throat_area_cm2)
-                self.input_panel.expansion_spin.setValue(data.expansion_ratio)
+                self.input_panel.set_propellant_species(data.engine.fuel, data.engine.oxidizer)
+                self.input_panel.of_ratio_spin.setValue(data.engine.of_ratio)
+                self.input_panel.pressure_spin.setValue(data.engine.chamber_pressure_bar)
+                self.input_panel.throat_area_spin.setValue(data.engine.throat_area_cm2)
+                self.input_panel.expansion_spin.setValue(data.engine.expansion_ratio)
 
                 # Check for nested V3 fields
                 if hasattr(data, "engine"):
@@ -542,18 +548,26 @@ class MainWindow(QMainWindow):
             self._save_project_as()
         else:
             self._collect_inputs()
-            if self._project.save():
-                self._update_title()
-                self.status_bar.showMessage("Project saved", 3000)
+            try:
+                self._project.save()
+            except ProjectFileError as error:
+                QMessageBox.warning(self, "Save Project", str(error))
+                return
+            self._update_title()
+            self.status_bar.showMessage("Project saved", 3000)
 
     def _save_project_as(self):
         """Save project with new name."""
-        path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", ProjectManager.FILE_FILTER)
+        path, _ = QFileDialog.getSaveFileName(self, "Save Project", "", PROJECT_FILE_FILTER)
         if path:
             self._collect_inputs()
-            if self._project.save(Path(path)):
-                self._update_title()
-                self.status_bar.showMessage(f"Saved: {path}", 3000)
+            try:
+                written = self._project.save(Path(path))
+            except ProjectFileError as error:
+                QMessageBox.warning(self, "Save Project", str(error))
+                return
+            self._update_title()
+            self.status_bar.showMessage(f"Saved: {written}", 3000)
 
     def _collect_inputs(self):
         """Collect inputs from UI into project."""

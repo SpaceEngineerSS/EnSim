@@ -157,52 +157,62 @@ def area_mach_function(M: float, gamma: float) -> float:
 
 
 @jit(nopython=True, cache=True)
+def mach_from_area_ratio(area_ratio: float, gamma: float, supersonic: bool = True) -> float:
+    """Mach number for an isentropic area ratio A/A* on the chosen branch.
+
+    Safeguarded Newton iteration on ln(A/A*) inside a bracket that always
+    contains the root, so it converges for any A/A* >= 1 and 1 < gamma < 2.
+
+    Raises:
+        ValueError: A/A* < 1 or gamma outside (1, 2).
+    """
+    if not area_ratio >= 1.0:
+        raise ValueError("Area ratio must be at least one")
+    if not 1.0 < gamma < 2.0:
+        raise ValueError("gamma must be between 1 and 2")
+    if area_ratio - 1.0 <= 1e-14:
+        return 1.0
+
+    target = np.log(area_ratio)
+    half_gm1 = 0.5 * (gamma - 1.0)
+    if supersonic:
+        lower = 1.0
+        upper = 2.0
+        while np.log(area_mach_function(upper, gamma)) < target:
+            lower = upper
+            upper *= 2.0
+            if upper > 1e4:
+                raise ValueError("Area ratio is too large for the supersonic branch")
+    else:
+        lower = 0.0
+        upper = 1.0
+
+    mach = 0.5 * (lower + upper)
+    for _ in range(200):
+        residual = np.log(area_mach_function(mach, gamma)) - target
+        if residual == 0.0:
+            return mach
+        too_far = residual > 0.0
+        if supersonic == too_far:
+            upper = mach
+        else:
+            lower = mach
+        slope = (mach * mach - 1.0) / (mach * (1.0 + half_gm1 * mach * mach))
+        candidate = mach - residual / slope if slope != 0.0 else -1.0
+        if not lower < candidate < upper:
+            candidate = 0.5 * (lower + upper)
+        if abs(candidate - mach) <= 1e-15 * max(1.0, mach):
+            return candidate
+        mach = candidate
+    return mach
+
+
+@jit(nopython=True, cache=True)
 def solve_mach_from_area_ratio_supersonic(
     area_ratio: float, gamma: float, tol: float = 1e-8, max_iter: int = 50
 ) -> float:
-    """
-    Solve for supersonic Mach number given area ratio using Newton-Raphson.
-    """
-    M = 1.0 + 0.5 * (area_ratio - 1.0)
-    if M < 1.1:
-        M = 1.1
-    if M > 10.0:
-        M = 10.0
-
-    gp1 = gamma + 1.0
-    gm1 = gamma - 1.0
-    exponent = gp1 / (2.0 * gm1)
-
-    for _ in range(max_iter):
-        term = (2.0 / gp1) * (1.0 + gm1 / 2.0 * M * M)
-        f = (1.0 / M) * term**exponent - area_ratio
-
-        df = (
-            -(term**exponent) / (M * M)
-            + (exponent * gm1 * M * term ** (exponent - 1.0) * (2.0 / gp1)) / M
-        )
-
-        if np.abs(df) < 1e-30:
-            break
-
-        dM = -f / df
-
-        if np.abs(dM) > 0.5:
-            dM = 0.5 * np.sign(dM)
-
-        M_new = M + dM
-
-        if M_new < 1.001:
-            M_new = 1.001
-        if M_new > 20.0:
-            M_new = 20.0
-
-        M = M_new
-
-        if np.abs(f) < tol:
-            break
-
-    return M
+    """Supersonic Mach number for A/A*. Kept for 3.x callers; ``tol`` and ``max_iter`` are unused."""
+    return mach_from_area_ratio(area_ratio, gamma, True)
 
 
 @jit(nopython=True, cache=True)

@@ -177,7 +177,8 @@ class FlightResult6DOF:
     launch_latitude_deg: float | None = None
     launch_longitude_deg: float | None = None
     launch_altitude_m: float = 0.0
-    parachute_deploy_time: float | None = None  # s
+    parachute_deploy_time: float | None = None  # s, main parachute
+    drogue_deploy_time: float | None = None  # s
     landing_x: float | None = None  # m east of the pad, None without ground impact
     landing_y: float | None = None  # m north of the pad
     forced_min_steps: int = 0  # adaptive steps accepted at h_min above tolerance
@@ -819,6 +820,8 @@ def simulate_flight_6dof(
     main_deploy_altitude_m: float = 300.0,
     wind_profile_top_m: float = 1000.0,
     cancel: Callable[[], bool] | None = None,
+    drogue_diameter: float = 0.0,
+    drogue_cd: float = 1.2,
 ) -> FlightResult6DOF:
     """Simulate a single-stage flight with 6-DOF rigid-body dynamics.
 
@@ -854,7 +857,11 @@ def simulate_flight_6dof(
         use_wgs84: Integrate in ECI with WGS-84 J2 gravity and Earth rotation.
         launch_latitude_deg, launch_longitude_deg, launch_altitude_m:
             Launch site for WGS-84 mode.
-        chute_cd: Parachute drag coefficient on its nominal area.
+        chute_cd: Main parachute drag coefficient on its nominal area.
+        drogue_diameter: Drogue diameter, m (0 = none). With a drogue the
+            drogue opens at apogee and the main at ``main_deploy_altitude_m``;
+            both then stay attached.
+        drogue_cd: Drogue drag coefficient.
         main_deploy_altitude_m: Height above the pad for a delayed deployment.
         wind_profile_top_m: The 1/7 power-law wind profile grows up to this
             height and stays constant above it.
@@ -876,6 +883,8 @@ def simulate_flight_6dof(
         raise PhysicsViolationError("Geometry and environmental magnitudes cannot be negative")
     if not 0.0 <= throttle <= 1.0:
         raise PhysicsViolationError("Throttle must be between zero and one")
+    if drogue_diameter < 0.0 or drogue_cd <= 0.0:
+        raise PhysicsViolationError("Drogue diameter and drag coefficient are invalid")
     if rocket.axial_drag_coefficient < 0.0 or cd_factor <= 0.0 or chute_cd <= 0.0:
         raise PhysicsViolationError("Drag coefficients must be positive")
     if use_adaptive and not 0.0 < h_min <= h_max:
@@ -905,6 +914,7 @@ def simulate_flight_6dof(
         nozzle_exit_pressure=nozzle_exit_pressure,
     )
     chute_cda = chute_cd * np.pi * (0.5 * chute_diameter) ** 2
+    drogue_cda = drogue_cd * np.pi * (0.5 * drogue_diameter) ** 2
 
     # Launch site and initial attitude
     elevation = np.radians(launch_angle_deg)
@@ -966,7 +976,9 @@ def simulate_flight_6dof(
     apogee_time = 0.0
     apogee_alt = 0.0
     chute_deployed = False
+    drogue_deployed = False
     deploy_time: float | None = None
+    drogue_time: float | None = None
     burnout_time = burn_time
     burnout_alt = 0.0
     burnout_vel = 0.0
@@ -1121,11 +1133,21 @@ def simulate_flight_6dof(
             next_output = t + output_dt
 
         # Parachute deployment is an event: change the model between steps
-        deploy_now = deploy_at_apogee or z_new <= main_deploy_altitude_m
-        if not chute_deployed and has_apogee and chute_diameter > 0.0 and deploy_now:
+        model_changed = False
+        if has_apogee and drogue_cda > 0.0 and not drogue_deployed:
+            drogue_deployed = True
+            drogue_time = t
+            model_changed = True
+        main_altitude_reached = z_new <= main_deploy_altitude_m
+        deploy_now = main_altitude_reached or (deploy_at_apogee and drogue_cda == 0.0)
+        if has_apogee and chute_cda > 0.0 and not chute_deployed and deploy_now:
             chute_deployed = True
             deploy_time = t
-            p[_P_CHUTE_CDA] = chute_cda
+            model_changed = True
+        if model_changed:
+            p[_P_CHUTE_CDA] = (drogue_cda if drogue_deployed else 0.0) + (
+                chute_cda if chute_deployed else 0.0
+            )
             deriv, diag = _flight_evaluate(t, y, p, launch_ecef, launch_c)
 
     n = history.n
@@ -1205,6 +1227,7 @@ def simulate_flight_6dof(
         launch_longitude_deg=launch_longitude_deg if use_wgs84 else None,
         launch_altitude_m=launch_altitude_m if use_wgs84 else 0.0,
         parachute_deploy_time=deploy_time,
+        drogue_deploy_time=drogue_time,
         landing_x=landing[0] if landing else None,
         landing_y=landing[1] if landing else None,
         forced_min_steps=forced_min_steps,

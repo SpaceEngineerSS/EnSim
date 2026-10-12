@@ -23,7 +23,8 @@ import pytest
 from ensim.core.chemistry import CombustionProblem
 from ensim.core.constants import GAS_CONSTANT
 from ensim.core.propulsion import calculate_c_star, calculate_thrust_coefficient
-from ensim.utils.nasa_parser import create_sample_database, load_default_database
+from ensim.utils.nasa_parser import load_default_database
+from tests.fixtures.sample_thermo import create_sample_database
 
 
 @dataclass

@@ -20,6 +20,9 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.optimize import differential_evolution, minimize, minimize_scalar
 
+from .constants import EARTH_RADIUS_MEAN, G0
+from .mission import atmosphere_properties
+
 
 @dataclass
 class OptimizationResult:
@@ -260,11 +263,7 @@ def _evaluate_gravity_turn(
     integration_step: float,
 ) -> GravityTurnEvaluation:
     """Integrate a parameterized planar powered ascent with RK4."""
-    from ensim.core.mission import get_atmosphere
-
-    earth_radius = 6_371_000.0
-    standard_gravity = 9.80665
-    mass_flow = thrust / (isp * standard_gravity)
+    mass_flow = thrust / (isp * G0)
     burn_time = propellant_mass / mass_flow
     state = np.array([0.0, 0.0, 0.0, 0.0, vehicle_mass])
     time = 0.0
@@ -284,13 +283,13 @@ def _evaluate_gravity_turn(
 
     def derivative(local_state: np.ndarray, angle: float) -> np.ndarray:
         _, altitude, velocity_x, velocity_z, mass = local_state
-        atmosphere = get_atmosphere(max(0.0, altitude))
+        density = atmosphere_properties(max(0.0, altitude))[2]
         speed = float(np.hypot(velocity_x, velocity_z))
-        dynamic_pressure = 0.5 * atmosphere.density * speed**2
+        dynamic_pressure = 0.5 * density * speed**2
         drag = dynamic_pressure * drag_coefficient * reference_area
         drag_x = drag * velocity_x / speed if speed > 1e-12 else 0.0
         drag_z = drag * velocity_z / speed if speed > 1e-12 else 0.0
-        gravity = standard_gravity * (earth_radius / (earth_radius + max(altitude, 0.0))) ** 2
+        gravity = G0 * (EARTH_RADIUS_MEAN / (EARTH_RADIUS_MEAN + max(altitude, 0.0))) ** 2
         return np.array(
             [
                 velocity_x,
@@ -301,6 +300,7 @@ def _evaluate_gravity_turn(
             ]
         )
 
+    # Classical RK4; the commanded pitch angle is held over each step.
     while time < burn_time - 1e-12:
         step = min(integration_step, burn_time - time)
         angle = thrust_angle(time, state[1])
@@ -311,10 +311,10 @@ def _evaluate_gravity_turn(
         state += step / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         time += step
         speed = float(np.hypot(state[2], state[3]))
-        atmosphere = get_atmosphere(max(0.0, state[1]))
-        max_q = max(max_q, 0.5 * atmosphere.density * speed**2)
-        drag = 0.5 * atmosphere.density * speed**2 * drag_coefficient * reference_area
-        max_acceleration = max(max_acceleration, (thrust - drag) / state[4] / standard_gravity)
+        density = atmosphere_properties(max(0.0, state[1]))[2]
+        max_q = max(max_q, 0.5 * density * speed**2)
+        drag = 0.5 * density * speed**2 * drag_coefficient * reference_area
+        max_acceleration = max(max_acceleration, (thrust - drag) / state[4] / G0)
         min_altitude = min(min_altitude, state[1])
 
     final_speed = float(np.hypot(state[2], state[3]))
@@ -363,11 +363,7 @@ def optimize_nozzle_expansion_ratio(
     Returns:
         OptimizationResult with optimal expansion ratio
     """
-    from ensim.core.propulsion import (
-        calculate_exit_conditions,
-        calculate_thrust_coefficient,
-        solve_mach_from_area_ratio_supersonic,
-    )
+    from ensim.core.propulsion import calculate_thrust_coefficient, mach_from_area_ratio
 
     if chamber_pressure <= 0.0 or ambient_pressure < 0.0 or not 1.0 < gamma < 2.0:
         raise ValueError("Pressure and specific-heat-ratio inputs are invalid")
@@ -387,45 +383,29 @@ def optimize_nozzle_expansion_ratio(
 
     history = []
 
-    def objective(area_ratio):
-        """Objective: maximize weighted Cf."""
-        if area_ratio < 1.5:
-            return 1e6  # Invalid
+    def exit_pressure_ratio(area_ratio: float) -> tuple[float, float]:
+        mach = mach_from_area_ratio(area_ratio, gamma, True)
+        return mach, (1.0 + 0.5 * (gamma - 1.0) * mach * mach) ** (-gamma / (gamma - 1.0))
 
-        # Get exit Mach from area ratio
-        try:
-            M_exit = solve_mach_from_area_ratio_supersonic(area_ratio, gamma)
-            if np.isnan(M_exit) or M_exit < 1:
-                return 1e6
-
-            # Calculate exit pressure
-            _, P_exit, _ = calculate_exit_conditions(gamma, 3500.0, chamber_pressure, M_exit)
-
-            # Vacuum Cf (no back-pressure)
-            pr = P_exit / chamber_pressure
-            Cf_vac = calculate_thrust_coefficient(gamma, pr, area_ratio, 0.0)
-
-            # Sea-level Cf (with back-pressure)
-            Cf_sl = calculate_thrust_coefficient(
-                gamma, pr, area_ratio, ambient_pressure / chamber_pressure
-            )
-
-            # Weighted objective (negative because we minimize)
-            weighted_cf = -(weight_vacuum * Cf_vac + weight_sealevel * Cf_sl)
-            history.append(-weighted_cf)
-            return weighted_cf
-
-        except Exception:
-            return 1e6
+    def objective(area_ratio: float) -> float:
+        """Negative weighted thrust coefficient (minimised)."""
+        _, pr = exit_pressure_ratio(area_ratio)
+        cf_vacuum = calculate_thrust_coefficient(gamma, pr, area_ratio, 0.0)
+        cf_ambient = calculate_thrust_coefficient(
+            gamma, pr, area_ratio, ambient_pressure / chamber_pressure
+        )
+        weighted = weight_vacuum * cf_vacuum + weight_sealevel * cf_ambient
+        history.append(weighted)
+        return -weighted
 
     # Search over reasonable expansion ratio range
     result = minimize_scalar(
         objective, bounds=(5.0, 300.0), method="bounded", options={"maxiter": 100, "xatol": 0.1}
     )
 
-    optimal_ratio = result.x
-    M_exit = solve_mach_from_area_ratio_supersonic(optimal_ratio, gamma)
-    _, P_exit, _ = calculate_exit_conditions(gamma, 3500.0, chamber_pressure, M_exit)
+    optimal_ratio = float(result.x)
+    M_exit, exit_ratio = exit_pressure_ratio(optimal_ratio)
+    P_exit = exit_ratio * chamber_pressure
 
     return OptimizationResult(
         success=result.success if hasattr(result, "success") else True,
@@ -484,7 +464,6 @@ def optimize_stage_mass_allocation(
     if num_stages * 0.05 > 1.0 or num_stages * 0.8 < 1.0:
         raise ValueError("Stage count is incompatible with the allocation bounds")
 
-    G0 = 9.80665
     history = []
 
     def objective(prop_fractions):
@@ -730,7 +709,6 @@ def optimize_propellant_load(
     Returns:
         OptimizationResult with optimal propellant load
     """
-    G0 = 9.80665
     if (
         dry_mass <= 0.0
         or tank_volume <= 0.0

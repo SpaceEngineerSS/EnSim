@@ -10,7 +10,7 @@ from ensim.core.chemistry import (
     lookup_combustion_properties,
     nasa_get_cp_r,
 )
-from ensim.utils.nasa_parser import create_sample_database
+from tests.fixtures.sample_thermo import create_sample_database
 
 
 def test_packaged_thermodynamic_data_are_available():

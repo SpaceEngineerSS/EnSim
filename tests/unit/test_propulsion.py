@@ -300,3 +300,24 @@ class TestSuttonExample:
         assert error < 0.01, (
             f"C* = {c_star:.1f} m/s, expected ~{expected:.0f} m/s (error={error * 100:.1f}%)"
         )
+
+
+@pytest.mark.parametrize("gamma", [1.05, 1.2, 1.4, 1.67])
+@pytest.mark.parametrize("area_ratio", [1.0 + 1e-9, 1.001, 2.0, 40.0, 400.0, 5000.0])
+def test_area_mach_inverse_round_trips_on_both_branches(gamma, area_ratio):
+    from ensim.core.propulsion import mach_from_area_ratio
+
+    supersonic = mach_from_area_ratio(area_ratio, gamma, True)
+    subsonic = mach_from_area_ratio(area_ratio, gamma, False)
+    assert supersonic >= 1.0 >= subsonic
+    assert area_mach_function(supersonic, gamma) == pytest.approx(area_ratio, rel=1e-10)
+    assert area_mach_function(subsonic, gamma) == pytest.approx(area_ratio, rel=1e-10)
+
+
+def test_area_mach_inverse_rejects_invalid_inputs():
+    from ensim.core.propulsion import mach_from_area_ratio
+
+    with pytest.raises(ValueError):
+        mach_from_area_ratio(0.9, 1.2, True)
+    with pytest.raises(ValueError):
+        mach_from_area_ratio(10.0, 1.0, True)

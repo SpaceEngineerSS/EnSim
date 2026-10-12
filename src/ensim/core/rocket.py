@@ -21,6 +21,16 @@ class NoseShape(Enum):
     HAACK = "haack"
 
 
+# Volume of a solid nose divided by base area times length
+_NOSE_VOLUME_FACTOR = {
+    NoseShape.CONICAL: 1.0 / 3.0,
+    NoseShape.OGIVE: 0.5,
+    NoseShape.ELLIPTICAL: 2.0 / 3.0,
+    NoseShape.PARABOLIC: 0.5,
+    NoseShape.HAACK: 0.5,
+}
+
+
 @dataclass
 class NoseCone:
     """
@@ -47,19 +57,19 @@ class NoseCone:
 
     @property
     def volume(self) -> float:
-        """Approximate volume (m³)."""
-        if self.shape == NoseShape.CONICAL:
-            return (1 / 3) * np.pi * (self.diameter / 2) ** 2 * self.length
-        else:  # Ogive approximation
-            return 0.5 * np.pi * (self.diameter / 2) ** 2 * self.length
+        """Enclosed volume, m³ (tangent ogive approximated by the paraboloid value)."""
+        return _NOSE_VOLUME_FACTOR[self.shape] * np.pi * (self.diameter / 2) ** 2 * self.length
 
     @property
     def position_cg(self) -> float:
-        """CG distance from nose tip (m)."""
+        """CG distance from the tip, m, for a thin shell of uniform thickness.
+
+        Laid-up and printed noses are shells, so the surface centroid is the
+        better estimate: 2/3 L for a cone, about 0.6 L for the rounder shapes.
+        """
         if self.shape == NoseShape.CONICAL:
-            return 0.75 * self.length  # 3/4 from tip
-        else:
-            return 0.6 * self.length  # Ogive
+            return 2.0 / 3.0 * self.length
+        return 0.6 * self.length
 
 
 @dataclass

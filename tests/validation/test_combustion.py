@@ -13,7 +13,7 @@ import pytest
 
 from ensim.core.chemistry import CombustionProblem
 from ensim.core.types import CalculationError
-from ensim.utils.nasa_parser import create_sample_database
+from tests.fixtures.sample_thermo import create_sample_database
 
 
 class TestH2O2Combustion:

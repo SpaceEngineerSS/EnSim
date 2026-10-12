@@ -21,7 +21,7 @@ from ensim.core.thermodynamics import (
     h_over_rt,
     s_over_r,
 )
-from ensim.utils.nasa_parser import create_sample_database
+from tests.fixtures.sample_thermo import create_sample_database
 
 
 class TestNASAPolynomialCalculations:

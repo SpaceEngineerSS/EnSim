@@ -1,19 +1,15 @@
-"""
-Recovery Systems Module.
+"""Parachute sizing and steady descent estimates.
 
-Implements parachute physics, descent calculations,
-and landing drift estimation.
-
-Reference:
-- OpenRocket Technical Documentation
+The 6-DOF simulation applies parachute drag itself; these helpers answer the
+quick design questions (how big, how fast, how long).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 
-from ensim.utils.numba_support import jit
+from .constants import G0
 
 
 class DeployTrigger(Enum):
@@ -21,17 +17,6 @@ class DeployTrigger(Enum):
 
     AT_APOGEE = "apogee"
     AT_ALTITUDE = "altitude"
-
-
-class FlightPhase(Enum):
-    """Rocket flight phases for state machine."""
-
-    PAD = "pad"
-    ASCENT = "ascent"
-    COAST = "coast"
-    DROGUE_DESCENT = "drogue_descent"
-    MAIN_DESCENT = "main_descent"
-    GROUND = "ground"
 
 
 @dataclass
@@ -77,106 +62,8 @@ class Parachute:
         if self.cda <= 0.0 or mass <= 0.0 or rho <= 0.0:
             raise ValueError("Mass, density and parachute drag area must be positive")
 
-        g = 9.80665
-        v_descent = np.sqrt(2 * mass * g / (rho * self.cda))
+        v_descent = np.sqrt(2 * mass * G0 / (rho * self.cda))
         return v_descent
-
-
-@dataclass
-class RecoverySystem:
-    """
-    Complete recovery system configuration.
-
-    Supports single deployment (main only) or dual deployment
-    (drogue at apogee + main at altitude).
-    """
-
-    main_chute: Parachute = field(default_factory=Parachute)
-    drogue_chute: Parachute | None = None
-    dual_deploy: bool = False
-
-    def get_active_chute(self, altitude: float, at_apogee: bool) -> Parachute | None:
-        """
-        Get the currently active parachute based on flight state.
-
-        Args:
-            altitude: Current altitude (m)
-            at_apogee: True if at or past apogee
-
-        Returns:
-            Active parachute or None if not deployed
-        """
-        if not at_apogee:
-            return None
-
-        if self.dual_deploy and self.drogue_chute is not None:
-            # Dual deployment: drogue first, then main
-            if altitude > self.main_chute.deploy_altitude:
-                return self.drogue_chute
-            else:
-                return self.main_chute
-        else:
-            # Single deployment
-            if (
-                self.main_chute.deploy_trigger == DeployTrigger.AT_APOGEE
-                or altitude <= self.main_chute.deploy_altitude
-            ):
-                return self.main_chute
-
-        return None
-
-
-@jit(nopython=True, cache=True)
-def calculate_descent_velocity(
-    mass: float, rho: float, chute_cda: float, current_velocity: float, dt: float
-) -> float:
-    """
-    Calculate velocity during parachute descent.
-
-    Uses quasi-steady approximation with gradual deployment.
-
-    Args:
-        mass: Total mass (kg)
-        rho: Air density (kg/m³)
-        chute_cda: Parachute Cd×A (m²)
-        current_velocity: Current vertical velocity (m/s, negative = down)
-        dt: Time step (s)
-
-    Returns:
-        New velocity (m/s)
-    """
-    g = 9.80665
-
-    # Terminal velocity under chute
-    v_terminal = -np.sqrt(2 * mass * g / (rho * chute_cda))
-
-    # Exponential approach to terminal (simulates opening shock)
-    tau = 0.5  # Time constant for opening
-    alpha = 1 - np.exp(-dt / tau)
-
-    new_velocity = current_velocity + alpha * (v_terminal - current_velocity)
-
-    return new_velocity
-
-
-def calculate_drift(
-    descent_time: float, wind_speed: float, wind_direction: float = 0.0
-) -> tuple[float, float]:
-    """
-    Calculate landing drift from launch point.
-
-    Drift = Wind_speed × Descent_time
-
-    Args:
-        descent_time: Time from apogee to ground (s)
-        wind_speed: Average wind speed (m/s)
-        wind_direction: Wind direction in degrees from North
-
-    Returns:
-        Tuple of (drift_distance, drift_direction)
-    """
-    drift_distance = wind_speed * descent_time
-    return drift_distance, wind_direction
 
 
 def estimate_descent(apogee: float, mass: float, chute: Parachute, rho_avg: float = 1.1) -> dict:
@@ -224,7 +111,6 @@ def size_parachute(
     """
     if mass <= 0.0 or target_descent_rate <= 0.0 or cd <= 0.0 or rho <= 0.0:
         raise ValueError("Sizing inputs must be positive")
-    g = 9.80665
-    area = 2 * mass * g / (rho * cd * target_descent_rate**2)
+    area = 2 * mass * G0 / (rho * cd * target_descent_rate**2)
     diameter = 2 * np.sqrt(area / np.pi)
     return diameter

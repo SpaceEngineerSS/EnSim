@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 from ensim.utils.numba_support import jit
 
 from .constants import NASA_R
+from .propulsion import mach_from_area_ratio
 
 
 class CoolingType(Enum):
@@ -114,6 +115,27 @@ COOLANT_DATABASE: dict[CoolantType, CoolantProperties] = {
         critical_temp=190.6,
         critical_pressure=4.6e6,
         reference_inlet_temperature=110.0,
+    ),
+    # Hydrazine and MMH at 298 K: Schmidt, "Hydrazine and Its Derivatives", 2nd ed., 2001
+    CoolantType.N2H4: CoolantProperties(
+        density=1004.0,
+        specific_heat=3080.0,
+        thermal_conductivity=0.35,
+        dynamic_viscosity=0.90e-3,
+        boiling_point=386.7,
+        critical_temp=653.0,
+        critical_pressure=14.7e6,
+        reference_inlet_temperature=293.15,
+    ),
+    CoolantType.MMH: CoolantProperties(
+        density=874.0,
+        specific_heat=2930.0,
+        thermal_conductivity=0.25,
+        dynamic_viscosity=0.78e-3,
+        boiling_point=360.6,
+        critical_temp=567.0,
+        critical_pressure=8.24e6,
+        reference_inlet_temperature=293.15,
     ),
     CoolantType.WATER: CoolantProperties(
         density=998.0,
@@ -295,7 +317,7 @@ def bartz_heat_transfer_coefficient(
 
     R_spec = NASA_R / molecular_weight
     Cp = gamma * R_spec / (gamma - 1.0)
-    M_local = _mach_from_area_ratio(area_ratio, gamma, supersonic)
+    M_local = mach_from_area_ratio(area_ratio, gamma, supersonic)
     temperature_factor = 1.0 + 0.5 * (gamma - 1.0) * M_local**2
     wall_ratio = (
         wall_temperature / T_chamber
@@ -316,34 +338,6 @@ def bartz_heat_transfer_coefficient(
         * area_ratio**-0.9
         * sigma
     )
-
-
-@jit(nopython=True, cache=True)
-def _mach_from_area_ratio(area_ratio: float, gamma: float, supersonic: bool) -> float:
-    """Solve the calorically-perfect isentropic area-Mach relation."""
-    if area_ratio <= 1.0 + 1e-12:
-        return 1.0
-
-    def area_function(mach: float) -> float:
-        factor = 2.0 / (gamma + 1.0) * (1.0 + 0.5 * (gamma - 1.0) * mach * mach)
-        exponent = (gamma + 1.0) / (2.0 * (gamma - 1.0))
-        return factor**exponent / mach
-
-    lower = 1.0 + 1e-10 if supersonic else 1e-8
-    upper = 50.0 if supersonic else 1.0 - 1e-10
-    for _ in range(100):
-        midpoint = 0.5 * (lower + upper)
-        value = area_function(midpoint)
-        if supersonic:
-            if value < area_ratio:
-                lower = midpoint
-            else:
-                upper = midpoint
-        elif value > area_ratio:
-            lower = midpoint
-        else:
-            upper = midpoint
-    return 0.5 * (lower + upper)
 
 
 @jit(nopython=True, cache=True)
@@ -568,7 +562,7 @@ def analyze_cooling_system(
         area_ratio = (local_dia / D_throat) ** 2
 
         is_supersonic = x >= throat_x
-        local_mach = _mach_from_area_ratio(area_ratio, gamma, is_supersonic)
+        local_mach = mach_from_area_ratio(area_ratio, gamma, is_supersonic)
         temperature_factor = 1.0 + 0.5 * (gamma - 1.0) * local_mach**2
         recovery_factor = gas_prandtl ** (1.0 / 3.0)
         T_static = T_chamber / temperature_factor
@@ -752,7 +746,7 @@ def calculate_thermal_profile(
 
     for i in range(num_stations):
         is_supersonic = x_positions[i] >= 0.0
-        local_mach = _mach_from_area_ratio(area_ratios[i], gamma, is_supersonic)
+        local_mach = mach_from_area_ratio(area_ratios[i], gamma, is_supersonic)
         temperature_factor = 1.0 + 0.5 * (gamma - 1.0) * local_mach**2
         recovery_factor = gas_prandtl ** (1.0 / 3.0)
         recovery_temperature = (

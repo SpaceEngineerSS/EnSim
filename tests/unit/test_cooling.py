@@ -7,13 +7,13 @@ from ensim.core.cooling import (
     CoolantType,
     CoolingChannel,
     CoolingSystemDesign,
-    _mach_from_area_ratio,
     analyze_cooling_system,
     bartz_heat_transfer_coefficient,
     calculate_thermal_profile,
     coolant_heat_transfer_coefficient,
     smooth_channel_darcy_friction_factor,
 )
+from ensim.core.propulsion import mach_from_area_ratio
 
 
 def test_bartz_throat_value_matches_published_equation_form():
@@ -61,7 +61,7 @@ def test_bartz_pressure_scaling_is_pc_to_power_point_eight():
 def test_area_mach_solver_satisfies_isentropic_relation(supersonic):
     gamma = 1.2
     area_ratio = 4.0
-    mach = _mach_from_area_ratio(area_ratio, gamma, supersonic)
+    mach = mach_from_area_ratio(area_ratio, gamma, supersonic)
     recovered = (2.0 / (gamma + 1.0) * (1.0 + 0.5 * (gamma - 1.0) * mach**2)) ** (
         (gamma + 1.0) / (2.0 * (gamma - 1.0))
     ) / mach

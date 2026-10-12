@@ -79,7 +79,7 @@ TEMPERATURE_MAX_ABSOLUTE = 6000.0  # Physical limit for calculations
 OF_RANGES = {
     "H2": (4.0, 8.0),  # H2/O2 stoichiometric ~8
     "CH4": (2.5, 4.5),  # Methane/O2
-    "RP-1": (2.0, 3.5),  # Kerosene/O2
+    "RP1": (2.0, 3.5),  # Kerosene/O2
     "N2H4": (0.8, 1.5),  # Hydrazine/N2O4
     "MMH": (1.5, 3.0),  # MMH/N2O4
     "UDMH": (1.8, 3.0),  # UDMH/N2O4

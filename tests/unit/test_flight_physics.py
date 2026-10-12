@@ -132,3 +132,22 @@ def test_fin_misalignment_produces_trim_moment_not_initial_tilt():
     assert aligned.quaternion_w[0] == pytest.approx(canted.quaternion_w[0])
     lateral = np.hypot(canted.position_x[-1], canted.position_y[-1])
     assert lateral > np.hypot(aligned.position_x[-1], aligned.position_y[-1]) + 0.01
+
+
+def test_dual_deploy_opens_drogue_at_apogee_and_main_low():
+    result = _flight(
+        max_time=300.0,
+        drogue_diameter=0.4,
+        chute_diameter=1.2,
+        deploy_at_apogee=False,
+        main_deploy_altitude_m=80.0,
+    )
+    assert result.drogue_deploy_time == pytest.approx(result.apogee_time, abs=0.05)
+    assert result.parachute_deploy_time > result.drogue_deploy_time
+    index = np.searchsorted(result.time, result.parachute_deploy_time)
+    assert result.position_z[index] <= 81.0
+    # Under the drogue alone the descent is faster than under both canopies
+    drogue_phase = (result.time > result.drogue_deploy_time + 3.0) & (
+        result.time < result.parachute_deploy_time
+    )
+    assert abs(result.velocity_z[drogue_phase][-1]) > abs(result.velocity_z[-1])

@@ -9,8 +9,8 @@ from ensim.core.types import SpeciesData
 from ensim.utils.nasa_parser import (
     _calculate_mw_from_name,
     _parse_coefficient,
-    create_sample_database,
 )
+from tests.fixtures.sample_thermo import create_sample_database
 
 
 class TestCoefficientParsing:

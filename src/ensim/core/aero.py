@@ -37,11 +37,14 @@ def calculate_cp_nose(nose: NoseCone) -> float:
     """Return nose center of pressure measured from the tip."""
     if nose.length <= 0.0:
         raise ValueError("Nose length must be positive")
+    # Barrowman for cone and tangent ogive; slender-body x_cp = L - V/A_base for the
+    # rest (paraboloid and LD-Haack have V = A L / 2, ellipsoid V = 2 A L / 3).
     factors = {
         NoseShape.CONICAL: 2.0 / 3.0,
         NoseShape.OGIVE: 0.466,
         NoseShape.PARABOLIC: 0.5,
         NoseShape.ELLIPTICAL: 1.0 / 3.0,
+        NoseShape.HAACK: 0.5,
     }
     if nose.shape not in factors:
         raise ValueError(f"Unsupported nose shape: {nose.shape.value}")
