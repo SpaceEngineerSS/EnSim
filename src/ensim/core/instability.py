@@ -102,10 +102,7 @@ class InstabilityResult:
         return [m for m in self.all_modes if f_min <= m.frequency <= f_max]
 
 
-# =============================================================================
 # Bessel Function Zeros for Transverse Modes
-# =============================================================================
-
 # Zeros of J'_m(x) = 0 (derivative of Bessel function of first kind)
 # These determine transverse mode frequencies in cylindrical chambers
 # Format: BESSEL_ZEROS[m][n] = n-th zero of J'_m
@@ -130,11 +127,7 @@ MODE_DESCRIPTIONS = {
 }
 
 
-# =============================================================================
 # Core Analysis Functions
-# =============================================================================
-
-
 def calculate_speed_of_sound(
     gamma: float,
     T_chamber: float,  # K
@@ -315,11 +308,7 @@ def calculate_chugging_frequency(
     )
 
 
-# =============================================================================
 # High-Level Interface
-# =============================================================================
-
-
 def analyze_combustion_instability(
     chamber_length: float,  # m
     chamber_diameter: float,  # m

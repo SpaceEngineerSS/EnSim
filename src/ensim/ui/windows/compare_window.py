@@ -31,11 +31,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-# =============================================================================
+
 # Data Classes
-# =============================================================================
-
-
 @dataclass
 class DesignSnapshot:
     """Snapshot of a design configuration and results."""
@@ -128,11 +125,7 @@ def get_snapshot_manager() -> SnapshotManager:
     return SnapshotManager()
 
 
-# =============================================================================
 # Comparison Window
-# =============================================================================
-
-
 class CompareWindow(QDialog):
     """
     Design comparison dialog.

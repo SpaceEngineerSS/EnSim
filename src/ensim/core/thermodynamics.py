@@ -240,11 +240,7 @@ def calculate_gibbs(T: float, species, P: float = P_REF) -> float:
     return h - T * s
 
 
-# =============================================================================
 # Real Gas Corrections
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def calculate_compressibility_factor_virial(
     T: float, P: float, Tc: float, Pc: float, omega: float = 0.0

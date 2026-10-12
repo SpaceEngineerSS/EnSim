@@ -23,11 +23,8 @@ import numpy as np
 
 from ensim.utils.numba_support import jit
 
-# =============================================================================
+
 # Quaternion Basic Operations
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_mult(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     """
@@ -143,11 +140,7 @@ def q_inverse(q: np.ndarray) -> np.ndarray:
     return q_conjugate(q) / norm_sq
 
 
-# =============================================================================
 # Rotation Operations
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_rotate_vector(q: np.ndarray, v: np.ndarray) -> np.ndarray:
     """
@@ -264,11 +257,7 @@ def q_to_axis_angle(q: np.ndarray) -> np.ndarray:
     return np.array([ax, ay, az, angle])
 
 
-# =============================================================================
 # Euler Angle Conversions (ZYX Convention - Aerospace Standard)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_from_euler(roll: float, pitch: float, yaw: float) -> np.ndarray:
     """
@@ -347,18 +336,14 @@ def q_to_euler(q: np.ndarray) -> np.ndarray:
     return np.array([roll, pitch, yaw])
 
 
-# =============================================================================
 # Quaternion Kinematics (for dynamics integration)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_derivative(q: np.ndarray, omega: np.ndarray) -> np.ndarray:
     """
     Compute quaternion time derivative from angular velocity.
 
     The kinematic equation is:
-        q̇ = ½ ω ⊗ q  (body-fixed angular velocity)
+        q̇ = ½ q ⊗ [0, ω]  (ω in body axes, q rotates body to inertial)
 
     or equivalently using the Ω matrix:
         q̇ = ½ Ω(ω) q
@@ -378,7 +363,7 @@ def q_derivative(q: np.ndarray, omega: np.ndarray) -> np.ndarray:
     # Create quaternion from angular velocity: [0, ωx, ωy, ωz]
     omega_q = np.array([0.0, omega[0], omega[1], omega[2]])
 
-    # q̇ = ½ ω_q ⊗ q
+    # q̇ = ½ q ⊗ ω_q
     q_dot = 0.5 * q_mult(q, omega_q)
 
     return q_dot
@@ -430,11 +415,7 @@ def q_integrate(q: np.ndarray, omega: np.ndarray, dt: float) -> np.ndarray:
     return q_normalize(q_new)
 
 
-# =============================================================================
 # Rotation Matrix Conversion (for reference/debugging)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_to_rotation_matrix(q: np.ndarray) -> np.ndarray:
     """
@@ -481,11 +462,7 @@ def q_to_rotation_matrix(q: np.ndarray) -> np.ndarray:
     return R
 
 
-# =============================================================================
 # Vector Utilities (Numba-compatible)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def cross_product(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """
@@ -599,11 +576,7 @@ def normalize_vector(v: np.ndarray) -> np.ndarray:
     return v / norm
 
 
-# =============================================================================
 # Identity/Constant Quaternions
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def q_identity() -> np.ndarray:
     """

@@ -152,11 +152,7 @@ class ThermoResult:
 SpeciesDatabase = dict[str, SpeciesData]
 
 
-# =============================================================================
 # Chemistry / Equilibrium Data Types
-# =============================================================================
-
-
 @dataclass(frozen=True)
 class Element:
     """

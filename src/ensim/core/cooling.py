@@ -23,6 +23,7 @@ from ensim.utils.numba_support import jit
 
 from .constants import NASA_R
 from .propulsion import mach_from_area_ratio
+from .types import CalculationError
 
 
 class CoolingType(Enum):
@@ -243,11 +244,7 @@ class CoolingSystemDesign:
     coolant_flow_from_exit: bool = True
 
 
-# =============================================================================
 # Heat Transfer Correlations
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def bartz_heat_transfer_coefficient(
     D_throat: float,
@@ -308,11 +305,11 @@ def bartz_heat_transfer_coefficient(
         or mu_ref <= 0.0
         or molecular_weight <= 0.0
     ):
-        return 0.0
+        raise ValueError("Heat-transfer inputs must be positive and physical")
 
     geometric_area_ratio = (local_diameter / D_throat) ** 2
     if abs(geometric_area_ratio - area_ratio) / max(area_ratio, 1.0) > 1e-6:
-        area_ratio = geometric_area_ratio
+        raise ValueError("area_ratio does not match (local_diameter / D_throat) ** 2")
     area_ratio = max(1.0, area_ratio)
 
     R_spec = NASA_R / molecular_weight
@@ -327,7 +324,7 @@ def bartz_heat_transfer_coefficient(
     sigma = (0.5 * wall_ratio * temperature_factor + 0.5) ** -0.68 * temperature_factor**-0.12
     curvature = throat_radius_of_curvature if throat_radius_of_curvature is not None else D_throat
     if curvature <= 0.0:
-        return 0.0
+        raise ValueError("Heat-transfer inputs must be positive and physical")
 
     return (
         0.026
@@ -340,6 +337,35 @@ def bartz_heat_transfer_coefficient(
     )
 
 
+def _converge_wall_temperature(
+    bartz_kwargs: dict,
+    recovery_temperature: float,
+    coolant_temperature: float,
+    wall_resistance: float,
+    coolant_htc: float,
+    initial_guess: float,
+) -> tuple[float, float, float]:
+    """Fixed-point iteration on the gas-side wall temperature.
+
+    The Bartz property correction depends on the wall temperature, which in
+    turn depends on the heat flux. Returns (h_gas, q, T_wall_gas).
+
+    Raises:
+        CalculationError: No convergence to 0.01 K in 50 passes.
+    """
+    wall = initial_guess
+    for _ in range(50):
+        h_gas = bartz_heat_transfer_coefficient(wall_temperature=wall, **bartz_kwargs)
+        flux = (recovery_temperature - coolant_temperature) / (
+            1.0 / h_gas + wall_resistance + 1.0 / coolant_htc
+        )
+        updated = recovery_temperature - flux / h_gas
+        if abs(updated - wall) < 0.01:
+            return h_gas, flux, updated
+        wall = updated
+    raise CalculationError("Gas-side wall temperature did not converge")
+
+
 @jit(nopython=True, cache=True)
 def coolant_heat_transfer_coefficient(
     reynolds: float,
@@ -349,7 +375,7 @@ def coolant_heat_transfer_coefficient(
 ) -> float:
     """Return a single-phase internal-flow coefficient using Gnielinski."""
     if reynolds <= 0.0 or prandtl <= 0.0 or conductivity <= 0.0 or hydraulic_diameter <= 0.0:
-        return 0.0
+        raise ValueError("Heat-transfer inputs must be positive and physical")
     laminar_nusselt = 3.66
 
     def gnielinski(reynolds_number: float) -> float:
@@ -375,7 +401,7 @@ def coolant_heat_transfer_coefficient(
 def smooth_channel_darcy_friction_factor(reynolds: float) -> float:
     """Return the Darcy friction factor for a hydraulically smooth channel."""
     if reynolds <= 0.0:
-        return 0.0
+        raise ValueError("Heat-transfer inputs must be positive and physical")
     if reynolds < 2300.0:
         return 64.0 / reynolds
     return (-1.8 * np.log10(6.9 / reynolds)) ** -2
@@ -424,11 +450,7 @@ def calculate_wall_temperatures(
     return T_wall_gas, T_wall_coolant
 
 
-# =============================================================================
 # Cooling System Analysis
-# =============================================================================
-
-
 def analyze_cooling_system(
     design: CoolingSystemDesign,
     nozzle_profile: list[tuple[float, float]],  # List of (x, diameter)
@@ -568,30 +590,28 @@ def analyze_cooling_system(
         T_static = T_chamber / temperature_factor
         T_recovery = T_static * (1.0 + recovery_factor * 0.5 * (gamma - 1.0) * local_mach**2)
 
-        T_wall_estimate = 0.3 * T_chamber
-        for _ in range(5):
-            h_gas = bartz_heat_transfer_coefficient(
-                D_throat,
-                P_chamber,
-                c_star,
-                T_chamber,
-                gamma,
-                Pr=gas_prandtl,
-                mu_ref=gas_viscosity,
-                area_ratio=area_ratio,
-                local_diameter=local_dia,
-                throat_radius_of_curvature=throat_radius,
-                wall_temperature=T_wall_estimate,
-                molecular_weight=molecular_weight,
-                supersonic=is_supersonic,
-            )
-            R_total = (
-                1.0 / h_gas
-                + design.channels.wall_thickness / design.wall_thermal_conductivity
-                + 1.0 / h_coolant
-            )
-            q_flux = (T_recovery - T_coolant) / R_total
-            T_wall_estimate = T_recovery - q_flux / h_gas
+        # Start from 30 % of Tc, a typical regeneratively cooled wall
+        h_gas, q_flux, _ = _converge_wall_temperature(
+            {
+                "D_throat": D_throat,
+                "P_chamber": P_chamber,
+                "c_star": c_star,
+                "T_chamber": T_chamber,
+                "gamma": gamma,
+                "Pr": gas_prandtl,
+                "mu_ref": gas_viscosity,
+                "area_ratio": area_ratio,
+                "local_diameter": local_dia,
+                "throat_radius_of_curvature": throat_radius,
+                "molecular_weight": molecular_weight,
+                "supersonic": is_supersonic,
+            },
+            T_recovery,
+            T_coolant,
+            design.channels.wall_thickness / design.wall_thermal_conductivity,
+            h_coolant,
+            0.3 * T_chamber,
+        )
 
         # Calculate wall temperatures
         T_wall_gas, T_wall_coolant = calculate_wall_temperatures(
@@ -754,29 +774,29 @@ def calculate_thermal_profile(
             / temperature_factor
             * (1.0 + recovery_factor * 0.5 * (gamma - 1.0) * local_mach**2)
         )
-        wall_estimate = 0.3 * T_chamber
-        for _ in range(5):
-            h_gas = bartz_heat_transfer_coefficient(
-                D_throat=D_throat,
-                P_chamber=P_chamber,
-                c_star=c_star,
-                T_chamber=T_chamber,
-                gamma=gamma,
-                Pr=gas_prandtl,
-                mu_ref=gas_viscosity,
-                area_ratio=area_ratios[i],
-                local_diameter=diameters[i],
-                throat_radius_of_curvature=throat_radius_of_curvature,
-                wall_temperature=wall_estimate,
-                molecular_weight=molecular_weight,
-                supersonic=is_supersonic,
-            )
-            R_gas = 1.0 / h_gas
-            R_wall = wall_thickness / wall_conductivity
-            R_coolant = 1.0 / coolant_htc
-            R_total = R_gas + R_wall + R_coolant
-            q = (recovery_temperature - coolant_temp) / R_total
-            wall_estimate = recovery_temperature - q * R_gas
+        R_wall = wall_thickness / wall_conductivity
+        h_gas, q, _ = _converge_wall_temperature(
+            {
+                "D_throat": D_throat,
+                "P_chamber": P_chamber,
+                "c_star": c_star,
+                "T_chamber": T_chamber,
+                "gamma": gamma,
+                "Pr": gas_prandtl,
+                "mu_ref": gas_viscosity,
+                "area_ratio": area_ratios[i],
+                "local_diameter": diameters[i],
+                "throat_radius_of_curvature": throat_radius_of_curvature,
+                "molecular_weight": molecular_weight,
+                "supersonic": is_supersonic,
+            },
+            recovery_temperature,
+            coolant_temp,
+            R_wall,
+            coolant_htc,
+            0.3 * T_chamber,
+        )
+        R_gas = 1.0 / h_gas
         heat_flux[i] = q
 
         # Wall temperatures

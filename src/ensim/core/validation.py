@@ -1,7 +1,7 @@
 """
 Input Validation Framework for EnSim.
 
-Comprehensive validation for all simulation inputs with
+Validation of simulation inputs with
 detailed error messages and warnings.
 """
 
@@ -28,8 +28,8 @@ class ValidationIssue:
     valid_range: tuple[float, float] | None = None
 
     def __str__(self) -> str:
-        icon = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}[self.severity.value]
-        return f"{icon} {self.field}: {self.message}"
+        label = {"error": "Error", "warning": "Warning", "info": "Note"}[self.severity.value]
+        return f"{label} in {self.field}: {self.message}"
 
 
 @dataclass
@@ -53,7 +53,7 @@ class ValidationResult:
 
     def __str__(self) -> str:
         if self.is_valid and not self.warnings:
-            return "✓ All inputs valid"
+            return "All inputs valid"
 
         lines = []
         for issue in self.issues:
@@ -61,10 +61,7 @@ class ValidationResult:
         return "\n".join(lines)
 
 
-# =============================================================================
 # Physical Constants for Validation
-# =============================================================================
-
 # Pressure limits (bar)
 PRESSURE_MIN = 0.01
 PRESSURE_MAX_SAFE = 500.0
@@ -96,11 +93,7 @@ EFFICIENCY_MAX = 1.0
 EFFICIENCY_TYPICAL_MIN = 0.85
 
 
-# =============================================================================
 # Validation Functions
-# =============================================================================
-
-
 def validate_chamber_pressure(pressure_bar: float) -> list[ValidationIssue]:
     """
     Validate combustion chamber pressure.
@@ -417,7 +410,7 @@ def validate_all_inputs(
     ambient_pressure_bar: float = 0.0,
 ) -> ValidationResult:
     """
-    Validate all simulation inputs comprehensively.
+    Validate every engine input and collect the issues.
 
     Args:
         pressure_bar: Chamber pressure (bar)

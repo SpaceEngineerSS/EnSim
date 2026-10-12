@@ -25,11 +25,8 @@ from ensim.core.flight_6dof import (
 )
 from ensim.core.rocket import Rocket
 
-# =============================================================================
+
 # Inertia Tensor Tests
-# =============================================================================
-
-
 class TestInertiaTensor:
     """Test inertia tensor calculations."""
 
@@ -82,11 +79,7 @@ class TestInertiaTensor:
         assert all(I_empty < I_full)
 
 
-# =============================================================================
 # Gravity Model Tests
-# =============================================================================
-
-
 class TestGravityModel:
     """Test gravity vector calculations."""
 
@@ -120,11 +113,7 @@ class TestGravityModel:
         assert abs(abs(g_h[2]) - expected) < 1e-6
 
 
-# =============================================================================
 # Aerodynamic Angle Tests
-# =============================================================================
-
-
 class TestAeroAngles:
     """Test angle of attack and sideslip calculations."""
 
@@ -153,11 +142,7 @@ class TestAeroAngles:
         assert beta > 0
 
 
-# =============================================================================
 # Aerodynamic Moment Tests
-# =============================================================================
-
-
 class TestAeroMoments:
     """Test aerodynamic moment calculations."""
 
@@ -185,11 +170,7 @@ class TestAeroMoments:
         assert_allclose(moment, [0.0, 0.0, 0.0], atol=1e-10)
 
 
-# =============================================================================
 # RK4 Integration Tests
-# =============================================================================
-
-
 class TestRK4Integration:
     """Test RK4 integrator."""
 
@@ -373,11 +354,7 @@ class TestRK4Integration:
         assert abs(np.linalg.norm(state[6:10]) - 1.0) < 1e-12
 
 
-# =============================================================================
 # Physics Violation Tests
-# =============================================================================
-
-
 class TestPhysicsViolations:
     """Test physics violation error handling."""
 
@@ -417,11 +394,7 @@ class TestPhysicsViolations:
             )
 
 
-# =============================================================================
 # Full Simulation Tests
-# =============================================================================
-
-
 class TestFullSimulation:
     """Integration tests for complete simulation."""
 

@@ -1,9 +1,10 @@
 """
-Chemical equilibrium solver using Gibbs free energy minimization.
+Chemical equilibrium by Gibbs free energy minimisation.
 
-Uses a robust two-phase approach:
-1. Element potential method for major species
-2. Equilibrium constant correction for trace species
+The minimum is found in two passes: SLSQP on the mole numbers subject to
+element balance, then a least-squares polish of the optimality conditions
+(element potentials). The adiabatic flame temperature is the root of the
+enthalpy balance, bracketed and solved with Brent's method.
 
 References:
     - Gordon, S. & McBride, B.J. (1994). NASA RP-1311.
@@ -28,10 +29,7 @@ from .types import (
     SpeciesDatabase,
 )
 
-# =============================================================================
 # NASA 7-Term Polynomial Thermo Data Loader
-# =============================================================================
-
 # Thermodynamic data shipped with the package.
 _DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 NASA_THERMO_FILE = _DATA_DIR / "nasa_thermo.dat"
@@ -149,9 +147,9 @@ def load_nasa_thermo_dat(filepath: Path | None = None) -> dict[str, dict]:
 
     File format (per species):
         Line 1: Name, description, formula, phase, MW, Hf0
-        Line 2: Low-temp coefficients a1-a5 (card 1)
-        Line 3: Low-temp a6-a7, High-temp a1-a3 (card 2)
-        Line 4: High-temp a4-a7 (card 3)
+        Line 2: High-temp coefficients a1-a5 (card 1)
+        Line 3: High-temp a6-a7, low-temp a1-a3 (card 2)
+        Line 4: Low-temp a4-a7 (card 3)
         Line 5: Blank (card 4)
 
     Args:
@@ -304,11 +302,7 @@ def lookup_combustion_properties(
     return T_c, gamma, M_mol
 
 
-# =============================================================================
 # Stoichiometry Utilities
-# =============================================================================
-
-
 def parse_formula(formula: str) -> dict[str, int]:
     """Parse chemical formula into element counts."""
     formula = re.sub(r"\([GLSC]\)$", "", formula)
@@ -366,11 +360,7 @@ def filter_valid_species(
     return valid
 
 
-# =============================================================================
 # Thermodynamic Functions
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def compute_thermo(
     T: float,
@@ -535,11 +525,7 @@ def solve_equilibrium_gordon_mcbride(
     return n, converged
 
 
-# =============================================================================
 # High-Level Interface
-# =============================================================================
-
-
 class CombustionProblem:
     """Combustion equilibrium problem solver."""
 

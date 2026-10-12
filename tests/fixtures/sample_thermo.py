@@ -349,10 +349,7 @@ def create_sample_database() -> SpeciesDatabase:
         h_formation_298=249175.0,  # J/mol (249 kJ/mol)
     )
 
-    # =========================================================================
     # Additional Propellants for Extended Simulation
-    # =========================================================================
-
     # N2O4 (Nitrogen Tetroxide) - Storable oxidizer
     # From NASA CEA database
     db["N2O4"] = SpeciesData(
@@ -552,12 +549,8 @@ def create_sample_database() -> SpeciesDatabase:
         ),
         h_formation_298=0.0,  # J/mol (reference element)
     )
-
-    # =========================================================================
     # MMH, UDMH, H2O2, N2O - storable propellants
     # Reference: NASA CEA database, NIST, Thermodynamics of Organic Compounds
-    # =========================================================================
-
     # MMH (Monomethyl Hydrazine) - CH6N2
     # Used in Soyuz, Dragon, many spacecraft RCS
     db["MMH"] = SpeciesData(

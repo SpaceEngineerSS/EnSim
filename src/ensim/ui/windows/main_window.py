@@ -1321,10 +1321,7 @@ class MainWindow(QMainWindow):
         dialog = CompareWindow(self)
         dialog.exec()
 
-    # =========================================================================
     # Monte Carlo Dispersion Analysis
-    # =========================================================================
-
     def _run_monte_carlo_analysis(self):
         """Run Monte Carlo landing dispersion analysis."""
         from PyQt6.QtWidgets import (

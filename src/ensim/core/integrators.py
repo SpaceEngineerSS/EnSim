@@ -21,10 +21,7 @@ import numpy as np
 
 from ensim.utils.numba_support import jit
 
-# =============================================================================
 # Dormand-Prince 5(4) Butcher Tableau Coefficients
-# =============================================================================
-
 # Time nodes (c_i): fraction of step at each stage
 DP5_C = np.array([0.0, 1.0 / 5.0, 3.0 / 10.0, 4.0 / 5.0, 8.0 / 9.0, 1.0, 1.0], dtype=np.float64)
 
@@ -75,10 +72,7 @@ DP5_B4 = np.array(
 DP5_E = DP5_B5 - DP5_B4
 
 
-# =============================================================================
 # Adaptive Step-Size Control Constants
-# =============================================================================
-
 # Safety factor for step-size adjustment (prevents oscillation)
 SAFETY = 0.9
 
@@ -92,11 +86,7 @@ MAX_FACTOR = 5.0  # Maximum step increase factor
 MIN_FACTOR = 0.2  # Minimum step decrease factor
 
 
-# =============================================================================
 # Core RK45 Functions (Numba JIT)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def rk45_error_norm(
     y_new: np.ndarray, y_old: np.ndarray, error: np.ndarray, atol: float, rtol: float

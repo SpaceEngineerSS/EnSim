@@ -35,11 +35,8 @@ from ensim.core.math_utils import (
     vector_norm,
 )
 
-# =============================================================================
+
 # Quaternion Basic Operations
-# =============================================================================
-
-
 class TestQuaternionBasics:
     """Test basic quaternion operations."""
 
@@ -114,11 +111,7 @@ class TestQuaternionMultiplication:
         assert_allclose(left, right, atol=1e-10)
 
 
-# =============================================================================
 # Vector Rotation
-# =============================================================================
-
-
 class TestVectorRotation:
     """Test quaternion vector rotation."""
 
@@ -170,11 +163,7 @@ class TestVectorRotation:
         assert abs(vector_norm(v_rot) - vector_norm(v)) < 1e-10
 
 
-# =============================================================================
 # Euler Angle Conversions
-# =============================================================================
-
-
 class TestEulerConversion:
     """Test Euler angle ↔ quaternion conversions."""
 
@@ -220,11 +209,7 @@ class TestEulerConversion:
         assert abs(euler[2] - yaw) < 1e-10
 
 
-# =============================================================================
 # Axis-Angle Conversion
-# =============================================================================
-
-
 class TestAxisAngleConversion:
     """Test axis-angle ↔ quaternion conversions."""
 
@@ -247,11 +232,7 @@ class TestAxisAngleConversion:
         assert_allclose(axis_out, axis, atol=1e-10)
 
 
-# =============================================================================
 # Quaternion Kinematics
-# =============================================================================
-
-
 class TestQuaternionKinematics:
     """Test quaternion derivative and integration."""
 
@@ -273,11 +254,7 @@ class TestQuaternionKinematics:
         assert abs(q_norm(q_new) - 1.0) < 1e-10
 
 
-# =============================================================================
 # Rotation Matrix
-# =============================================================================
-
-
 class TestRotationMatrix:
     """Test quaternion to rotation matrix conversion."""
 
@@ -333,11 +310,7 @@ class TestRotationMatrix:
             q_from_rotation_matrix(np.diag([1.0, 1.0, 2.0]))
 
 
-# =============================================================================
 # Vector Utilities
-# =============================================================================
-
-
 class TestVectorUtilities:
     """Test basic vector operations."""
 

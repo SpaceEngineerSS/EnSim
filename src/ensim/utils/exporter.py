@@ -131,7 +131,8 @@ Generated: {date_str}
 |---------|---------------|
 """
 
-    for species, frac in sorted(species_fractions.items(), key=lambda x: x[1], reverse=True):
+    ranked = sorted(species_fractions.items(), key=lambda item: item[1], reverse=True)
+    for species, frac in ((name, value) for name, value in ranked if value >= 1e-6):
         report += f"| {species} | {frac * 100:.2f}% |\n"
 
     report += """
@@ -139,9 +140,9 @@ Generated: {date_str}
 
 ## Notes
 
-- Calculations based on Gordon & McBride equilibrium method
-- Frozen flow assumed through nozzle expansion
-- Dissociation species included (H, O, OH)
+- Chamber composition from Gibbs energy minimisation (Gordon & McBride, NASA RP-1311)
+- Nozzle expansion with the chamber composition frozen
+- Product species are the ones listed above; trace species below 1e-6 are omitted
 
 ---
 

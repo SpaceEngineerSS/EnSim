@@ -22,11 +22,8 @@ from ensim.utils.numba_support import jit
 
 from .constants import G0, GAS_CONSTANT
 
-# =============================================================================
+
 # Data Classes
-# =============================================================================
-
-
 @dataclass
 class NozzleConditions:
     """
@@ -88,11 +85,7 @@ class PerformanceResult:
         )
 
 
-# =============================================================================
 # Core Physics Functions (Numba Optimized)
-# =============================================================================
-
-
 @jit(nopython=True, cache=True)
 def calculate_c_star(gamma: float, R_specific: float, T_chamber: float) -> float:
     """
@@ -283,11 +276,7 @@ def calculate_thrust_coefficient(
     return Cf
 
 
-# =============================================================================
 # High-Level Interface
-# =============================================================================
-
-
 def calculate_performance(
     T_chamber: float,
     P_chamber: float,

@@ -55,23 +55,26 @@ def generate_bell_contour(
         Rao, G.V.R. "Exhaust Nozzle Contour for Optimum Thrust",
         Jet Propulsion, Vol. 28, 1958, pp. 377-382.
     """
-    Rt = throat_radius
-    eps = expansion_ratio
-    Re = Rt * np.sqrt(eps)
+    if throat_radius <= 0.0 or expansion_ratio <= 1.0:
+        raise ValueError("Throat radius must be positive and expansion ratio above one")
+    if not 0.0 < theta_e < theta_n < 90.0:
+        raise ValueError("Angles must satisfy 0 < exit angle < initial angle < 90 degrees")
+    if not 50.0 <= percent_bell <= 100.0:
+        raise ValueError("Bell length must be 50-100 % of the 15 degree cone")
+    if n_points < 8:
+        raise ValueError("At least eight contour points are required")
 
-    # Throat circular arc section
-    # Standard throat design: 1.5*Rt upstream circular arc
-    # 0.382*Rt downstream circular arc
-    1.5 * Rt
+    Rt = throat_radius
+    Re = Rt * np.sqrt(expansion_ratio)
+
+    # Downstream throat arc of radius 0.382 Rt (Rao)
     R_downstream = 0.382 * Rt
 
     # Reference 15° conical nozzle length
     L_cone_15 = (Re - Rt) / np.tan(np.radians(15))
     L_bell = L_cone_15 * percent_bell / 100.0
 
-    # Convert angles to radians
     theta_n_rad = np.radians(theta_n)
-    np.radians(theta_e)
 
     # Starting point of parabola (end of throat arc)
     x_start = R_downstream * np.sin(theta_n_rad)
@@ -160,64 +163,3 @@ def _parabolic_bell(
     r = (1 - t) ** 2 * r0 + 2 * (1 - t) * t * r_c + t**2 * r1
 
     return x, r
-
-
-def generate_conical_contour(
-    throat_radius: float, expansion_ratio: float, half_angle: float = 15.0, n_points: int = 100
-) -> NozzleContour:
-    """
-    Generate simple conical nozzle contour.
-
-    Args:
-        throat_radius: Throat radius (m)
-        expansion_ratio: Exit area ratio
-        half_angle: Nozzle half-angle (degrees)
-        n_points: Number of points
-
-    Returns:
-        NozzleContour
-    """
-    Rt = throat_radius
-    Re = Rt * np.sqrt(expansion_ratio)
-
-    L = (Re - Rt) / np.tan(np.radians(half_angle))
-
-    x = np.linspace(0, L, n_points)
-    r = Rt + x * np.tan(np.radians(half_angle))
-
-    area_ratio = (r / Rt) ** 2
-    wall_angle = np.full_like(x, half_angle)
-
-    return NozzleContour(
-        x=x,
-        r=r,
-        area_ratio=area_ratio,
-        wall_angle=wall_angle,
-        contour_type="conical",
-        throat_radius=Rt,
-        exit_radius=Re,
-        length=L,
-        percent_bell=100.0,  # 100% of 15° cone for reference
-    )
-
-
-def contour_to_3d_mesh(contour: NozzleContour, n_circumferential: int = 36):
-    """
-    Convert 2D contour to 3D mesh points for visualization.
-
-    Args:
-        contour: NozzleContour object
-        n_circumferential: Points around circumference
-
-    Returns:
-        Tuple of (x_grid, y_grid, z_grid) for surface rendering
-    """
-    theta = np.linspace(0, 2 * np.pi, n_circumferential)
-
-    X, Theta = np.meshgrid(contour.x, theta)
-    R = np.tile(contour.r, (n_circumferential, 1))
-
-    Y = R * np.cos(Theta)
-    Z = R * np.sin(Theta)
-
-    return X, Y, Z

@@ -74,11 +74,7 @@ class GravityTurnEvaluation:
     burn_time: float
 
 
-# =============================================================================
 # Gravity Turn Optimization
-# =============================================================================
-
-
 def optimize_gravity_turn(
     vehicle_mass: float,
     thrust: float,
@@ -333,11 +329,7 @@ def _evaluate_gravity_turn(
     )
 
 
-# =============================================================================
 # Nozzle Design Optimization
-# =============================================================================
-
-
 def optimize_nozzle_expansion_ratio(
     chamber_pressure: float,
     ambient_pressure: float,
@@ -422,11 +414,7 @@ def optimize_nozzle_expansion_ratio(
     )
 
 
-# =============================================================================
 # Multi-Stage Mass Optimization
-# =============================================================================
-
-
 def optimize_stage_mass_allocation(
     total_propellant: float,
     num_stages: int,
@@ -532,11 +520,7 @@ def optimize_stage_mass_allocation(
     )
 
 
-# =============================================================================
 # Engine Design Optimization
-# =============================================================================
-
-
 def optimize_engine_parameters(
     target_thrust: float,
     target_isp: float,
@@ -677,11 +661,7 @@ def optimize_engine_parameters(
     )
 
 
-# =============================================================================
 # Propellant Load Optimization
-# =============================================================================
-
-
 def optimize_propellant_load(
     dry_mass: float,
     tank_volume: float,

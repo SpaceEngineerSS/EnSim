@@ -235,11 +235,7 @@ class CalculationWorker(QThread):
             self.error.emit(str(e))
 
 
-# =============================================================================
 # 6-DOF Flight Simulation Worker
-# =============================================================================
-
-
 @dataclass
 class FlightParams:
     """Parameters for 6-DOF flight simulation."""
@@ -340,11 +336,7 @@ class FlightSimulationWorker(QThread):
             self.error.emit(str(e))
 
 
-# =============================================================================
 # Monte Carlo Dispersion Worker
-# =============================================================================
-
-
 @dataclass
 class MonteCarloParams:
     """Parameters for Monte Carlo dispersion analysis."""
