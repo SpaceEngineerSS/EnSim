@@ -103,16 +103,6 @@ def cmd_engine(args: argparse.Namespace) -> int:
     return 0
 
 
-def _ambient_from_label(label: str) -> float:
-    """Project files store the ambient setting as text, e.g. 'Sea Level (1.01 bar)'."""
-    if "(" in label and "bar" in label:
-        try:
-            return float(label.split("(")[1].split("bar")[0]) * 1e5
-        except ValueError:
-            pass
-    return 0.0
-
-
 def cmd_run(args: argparse.Namespace) -> int:
     from ensim.core.engine import EngineInputs, analyze_engine
     from ensim.core.project_manager import ProjectManager
@@ -127,7 +117,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         chamber_pressure=engine.chamber_pressure_bar * 1e5,
         expansion_ratio=engine.expansion_ratio,
         throat_area=engine.throat_area_cm2 * 1e-4,
-        ambient_pressure=_ambient_from_label(engine.ambient),
+        ambient_pressure=engine.ambient_pressure_bar * 1e5,
         eta_cstar=engine.eta_cstar,
         eta_cf=engine.eta_cf,
         nozzle_half_angle_deg=engine.alpha_deg,

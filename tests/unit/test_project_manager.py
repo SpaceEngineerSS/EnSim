@@ -28,7 +28,7 @@ def test_packaged_examples_load(filename, fuel, oxidizer):
 def test_round_trip_preserves_every_section(tmp_path):
     source = ProjectManager()
     source.new_project()
-    source.update_inputs("LCH4", "LOX", 3.45, 120.0, 85.0, 42.0, "Vacuum (0 bar)")
+    source.update_inputs("LCH4", "LOX", 3.45, 120.0, 85.0, 42.0, 0.0)
     source.data.rocket.name = "Reference Vehicle"
     source.data.rocket.engine_mass_dry = 3.3
     source.data.recovery.dual_deploy = True
@@ -106,3 +106,12 @@ def test_invalid_file_raises_and_keeps_previous_path(tmp_path):
 def test_save_without_path_is_an_error():
     with pytest.raises(ProjectFileError):
         ProjectManager().save()
+
+
+def test_v3_ambient_label_becomes_a_pressure(tmp_path):
+    path = tmp_path / "v3.ensim"
+    path.write_text(
+        json.dumps({"meta": {"version": "3.0"}, "engine": {"ambient": "Sea Level (1.01 bar)"}}),
+        encoding="utf-8",
+    )
+    assert ProjectManager().load(path).engine.ambient_pressure_bar == pytest.approx(1.01)

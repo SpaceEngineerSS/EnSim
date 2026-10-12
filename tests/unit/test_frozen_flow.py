@@ -31,3 +31,28 @@ def test_c_star_is_independent_of_area_ratio_and_isp_grows(chamber):
 def test_area_ratio_must_exceed_one(chamber):
     with pytest.raises(ValueError):
         frozen_nozzle(chamber, load_default_database(), 1.0)
+
+
+def test_profile_matches_nozzle_at_throat_and_exit(chamber):
+    import numpy as np
+
+    from ensim.core.frozen_flow import frozen_profile
+
+    database = load_default_database()
+    nozzle = frozen_nozzle(chamber, database, 35.0)
+    ratios = np.array([4.0, 1.5, 1.0, 1.5, 35.0])
+    branch = np.array([False, False, True, True, True])
+    profile = frozen_profile(chamber, database, ratios, branch)
+    assert profile["mach"][0] < profile["mach"][1] < 1.0 < profile["mach"][3]
+    assert profile["mach"][2] == pytest.approx(1.0, abs=1e-4)
+    assert profile["pressure"][-1] == pytest.approx(nozzle.exit.pressure, rel=1e-8)
+    assert np.all(np.diff(profile["temperature"]) < 0.0)
+
+
+def test_performance_at_altitude_interpolates_between_sea_level_and_vacuum():
+    from ensim.core.engine import EngineInputs, analyze_engine
+
+    result = analyze_engine(EngineInputs("RP-1", "LOX", 2.6, 70e5, 16.0, throat_area=0.01))
+    mid = result.performance_at(0.5 * 101325.0)
+    assert result.sea_level.isp < mid.isp < result.vacuum.isp
+    assert result.performance_at(50 * 101325.0) is None  # above the throat pressure

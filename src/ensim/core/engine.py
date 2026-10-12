@@ -90,6 +90,15 @@ class EngineResult:
     def molecular_weight(self) -> float:
         return self.equilibrium.mean_molecular_weight
 
+    def performance_at(self, ambient_pressure: float) -> PerformanceResult | None:
+        """Performance at another back pressure; None if the flow cannot stay choked."""
+        if self.nozzle is None:
+            raise ValueError("This result has no nozzle solution")
+        try:
+            return _performance(self.inputs, self.nozzle, ambient_pressure)
+        except ValueError:
+            return None
+
     def to_dict(self) -> dict[str, Any]:
         """Plain-JSON representation (SI units)."""
 

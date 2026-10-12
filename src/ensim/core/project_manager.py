@@ -42,7 +42,7 @@ class EngineData:
     chamber_pressure_bar: float = 68.0
     throat_area_cm2: float = 100.0
     expansion_ratio: float = 50.0
-    ambient: str = "Vacuum (0 bar)"
+    ambient_pressure_bar: float = 0.0
     eta_cstar: float = 0.95
     eta_cf: float = 0.95
     alpha_deg: float = 15.0
@@ -116,6 +116,12 @@ class ProjectData:
 
 
 T = TypeVar("T")
+
+
+def _ambient_from_label(label: str) -> float:
+    """3.x stored the ambient choice as text such as 'Sea Level (1.01 bar)'."""
+    match = re.search(r"\(([\d.]+)\s*bar\)", label)
+    return float(match.group(1)) if match else 0.0
 
 
 def _major_version(text: str) -> int:
@@ -239,7 +245,10 @@ class ProjectManager:
             data.last_isp_vacuum = raw.get("isp_vacuum")
             data.last_thrust = raw.get("thrust")
         else:
-            data.engine = _section(EngineData, raw.get("engine"), "engine")
+            engine = dict(raw.get("engine") or {})
+            if "ambient" in engine and "ambient_pressure_bar" not in engine:
+                engine["ambient_pressure_bar"] = _ambient_from_label(str(engine.pop("ambient")))
+            data.engine = _section(EngineData, engine, "engine")
             data.rocket = _section(RocketData, raw.get("rocket"), "rocket")
             data.recovery = _section(RecoveryData, raw.get("recovery"), "recovery")
             data.environment = _section(EnvironmentData, raw.get("environment"), "environment")
@@ -266,7 +275,7 @@ class ProjectManager:
         chamber_pressure_bar: float,
         throat_area_cm2: float,
         expansion_ratio: float,
-        ambient: str,
+        ambient_pressure_bar: float,
     ) -> None:
         """Set the main engine inputs."""
         engine = self.data.engine
@@ -276,7 +285,7 @@ class ProjectManager:
         engine.chamber_pressure_bar = chamber_pressure_bar
         engine.throat_area_cm2 = throat_area_cm2
         engine.expansion_ratio = expansion_ratio
-        engine.ambient = ambient
+        engine.ambient_pressure_bar = ambient_pressure_bar
         self._modified = True
 
     def update_from_ui(

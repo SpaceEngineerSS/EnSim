@@ -166,3 +166,66 @@ def frozen_nozzle(
         c_star=pc / throat.mass_flux,
         chamber_pressure=pc,
     )
+
+
+def frozen_profile(
+    equilibrium: EquilibriumResult,
+    database: SpeciesDatabase,
+    area_ratios: np.ndarray,
+    supersonic: np.ndarray,
+) -> dict[str, np.ndarray]:
+    """Flow state at stations of known A/A*, subsonic or supersonic per station.
+
+    Returns arrays ``pressure``, ``temperature``, ``mach`` and ``velocity``.
+    """
+    area_ratios = np.asarray(area_ratios, dtype=float)
+    supersonic = np.asarray(supersonic, dtype=bool)
+    if area_ratios.shape != supersonic.shape or np.any(area_ratios < 1.0 - 1e-9):
+        raise ValueError("Area ratios must be at least one and match the branch flags")
+    mixture = _Mixture(equilibrium, database)
+    pc = equilibrium.pressure
+    tc = equilibrium.temperature
+    s_c = mixture.entropy(tc, pc)
+    h_c = mixture.enthalpy(tc)
+
+    def at(pressure: float, guess: float) -> FrozenStation:
+        return _station(mixture, s_c, h_c, guess, pressure)
+
+    best = minimize_scalar(
+        lambda ratio: -at(ratio * pc, 0.9 * tc).mass_flux,
+        bounds=(0.3, 0.8),
+        method="bounded",
+        options={"xatol": 1e-10},
+    )
+    throat = at(best.x * pc, 0.9 * tc)
+    out = {
+        key: np.empty(len(area_ratios)) for key in ("pressure", "temperature", "mach", "velocity")
+    }
+    for i, (ratio, branch) in enumerate(zip(area_ratios, supersonic, strict=True)):
+        if ratio <= 1.0 + 1e-9:
+            station = throat
+        else:
+            target = np.log(ratio)
+
+            def residual(log_p: float, target: float = target) -> float:
+                return (
+                    np.log(throat.mass_flux / at(np.exp(log_p), throat.temperature).mass_flux)
+                    - target
+                )
+
+            log_t = np.log(throat.pressure)
+            if branch:
+                lower = log_t - 1.0
+                while residual(lower) < 0.0:
+                    lower -= 1.0
+                    if lower < log_t - 60.0:
+                        raise ValueError("Area ratio is beyond the reach of the frozen expansion")
+                root = brentq(residual, lower, log_t - 1e-12, xtol=1e-12)
+            else:
+                root = brentq(residual, log_t + 1e-12, np.log(pc) - 1e-12, xtol=1e-12)
+            station = at(np.exp(root), throat.temperature)
+        out["pressure"][i] = station.pressure
+        out["temperature"][i] = station.temperature
+        out["mach"][i] = station.mach
+        out["velocity"][i] = station.velocity
+    return out
