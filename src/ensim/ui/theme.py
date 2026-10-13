@@ -96,13 +96,15 @@ def stylesheet(p: Palette) -> str:
     return f"""
 * {{ outline: 0; }}
 QWidget {{
-    background: {p.bg};
     color: {p.text};
     font-family: "{SANS}";
     font-size: 13px;
     selection-background-color: {p.signal};
     selection-color: {p.signal_text};
 }}
+QMainWindow, QDialog, QStackedWidget, QSplashScreen, QMessageBox {{ background: {p.bg}; }}
+QScrollArea, QScrollArea > QWidget > QWidget {{ background: transparent; }}
+QLabel, QCheckBox, QRadioButton {{ background: transparent; }}
 QMainWindow::separator {{ background: {p.line}; width: 1px; height: 1px; }}
 QToolTip {{
     background: {p.raised};
@@ -152,9 +154,8 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
     border-radius: {RADIUS}px;
     padding: 4px 6px;
     min-height: 20px;
-    font-family: "{MONO}";
 }}
-QComboBox {{ font-family: "{SANS}"; }}
+QSpinBox, QDoubleSpinBox {{ font-family: "{MONO}"; }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
     border: 1px solid {p.line_strong};
 }}
@@ -203,7 +204,8 @@ QPushButton#Quiet:hover {{ color: {p.text}; }}
 
 /* Tabs: underline, no boxes */
 QTabWidget::pane {{ border: none; border-top: 1px solid {p.line}; top: -1px; }}
-QTabBar {{ background: transparent; }}
+QTabWidget::tab-bar {{ left: 18px; }}
+QTabBar {{ background: transparent; qproperty-drawBase: 0; }}
 QTabBar::tab {{
     background: transparent;
     color: {p.muted};

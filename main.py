@@ -8,4 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from ensim.cli import main  # noqa: E402
 
 if __name__ == "__main__":
+    # Monte Carlo worker processes re-enter this script in frozen builds
+    import multiprocessing
+
+    multiprocessing.freeze_support()
     raise SystemExit(main())

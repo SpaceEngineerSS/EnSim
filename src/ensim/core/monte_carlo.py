@@ -287,6 +287,7 @@ def run_monte_carlo(
     deploy_at_apogee: bool = True,
     progress: ProgressCallback | None = None,
     cancel: CancelCallback | None = None,
+    flight_options: dict[str, Any] | None = None,
 ) -> DispersionResult:
     """Run a dispersion study.
 
@@ -300,6 +301,8 @@ def run_monte_carlo(
         deploy_at_apogee: Passed to :func:`simulate_flight_6dof`.
         progress: Called with (completed, total) after each run.
         cancel: Polled between runs; return True to stop.
+        flight_options: Further keyword arguments for every flight (drogue,
+            fill time, WGS-84 site, ...). They override the explicit ones.
 
     Raises:
         SimulationCancelled: ``cancel`` returned True.
@@ -332,6 +335,7 @@ def run_monte_carlo(
             "rail_length": rail_length,
             "chute_diameter": chute_diameter,
             "deploy_at_apogee": deploy_at_apogee,
+            **(flight_options or {}),
         },
     }
     jobs = [

@@ -6,7 +6,7 @@ import pytest
 from ensim.core.project_manager import FORMAT_VERSION, ProjectFileError, ProjectManager
 from ensim.core.rocket import NoseShape, create_default_rocket
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = Path(__file__).resolve().parents[2] / "src" / "ensim" / "examples"
 
 
 @pytest.mark.parametrize(

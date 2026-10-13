@@ -42,8 +42,8 @@ jobs:
       - name: Command line
         run: |
           ensim check
-          ensim engine --fuel CH4 --of 3.4 --pc 100 --eps 35 --json
-          ensim run examples/kerolox_sounding_rocket.ensim --flight
+          ensim engine --fuel LCH4 --of 3.4 --pc 100 --eps 35 --json
+          ensim run src/ensim/examples/kerolox_sounding_rocket.ensim --flight
 
   gui:
     runs-on: ubuntu-latest

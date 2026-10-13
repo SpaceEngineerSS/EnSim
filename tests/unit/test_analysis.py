@@ -37,3 +37,17 @@ def test_expansion_sweep_rejects_area_ratio_below_unity():
             mean_mw=22.0,
             temperature=3400.0,
         )
+
+
+def test_engine_sweep_resolves_equilibrium_at_every_point():
+    import numpy as np
+
+    from ensim.core.analysis import sweep_engine
+    from ensim.core.engine import EngineInputs
+
+    base = EngineInputs("LCH4", "LOX", 3.4, 100e5, 35.0, throat_area=0.01)
+    sweep = sweep_engine(base, "of_ratio", np.linspace(2.4, 4.4, 6))
+    # Chamber temperature peaks inside the range, Isp peaks fuel-rich of it
+    assert 0 < np.argmax(sweep.chamber_temperature) < 5
+    assert np.argmax(sweep.isp_vacuum) <= np.argmax(sweep.chamber_temperature)
+    assert np.all(np.isfinite(sweep.isp_vacuum))

@@ -98,7 +98,11 @@ class EnvironmentData:
     wind_direction: float = 0.0
     rail_length: float = 1.5
     launch_altitude: float = 0.0
-    launch_angle: float = 85.0
+    launch_angle: float = 85.0  # elevation above the horizon, deg
+    launch_azimuth: float = 0.0  # deg clockwise from north
+    use_wgs84: bool = False
+    latitude: float = 0.0  # deg
+    longitude: float = 0.0  # deg
 
 
 @dataclass

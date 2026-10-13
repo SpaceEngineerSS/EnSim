@@ -108,7 +108,7 @@ class NumberField(QDoubleSpinBox):
         self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setMinimumWidth(96)
+        self.setMinimumWidth(88)
         if tooltip:
             self.setToolTip(tooltip)
         self.valueChanged.connect(self._on_value)
@@ -157,12 +157,18 @@ class NumberField(QDoubleSpinBox):
 class Choice(QComboBox):
     """Combo box over (label, data) pairs."""
 
-    def __init__(self, items: Iterable[tuple[str, object]], tooltip: str = ""):
+    def __init__(self, items: Iterable[tuple], tooltip: str = ""):
         super().__init__()
-        for label, data in items:
+        for item in items:
+            label, data = item[0], item[1]
             self.addItem(label, data)
+            if len(item) > 2:
+                self.setItemData(self.count() - 1, item[2], Qt.ItemDataRole.ToolTipRole)
         if tooltip:
             self.setToolTip(tooltip)
+        # Long entries must not widen the inputs panel; the popup still shows them in full
+        self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.setMinimumContentsLength(8)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     def value(self):
@@ -280,6 +286,7 @@ class ResultTable(QTableWidget):
         self.setShowGrid(False)
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.verticalHeader().setDefaultSectionSize(24)
 

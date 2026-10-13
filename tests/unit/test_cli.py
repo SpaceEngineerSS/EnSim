@@ -5,7 +5,7 @@ import pytest
 
 from ensim.cli import main
 
-EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
+EXAMPLES = Path(__file__).resolve().parents[2] / "src" / "ensim" / "examples"
 
 
 def test_check_passes(capsys):

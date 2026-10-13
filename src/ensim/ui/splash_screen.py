@@ -1,115 +1,79 @@
-"""Splash screen for EnSim application."""
+"""Start-up card shown while the main window loads."""
 
-import logging
+from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPixmap
-from PyQt6.QtWidgets import QApplication, QSplashScreen
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import QSplashScreen
 
 from ensim import __version__
 
-logger = logging.getLogger(__name__)
+from . import theme
+from .icons import svg_bytes
+
+WIDTH, HEIGHT = 520, 300
 
 
 class EnSimSplashScreen(QSplashScreen):
-    """
-    Custom splash screen with loading progress.
-    """
+    def __init__(self) -> None:
+        self._step = 0
+        self._steps = 4
+        super().__init__(self._paint(""))
 
-    def __init__(self):
-        # Create a custom pixmap for the splash
-        pixmap = QPixmap(500, 300)
-        pixmap.fill(QColor("#1e1e1e"))
-
-        # Draw content
+    def _paint(self, message: str) -> QPixmap:
+        p = theme.current()
+        screen = QGuiApplication.primaryScreen()
+        ratio = screen.devicePixelRatio() if screen else 1.0
+        pixmap = QPixmap(round(WIDTH * ratio), round(HEIGHT * ratio))
+        pixmap.setDevicePixelRatio(ratio)
+        pixmap.fill(QColor(p.bg))
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QColor(p.line))
+        painter.drawRect(0, 0, WIDTH - 1, HEIGHT - 1)
 
-        # Gradient background
-        gradient = QLinearGradient(0, 0, 500, 300)
-        gradient.setColorAt(0, QColor("#1e1e1e"))
-        gradient.setColorAt(1, QColor("#252525"))
-        painter.fillRect(0, 0, 500, 300, gradient)
+        QSvgRenderer(svg_bytes("logo", p.signal)).render(painter, QRectF(40, 52, 64, 64))
 
-        # Draw nozzle shape
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#00a8ff"))
-
-        # Simple nozzle polygon
-        from PyQt6.QtCore import QPoint
-        from PyQt6.QtGui import QPolygon
-
-        nozzle = QPolygon(
-            [
-                QPoint(200, 100),  # inlet top
-                QPoint(200, 140),  # inlet bottom
-                QPoint(230, 130),  # throat bottom
-                QPoint(300, 160),  # exit bottom
-                QPoint(300, 80),  # exit top
-                QPoint(230, 110),  # throat top
-            ]
+        title = QFont(theme.SANS)
+        title.setPixelSize(38)
+        title.setWeight(QFont.Weight.DemiBold)
+        painter.setFont(title)
+        painter.setPen(QColor(p.text))
+        painter.drawText(
+            QRectF(124, 52, 300, 46),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            "EnSim",
         )
-        painter.drawPolygon(nozzle)
 
-        # Draw exhaust flame
-        painter.setBrush(QColor("#ff6b35"))
-        exhaust = QPolygon(
-            [
-                QPoint(300, 85),
-                QPoint(300, 155),
-                QPoint(380, 120),
-            ]
+        sub = QFont(theme.SANS)
+        sub.setPixelSize(13)
+        painter.setFont(sub)
+        painter.setPen(QColor(p.muted))
+        painter.drawText(
+            QRectF(126, 98, 360, 22),
+            Qt.AlignmentFlag.AlignLeft,
+            "Rocket engine and flight simulation",
         )
-        painter.drawPolygon(exhaust)
 
-        # Title
-        painter.setPen(QColor("#ffffff"))
-        font = QFont("Segoe UI", 36, QFont.Weight.Bold)
-        painter.setFont(font)
-        painter.drawText(100, 220, "EnSim")
+        mono = QFont(theme.MONO)
+        mono.setPixelSize(11)
+        painter.setFont(mono)
+        painter.drawText(
+            QRectF(40, HEIGHT - 66, 200, 18), Qt.AlignmentFlag.AlignLeft, f"version {__version__}"
+        )
+        painter.drawText(
+            QRectF(40, HEIGHT - 44, WIDTH - 80, 18), Qt.AlignmentFlag.AlignLeft, message
+        )
 
-        # Subtitle
-        painter.setPen(QColor("#888888"))
-        font = QFont("Segoe UI", 12)
-        painter.setFont(font)
-        painter.drawText(100, 250, "Rocket Engine Simulation Suite")
-
-        # Version
-        painter.setPen(QColor("#00a8ff"))
-        painter.drawText(100, 275, f"v{__version__}")
-
+        painter.fillRect(QRectF(0, HEIGHT - 2, WIDTH, 2), QColor(p.line))
+        painter.fillRect(
+            QRectF(0, HEIGHT - 2, WIDTH * self._step / self._steps, 2), QColor(p.signal)
+        )
         painter.end()
+        return pixmap
 
-        super().__init__(pixmap)
-        self.setWindowFlags(Qt.WindowType.SplashScreen | Qt.WindowType.FramelessWindowHint)
-
-        self._message = "Initializing..."
-
-    def showMessage(self, message: str):
-        """Update loading message."""
-        self._message = message
-        super().showMessage(
-            message, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter, QColor("#00a8ff")
-        )
-        QApplication.processEvents()
-
-    def show_with_progress(self, steps: list, callback):
-        """
-        Show splash and execute steps with progress.
-
-        Args:
-            steps: List of (message, callable) tuples
-            callback: Function to call when done
-        """
-        self.show()
-
-        for _i, (message, func) in enumerate(steps):
-            self.showMessage(f"{message}...")
-            QApplication.processEvents()
-            try:
-                func()
-            except Exception:
-                logger.exception("Splash-screen initialization step failed")
-
-        self.showMessage("Ready!")
-        QTimer.singleShot(500, callback)
+    def showMessage(self, message: str, *_args) -> None:  # noqa: N802 - Qt override
+        self._step = min(self._step + 1, self._steps)
+        self.setPixmap(self._paint(message))
+        QGuiApplication.processEvents()

@@ -10,8 +10,12 @@ from ensim.utils.units import UnitSystem
 
 
 class Settings:
-    def __init__(self) -> None:
-        self._store = QSettings("EnSim", "EnSim")
+    def __init__(self, path: Path | None = None) -> None:
+        # A path gives an isolated INI store (tests, screenshot scripts)
+        if path is None:
+            self._store = QSettings("EnSim", "EnSim")
+        else:
+            self._store = QSettings(str(path), QSettings.Format.IniFormat)
 
     def _get(self, key: str, default, kind=str):
         value = self._store.value(key, default)

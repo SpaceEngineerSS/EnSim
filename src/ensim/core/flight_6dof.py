@@ -830,6 +830,7 @@ def simulate_flight_6dof(
     wind_profile_top_m: float = 1000.0,
     cancel: Callable[[], bool] | None = None,
     drogue_diameter: float = 0.0,
+    progress: Callable[[float], None] | None = None,
     drogue_cd: float = 1.2,
     parachute_fill_time: float = 1.0,
 ) -> FlightResult6DOF:
@@ -879,6 +880,7 @@ def simulate_flight_6dof(
         wind_profile_top_m: The 1/7 power-law wind profile grows up to this
             height and stays constant above it.
         cancel: Optional callable polled once per step; return True to stop.
+        progress: Optional callable receiving t / max_time every 200 steps.
 
     Raises:
         PhysicsViolationError: Invalid inputs or a non-finite state.
@@ -1006,9 +1008,13 @@ def simulate_flight_6dof(
     forced_min_steps = 0
     termination = "maximum_time"
 
+    steps = 0
     while t < max_time - 1e-12:
         if cancel is not None and cancel():
             raise SimulationCancelled(f"Cancelled at t={t:.3f} s")
+        steps += 1
+        if progress is not None and steps % 200 == 0:
+            progress(t / max_time)
 
         # Hold on the pad until thrust exceeds weight along the rail
         if not has_lifted:

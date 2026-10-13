@@ -96,3 +96,81 @@ def run_sweep(
         thrust_vacuum=thrust_vacuum,
         thrust_sea_level=thrust_sea_level,
     )
+
+
+SWEEP_PARAMETERS = {
+    "of_ratio": "O/F",
+    "chamber_pressure": "Chamber pressure",
+    "expansion_ratio": "Area ratio",
+}
+
+
+@dataclass(frozen=True)
+class EngineSweep:
+    """Full engine analysis repeated over one input."""
+
+    parameter: str
+    values: np.ndarray
+    chamber_temperature: np.ndarray
+    c_star: np.ndarray
+    isp_vacuum: np.ndarray
+    isp_sea_level: np.ndarray  # NaN where the nozzle cannot run at 1 atm
+    thrust_vacuum: np.ndarray
+    molecular_weight: np.ndarray
+
+
+def sweep_engine(
+    inputs,
+    parameter: str,
+    values,
+    progress=None,
+    cancel=None,
+) -> EngineSweep:
+    """Re-run :func:`ensim.core.engine.analyze_engine` for each value of one input.
+
+    Unlike :func:`run_sweep`, chamber composition and temperature are solved
+    again at every point, so O/F and pressure sweeps are meaningful.
+
+    Args:
+        inputs: Baseline :class:`~ensim.core.engine.EngineInputs`.
+        parameter: ``"of_ratio"``, ``"chamber_pressure"`` (Pa) or ``"expansion_ratio"``.
+        values: Values of the parameter.
+        progress: Optional ``callback(fraction)``.
+        cancel: Optional ``callable() -> bool``; True stops the sweep.
+    """
+    from dataclasses import replace
+
+    from .engine import analyze_engine
+    from .flight_6dof import SimulationCancelled
+
+    if parameter not in SWEEP_PARAMETERS:
+        raise ValueError(f"parameter must be one of {', '.join(SWEEP_PARAMETERS)}")
+    values = np.asarray(values, dtype=float)
+    if values.ndim != 1 or len(values) < 2:
+        raise ValueError("At least two sweep values are required")
+    columns = {
+        name: np.full(len(values), np.nan)
+        for name in ("tc", "cstar", "isp_vac", "isp_sl", "thrust", "mw")
+    }
+    for index, value in enumerate(values):
+        if cancel is not None and cancel():
+            raise SimulationCancelled("Sweep cancelled")
+        result = analyze_engine(replace(inputs, **{parameter: float(value)}))
+        columns["tc"][index] = result.chamber_temperature
+        columns["cstar"][index] = result.vacuum.c_star
+        columns["isp_vac"][index] = result.vacuum.isp
+        columns["isp_sl"][index] = result.sea_level.isp if result.sea_level else np.nan
+        columns["thrust"][index] = result.vacuum.thrust
+        columns["mw"][index] = result.molecular_weight
+        if progress is not None:
+            progress((index + 1) / len(values))
+    return EngineSweep(
+        parameter=parameter,
+        values=values,
+        chamber_temperature=columns["tc"],
+        c_star=columns["cstar"],
+        isp_vacuum=columns["isp_vac"],
+        isp_sea_level=columns["isp_sl"],
+        thrust_vacuum=columns["thrust"],
+        molecular_weight=columns["mw"],
+    )

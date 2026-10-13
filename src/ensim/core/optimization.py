@@ -524,7 +524,7 @@ def optimize_stage_mass_allocation(
 def optimize_engine_parameters(
     target_thrust: float,
     target_isp: float,
-    propellant_type: str = "LOX/CH4",
+    propellant_type: str | tuple[str, str] = "LOX/CH4",
     chamber_pressure_range: tuple[float, float] = (5e6, 30e6),
     mixture_ratio_range: tuple[float, float] = (2.5, 4.0),
     expansion_ratio: float = 40.0,
@@ -533,30 +533,37 @@ def optimize_engine_parameters(
     """
     Optimize engine chamber conditions for target performance.
 
-    Evaluates each design with EnSim's Gibbs-equilibrium solver and ideal frozen
-    nozzle model. The objective minimizes target-Isp error with a small,
+    Evaluates each design with :func:`ensim.core.engine.analyze_engine`
+    (propellants in their storage state, frozen nozzle with variable cp). The objective minimizes target-Isp error with a small,
     explicitly reported pressure regularization; thrust sets the throat area.
 
     Args:
         target_thrust: Desired thrust (N)
         target_isp: Desired specific impulse (s)
-        propellant_type: Propellant combination
+        propellant_type: "LOX/CH4", "LOX/RP1", "LOX/LH2", "NTO/MMH", "NTO/UDMH",
+            "NTO/N2H4", or a (fuel, oxidizer) pair of propellant keys
         chamber_pressure_range: (min, max) chamber pressure (Pa)
         mixture_ratio_range: (min, max) O/F ratio
 
     Returns:
         OptimizationResult with optimal engine parameters
     """
-    from ensim.core.chemistry import CombustionProblem
-    from ensim.core.propulsion import NozzleConditions, calculate_performance
-    from ensim.utils.nasa_parser import load_default_database
+    from ensim.core.engine import EngineInputs, analyze_engine
 
     propellants = {
-        "LOX/CH4": ("CH4", "O2"),
-        "LOX/RP1": ("RP1", "O2"),
-        "LOX/LH2": ("H2", "O2"),
+        "LOX/CH4": ("LCH4", "LOX"),
+        "LOX/RP1": ("RP-1", "LOX"),
+        "LOX/RP-1": ("RP-1", "LOX"),
+        "LOX/LH2": ("LH2", "LOX"),
+        "NTO/MMH": ("MMH", "NTO"),
+        "NTO/UDMH": ("UDMH", "NTO"),
+        "NTO/N2H4": ("N2H4", "NTO"),
     }
-    if propellant_type not in propellants:
+    if isinstance(propellant_type, tuple):
+        fuel, oxidizer = propellant_type
+    elif propellant_type in propellants:
+        fuel, oxidizer = propellants[propellant_type]
+    else:
         raise ValueError(f"Unsupported propellant combination: {propellant_type}")
     if target_thrust <= 0.0 or target_isp <= 0.0:
         raise ValueError("Target thrust and Isp must be positive")
@@ -570,39 +577,23 @@ def optimize_engine_parameters(
     ):
         raise ValueError("Engine optimization bounds are invalid")
 
-    fuel, oxidizer = propellants[propellant_type]
-    database = load_default_database()
-    fuel_mw = database[fuel].molecular_weight
-    oxidizer_mw = database[oxidizer].molecular_weight
     history = []
     evaluations: dict[tuple[float, float], tuple] = {}
 
     def evaluate(pressure_mpa: float, mixture_ratio: float):
         key = (round(pressure_mpa, 9), round(mixture_ratio, 9))
         if key not in evaluations:
-            pressure = pressure_mpa * 1e6
-            problem = CombustionProblem(database)
-            problem.add_fuel(fuel, moles=1.0, temperature=298.15)
-            problem.add_oxidizer(
-                oxidizer,
-                moles=mixture_ratio * fuel_mw / oxidizer_mw,
-                temperature=298.15,
-            )
-            equilibrium = problem.solve(pressure=pressure)
-            if not equilibrium.converged:
-                raise RuntimeError("Equilibrium solver did not converge during optimization")
-            performance = calculate_performance(
-                T_chamber=equilibrium.temperature,
-                P_chamber=pressure,
-                gamma=equilibrium.gamma,
-                mean_molecular_weight=equilibrium.mean_molecular_weight,
-                nozzle=NozzleConditions(
-                    area_ratio=expansion_ratio,
-                    chamber_pressure=pressure,
+            result = analyze_engine(
+                EngineInputs(
+                    fuel,
+                    oxidizer,
+                    of_ratio=mixture_ratio,
+                    chamber_pressure=pressure_mpa * 1e6,
+                    expansion_ratio=expansion_ratio,
                     ambient_pressure=ambient_pressure,
-                ),
+                )
             )
-            evaluations[key] = (equilibrium, performance)
+            evaluations[key] = (result.equilibrium, result.operating)
         return evaluations[key]
 
     def objective(x):
@@ -652,7 +643,7 @@ def optimize_engine_parameters(
             "enthalpy_error": equilibrium.enthalpy_error,
             "expansion_ratio": expansion_ratio,
             "ambient_pressure": ambient_pressure,
-            "model": "gibbs_equilibrium_frozen_nozzle",
+            "model": "analyze_engine",
             "pressure_regularization_weight": 1e-4,
         },
         iterations=result.nit if hasattr(result, "nit") else len(history),

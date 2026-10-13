@@ -523,9 +523,13 @@ def analyze_cooling_system(
     P_chamber = float(chamber_conditions["P_chamber"])
     gamma = float(chamber_conditions["gamma"])
     c_star = float(chamber_conditions["c_star"])
-    gas_prandtl = chamber_conditions.get("prandtl", 0.7)
-    gas_viscosity = chamber_conditions.get("gas_viscosity", 5e-5)
     molecular_weight = float(chamber_conditions["molecular_weight"])
+    # Without supplied transport data use the estimates Bartz (1957) recommends:
+    # Eucken's Prandtl number and mu = 46.6e-10 M^0.5 T^0.6 lb/(in s), here in SI.
+    gas_prandtl = chamber_conditions.get("prandtl", 4.0 * gamma / (9.0 * gamma - 5.0))
+    gas_viscosity = chamber_conditions.get(
+        "gas_viscosity", 1.184e-7 * molecular_weight**0.5 * T_chamber**0.6
+    )
     throat_radius = chamber_conditions.get("throat_radius_of_curvature")
     if (
         T_chamber <= 0.0
