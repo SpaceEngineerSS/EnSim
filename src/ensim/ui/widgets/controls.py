@@ -218,12 +218,18 @@ class Metric(QFrame):
     """A labelled number. New values count up from the previous one."""
 
     def __init__(
-        self, label: str, quantity: Quantity | None = None, unit: str = "", digits: int = 4
+        self,
+        label: str,
+        quantity: Quantity | None = None,
+        unit: str = "",
+        digits: int = 4,
+        integer: bool = False,
     ):
         super().__init__()
         self._quantity = quantity
         self._unit = unit
         self._digits = digits
+        self._integer = integer
         self._si: float | None = None
         self._shown: float | None = None
         layout = QVBoxLayout(self)
@@ -265,7 +271,8 @@ class Metric(QFrame):
         target = self._display(value_si)
         start = self._shown if self._shown is not None else target
         self._shown = target
-        motion.tween(start, target, lambda v: self._value.setText(fmt(v, self._digits)), self)
+        text = (lambda v: f"{round(v):d}") if self._integer else (lambda v: fmt(v, self._digits))
+        motion.tween(start, target, lambda v: self._value.setText(text(v)), self)
 
     def _refresh_units(self) -> None:
         self._unit_label.setText(self._unit_text())

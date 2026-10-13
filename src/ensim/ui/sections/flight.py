@@ -496,7 +496,7 @@ class DispersionView(QWidget):
         self.m_major = Metric("99.7 % ellipse, semi-major", Quantity.LENGTH)
         self.m_apogee = Metric("Apogee mean", Quantity.LENGTH)
         self.m_apogee_sd = Metric("Apogee 1-sigma", Quantity.LENGTH)
-        self.m_landed = Metric("Landed", unit="runs", digits=4)
+        self.m_landed = Metric("Landed", unit="runs", integer=True)
         right_layout.addWidget(
             metric_row(self.m_cep, self.m_major, self.m_apogee, self.m_apogee_sd, self.m_landed)
         )
