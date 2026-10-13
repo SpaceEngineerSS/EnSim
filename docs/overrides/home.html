@@ -1,0 +1,85 @@
+{% extends "main.html" %}
+
+{% block tabs %}{{ super() }}{% endblock %}
+
+{% block content %}
+<div class="ensim-home">
+  <section class="ensim-hero">
+    <div>
+      <h1>EnSim</h1>
+      <p>
+        Liquid rocket engines from propellant to trajectory: chamber equilibrium,
+        nozzle expansion, cooling and acoustics, then the vehicle flown in six
+        degrees of freedom. A desktop application and a Python library.
+      </p>
+      <div class="actions">
+        <a class="primary" href="getting-started/install/">Install</a>
+        <a href="library/python/">Use the library</a>
+        <a href="validation/">Validation</a>
+      </div>
+    </div>
+    <svg viewBox="0 0 520 300" role="img" aria-label="Thrust chamber cross-section with the exhaust shock pattern" fill="none" stroke="currentColor" stroke-width="1.2">
+      <path d="M10 150 H510" stroke-dasharray="14 4 2 4" opacity=".35"/>
+      <path d="M30 70 H170 L214 104 Q226 112 240 112 C290 111 350 92 470 60" stroke="var(--ensim-signal)" stroke-width="2.4"/>
+      <path d="M30 230 H170 L214 196 Q226 188 240 188 C290 189 350 208 470 240" stroke="var(--ensim-signal)" stroke-width="2.4"/>
+      <path d="M30 70 V230" stroke-width="2.4"/>
+      <g stroke="var(--ensim-signal)" opacity=".55">
+        <path d="M470 60 L500 150 L470 240"/>
+        <path d="M500 150 L520 120 M500 150 L520 180"/>
+      </g>
+      <g opacity=".5">
+        <path d="M60 90 V210 M90 90 V210 M120 90 V210" stroke-dasharray="1 5"/>
+      </g>
+      <g opacity=".55" stroke-width="1">
+        <path d="M240 112 V188"/>
+        <path d="M30 270 H470" />
+        <path d="M30 264 V276 M240 264 V276 M470 264 V276"/>
+      </g>
+      <g fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11" opacity=".75">
+        <text x="135" y="290" text-anchor="middle">chamber</text>
+        <text x="355" y="290" text-anchor="middle">nozzle</text>
+        <text x="248" y="146">t</text>
+        <text x="40" y="60">injector</text>
+      </g>
+    </svg>
+  </section>
+
+  <div class="ensim-strip">
+    <div><div class="value">0.01 %</div><div class="label">chamber temperature vs NASA CEA 3.3.2, five liquid propellant pairs</div></div>
+    <div><div class="value">0.05 %</div><div class="label">vacuum Isp vs NASA CEA, frozen expansion</div></div>
+    <div><div class="value">90 ms</div><div class="label">one engine operating point, equilibrium included</div></div>
+    <div><div class="value">0.5 s</div><div class="label">from launch to a usable window</div></div>
+  </div>
+
+  <div class="ensim-paths">
+    <a href="getting-started/first-session/">
+      <h3>Desktop</h3>
+      <p>Engine, vehicle, flight and analysis pages. Every calculation runs in the background and can be cancelled.</p>
+    </a>
+    <a href="library/python/">
+      <h3>Library</h3>
+      <p><code>pip install ensim</code> brings the models without any GUI packages. One call analyses an engine.</p>
+    </a>
+    <a href="theory/thermochemistry/">
+      <h3>Theory</h3>
+      <p>The equations, the assumptions behind them, and where they stop being valid.</p>
+    </a>
+  </div>
+
+  <h2 style="margin-top:2.6rem">Ten lines</h2>
+
+<div class="highlight"><pre><code>from ensim.core.engine import EngineInputs, analyze_engine
+
+engine = analyze_engine(EngineInputs(
+    fuel=&quot;RP-1&quot;, oxidizer=&quot;LOX&quot;, of_ratio=2.6,
+    chamber_pressure=70e5, expansion_ratio=25, throat_area=0.01,
+))
+print(f&quot;Tc {engine.chamber_temperature:.0f} K&quot;)
+print(f&quot;Isp vacuum {engine.vacuum.isp:.1f} s, sea level {engine.sea_level.isp:.1f} s&quot;)
+print(f&quot;thrust {engine.vacuum.thrust / 1e3:.1f} kN&quot;)
+
+# Tc 3673 K
+# Isp vacuum 319.6 s, sea level 255.0 s
+# thrust 125.3 kN</code></pre></div>
+</div>
+{% endblock %}

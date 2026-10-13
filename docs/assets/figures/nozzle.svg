@@ -1,0 +1,29 @@
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Thrust chamber stations" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1.25">
+  <defs>
+    <marker id="nz-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 8 4 0 8" fill="none" stroke="currentColor" stroke-width="1.2"/></marker>
+  </defs>
+  <path d="M20 135 H690" stroke-dasharray="14 4 2 4" opacity=".45"/>
+  <path d="M60 60 H262 L318 96 Q332 104 346 104 C404 103 486 80 640 40" stroke="var(--signal, #c4561f)" stroke-width="2"/>
+  <path d="M60 210 H262 L318 174 Q332 166 346 166 C404 167 486 190 640 230" stroke="var(--signal, #c4561f)" stroke-width="2"/>
+  <path d="M60 60 V210" stroke-width="2"/>
+  <path d="M640 40 V230" stroke-dasharray="4 3" opacity=".6"/>
+  <g opacity=".6"><path d="M150 60 V210" stroke-dasharray="2 4"/><path d="M346 104 V166" stroke-dasharray="2 4"/></g>
+  <path d="M110 66 V204" marker-start="url(#nz-a)" marker-end="url(#nz-a)" opacity=".8"/>
+  <path d="M372 108 V162" marker-start="url(#nz-a)" marker-end="url(#nz-a)" opacity=".8"/>
+  <path d="M664 44 V226" marker-start="url(#nz-a)" marker-end="url(#nz-a)" opacity=".8"/>
+  <path d="M60 24 H346" marker-start="url(#nz-a)" marker-end="url(#nz-a)" opacity=".8"/>
+  <path d="M346 24 H640" marker-start="url(#nz-a)" marker-end="url(#nz-a)" opacity=".8"/>
+  <g fill="currentColor" stroke="none">
+    <text x="118" y="128">D<tspan font-size="9" dy="3">c</tspan></text>
+    <text x="380" y="128">D<tspan font-size="9" dy="3">t</tspan></text>
+    <text x="672" y="128">D<tspan font-size="9" dy="3">e</tspan></text>
+    <text x="203" y="16" text-anchor="middle">chamber: volume = L* × throat area</text>
+    <text x="493" y="16" text-anchor="middle">80 % Rao bell</text>
+    <text x="150" y="250" text-anchor="middle" font-family="IBM Plex Mono, monospace">c</text>
+    <text x="346" y="250" text-anchor="middle" font-family="IBM Plex Mono, monospace">t</text>
+    <text x="640" y="250" text-anchor="middle" font-family="IBM Plex Mono, monospace">e</text>
+    <text x="60" y="272" opacity=".7" font-size="11">injector face</text>
+    <text x="236" y="272" opacity=".7" font-size="11">30 deg cone, throat arc 1.5 Rt</text>
+    <text x="520" y="272" opacity=".7" font-size="11">exit plane, Ae / At = ε</text>
+  </g>
+</svg>

@@ -798,7 +798,7 @@ def simulate_flight_6dof(
     thrust_vac: float,
     isp_vac: float,
     burn_time: float,
-    exit_area: float = 0.01,
+    exit_area: float = 0.0,
     dt: float = 0.01,
     max_time: float = 300.0,
     launch_angle_deg: float = 85.0,
@@ -839,7 +839,8 @@ def simulate_flight_6dof(
         isp_vac: Vacuum specific impulse, s.
         burn_time: Burn duration, s. The engine also stops when the
             propellant is exhausted.
-        exit_area: Nozzle exit area, m^2, for the ambient-pressure thrust loss.
+        exit_area: Nozzle exit area, m^2. Thrust is thrust_vac minus ambient pressure
+            times this area; the default 0 keeps the vacuum thrust at every altitude.
         dt: Step for the fixed-step RK4 integrator, s.
         max_time: Simulation end time, s.
         launch_angle_deg: Rail elevation above the horizon (90 = vertical).
@@ -984,6 +985,7 @@ def simulate_flight_6dof(
     next_output = output_dt
 
     has_lifted = False
+    pad_thrust = pad_weight = 0.0
     liftoff_time = 0.0
     on_rail = rail_length > 0.0
     has_apogee = False
@@ -1016,6 +1018,7 @@ def simulate_flight_6dof(
         # Hold on the pad until thrust exceeds weight along the rail
         if not has_lifted:
             weight_along_rail = diag[_D_MASS] * G0 * np.sin(elevation)
+            pad_thrust, pad_weight = diag[_D_THRUST], weight_along_rail
             if diag[_D_THRUST] > weight_along_rail:
                 has_lifted = True
                 liftoff_time = t
@@ -1041,8 +1044,9 @@ def simulate_flight_6dof(
         if t < burn_time:
             h_cap = min(h_cap, burn_time - t)
         if on_rail:
-            # The rail constraint is applied between steps, so keep them short there.
-            h_cap = min(h_cap, dt)
+            # The rail constraint is applied between steps, which is first-order
+            # accurate, so steps on the rail are a tenth of the normal step.
+            h_cap = min(h_cap, 0.1 * dt)
         h = min(adaptive_h if use_adaptive else dt, h_cap)
 
         if use_adaptive:
@@ -1235,7 +1239,12 @@ def simulate_flight_6dof(
         ),
         flight_time=float(times[-1]) if n else 0.0,
         success=has_lifted,
-        abort_reason=None if has_lifted else "Vehicle did not lift off",
+        abort_reason=None
+        if has_lifted
+        else (
+            f"Vehicle did not lift off: thrust at the pad {pad_thrust:.1f} N does not exceed "
+            f"the weight along the rail {pad_weight:.1f} N"
+        ),
         apogee_reached=has_apogee,
         ground_impact=ground_impact,
         termination_reason=termination,

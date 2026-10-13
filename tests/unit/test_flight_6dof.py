@@ -498,7 +498,7 @@ class TestFullSimulation:
         assert_allclose(reference.time, fixed.time, atol=1e-9)
         for result in (fixed, adaptive):
             assert_allclose(result.position_z, reference.position_z, rtol=2e-3, atol=1e-3)
-            assert_allclose(result.velocity_z, reference.velocity_z, atol=0.2)
+            assert_allclose(result.velocity_z, reference.velocity_z, rtol=1e-3, atol=0.05)
         adaptive_error = np.max(np.abs(adaptive.position_z - reference.position_z))
         fixed_error = np.max(np.abs(fixed.position_z - reference.position_z))
         assert adaptive_error <= fixed_error

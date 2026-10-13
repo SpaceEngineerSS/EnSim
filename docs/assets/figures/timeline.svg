@@ -1,0 +1,19 @@
+<svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Phases of a flight with dual deployment" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1.25">
+  <path d="M30 180 H700" opacity=".5"/>
+  <path d="M40 180 C70 178 110 120 170 72 C220 34 260 24 300 24 C330 24 350 34 380 60 C430 100 520 140 560 150 C600 166 640 174 690 180" stroke="var(--signal, #c4561f)" stroke-width="2"/>
+  <g opacity=".55" stroke-dasharray="2 4">
+    <path d="M52 180 V30"/><path d="M150 180 V30"/><path d="M300 180 V18"/><path d="M560 180 V30"/><path d="M690 180 V30"/>
+  </g>
+  <circle cx="300" cy="24" r="4" fill="currentColor" stroke="none"/>
+  <g fill="currentColor" stroke="none" font-size="11">
+    <text x="40" y="200">rail</text>
+    <text x="80" y="200">powered</text>
+    <text x="200" y="200">coast</text>
+    <text x="300" y="216" text-anchor="middle">apogee: drogue opens</text>
+    <text x="430" y="200">drogue descent</text>
+    <text x="560" y="216" text-anchor="middle">main opens</text>
+    <text x="690" y="200" text-anchor="end">impact</text>
+    <text x="58" y="20" opacity=".7">held on the rail</text>
+    <text x="156" y="44" opacity=".7">burnout</text>
+  </g>
+</svg>

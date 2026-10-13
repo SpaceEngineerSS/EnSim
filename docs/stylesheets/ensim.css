@@ -1,0 +1,377 @@
+/* EnSim documentation theme.
+   Same tokens as the desktop application: paper (light) and console (dark),
+   one signal colour, hairlines instead of shadows. */
+
+[data-md-color-scheme="paper"] {
+  --ensim-bg: #f4f1ea;
+  --ensim-surface: #fbf9f4;
+  --ensim-raised: #ffffff;
+  --ensim-line: #ddd8cc;
+  --ensim-line-strong: #bdb6a6;
+  --ensim-text: #1f2124;
+  --ensim-muted: #6b6e72;
+  --ensim-signal: #c4561f;
+  --ensim-ok: #4f7d3f;
+  --ensim-warn: #9a6d10;
+  color-scheme: light;
+}
+
+[data-md-color-scheme="console"] {
+  --ensim-bg: #16181b;
+  --ensim-surface: #1c1f23;
+  --ensim-raised: #23272c;
+  --ensim-line: #2a2d31;
+  --ensim-line-strong: #3a3e44;
+  --ensim-text: #e6e3dd;
+  --ensim-muted: #8b8f94;
+  --ensim-signal: #e8743b;
+  --ensim-ok: #7fae6e;
+  --ensim-warn: #d9a441;
+  color-scheme: dark;
+}
+
+[data-md-color-scheme="paper"],
+[data-md-color-scheme="console"] {
+  --md-default-bg-color: var(--ensim-bg);
+  --md-default-fg-color: var(--ensim-text);
+  --md-default-fg-color--light: var(--ensim-muted);
+  --md-default-fg-color--lighter: var(--ensim-line-strong);
+  --md-default-fg-color--lightest: var(--ensim-line);
+  --md-primary-fg-color: var(--ensim-bg);
+  --md-primary-fg-color--light: var(--ensim-surface);
+  --md-primary-fg-color--dark: var(--ensim-bg);
+  --md-primary-bg-color: var(--ensim-text);
+  --md-primary-bg-color--light: var(--ensim-muted);
+  --md-accent-fg-color: var(--ensim-signal);
+  --md-accent-fg-color--transparent: color-mix(in srgb, var(--ensim-signal) 12%, transparent);
+  --md-typeset-color: var(--ensim-text);
+  --md-typeset-a-color: var(--ensim-signal);
+  --md-typeset-mark-color: color-mix(in srgb, var(--ensim-signal) 25%, transparent);
+  --md-typeset-table-color: var(--ensim-line);
+  --md-code-bg-color: var(--ensim-surface);
+  --md-code-fg-color: var(--ensim-text);
+  --md-code-hl-color: color-mix(in srgb, var(--ensim-signal) 14%, transparent);
+  --md-footer-bg-color: var(--ensim-bg);
+  --md-footer-bg-color--dark: var(--ensim-bg);
+  --md-footer-fg-color: var(--ensim-muted);
+  --md-footer-fg-color--light: var(--ensim-muted);
+  --md-footer-fg-color--lighter: var(--ensim-line-strong);
+  --md-shadow-z1: none;
+  --md-shadow-z2: none;
+  --md-shadow-z3: none;
+  --md-admonition-bg-color: transparent;
+}
+
+/* Code syntax: muted, with the signal colour for keywords only */
+[data-md-color-scheme] {
+  --md-code-hl-keyword-color: var(--ensim-signal);
+  --md-code-hl-string-color: var(--ensim-ok);
+  --md-code-hl-number-color: var(--ensim-text);
+  --md-code-hl-function-color: var(--ensim-text);
+  --md-code-hl-name-color: var(--ensim-text);
+  --md-code-hl-constant-color: var(--ensim-text);
+  --md-code-hl-operator-color: var(--ensim-muted);
+  --md-code-hl-punctuation-color: var(--ensim-muted);
+  --md-code-hl-comment-color: var(--ensim-muted);
+  --md-code-hl-generic-color: var(--ensim-muted);
+  --md-code-hl-variable-color: var(--ensim-text);
+  --md-code-hl-special-color: var(--ensim-signal);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header and tabs: same surface as the page, separated by a hairline */
+.md-header {
+  border-bottom: 1px solid var(--ensim-line);
+}
+.md-header__title {
+  font-weight: 600;
+}
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.3rem;
+}
+.md-search__form {
+  background: var(--ensim-surface);
+  border: 1px solid var(--ensim-line);
+  border-radius: 2px;
+}
+.md-search__form:hover {
+  background: var(--ensim-raised);
+}
+.md-search__input::placeholder,
+.md-search__icon {
+  color: var(--ensim-muted);
+}
+
+/* Navigation */
+.md-nav__title {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ensim-muted);
+}
+.md-nav__item--section > .md-nav__link {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ensim-muted);
+}
+.md-nav__link--active,
+.md-nav__link:is(:focus, :hover) {
+  color: var(--ensim-text);
+}
+.md-nav--primary .md-nav__link--active {
+  box-shadow: inset 2px 0 0 var(--ensim-signal);
+  padding-left: 0.5rem;
+}
+.md-sidebar__scrollwrap {
+  scrollbar-color: var(--ensim-line-strong) transparent;
+}
+
+/* Typography */
+.md-typeset {
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+.md-typeset h1 {
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ensim-text);
+  margin-bottom: 0.8rem;
+}
+.md-typeset h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--ensim-line);
+}
+.md-typeset h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.md-typeset .headerlink {
+  color: var(--ensim-line-strong);
+}
+.md-typeset a {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ensim-signal) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.md-typeset a:hover {
+  text-decoration-color: var(--ensim-signal);
+}
+.md-typeset .lead {
+  font-size: 0.95rem;
+  color: var(--ensim-muted);
+  max-width: 34rem;
+}
+
+/* Code */
+.md-typeset code {
+  border-radius: 2px;
+  font-size: 0.86em;
+}
+.md-typeset pre > code {
+  border: 1px solid var(--ensim-line);
+}
+.md-typeset .highlight {
+  border-radius: 2px;
+}
+
+/* Tables: hairlines, mono numbers */
+.md-typeset table:not([class]) {
+  border: none;
+  border-top: 1px solid var(--ensim-line-strong);
+  border-bottom: 1px solid var(--ensim-line-strong);
+  border-radius: 0;
+  font-size: 0.72rem;
+}
+.md-typeset table:not([class]) th {
+  background: transparent;
+  font-weight: 600;
+  color: var(--ensim-muted);
+  border-bottom: 1px solid var(--ensim-line-strong);
+}
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--ensim-line);
+}
+.md-typeset table:not([class]) tr:hover {
+  background: transparent;
+  box-shadow: none;
+}
+.md-typeset td.num,
+.md-typeset table:not([class]) td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Admonitions: a rule on the left, no tinted boxes */
+.md-typeset .admonition,
+.md-typeset details {
+  border: none;
+  border-left: 2px solid var(--ensim-line-strong);
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.76rem;
+  box-shadow: none;
+  padding: 0 0 0 0.9rem;
+}
+.md-typeset .admonition-title,
+.md-typeset summary {
+  background: transparent !important;
+  border: none;
+  padding-left: 0 !important;
+  font-weight: 600;
+}
+.md-typeset .admonition-title::before,
+.md-typeset summary::before {
+  display: none;
+}
+.md-typeset .admonition.warning {
+  border-left-color: var(--ensim-warn);
+}
+.md-typeset .admonition.note {
+  border-left-color: var(--ensim-signal);
+}
+
+/* Figures */
+.md-typeset figure {
+  margin: 1.6rem 0;
+}
+.md-typeset figure img {
+  border: 1px solid var(--ensim-line);
+}
+.md-typeset figure img.plain {
+  border: none;
+}
+.md-typeset figcaption {
+  max-width: none;
+  font-size: 0.7rem;
+  color: var(--ensim-muted);
+  font-style: normal;
+  text-align: left;
+  margin-top: 0.5rem;
+}
+.figure-svg {
+  color: var(--ensim-text);
+  --signal: var(--ensim-signal);
+  --muted: var(--ensim-muted);
+  --line: var(--ensim-line-strong);
+}
+
+/* Footer */
+.md-footer {
+  border-top: 1px solid var(--ensim-line);
+}
+.md-footer-meta {
+  background: var(--ensim-bg);
+}
+
+/* Home page */
+.ensim-home {
+  max-width: 61rem;
+  margin: 0 auto;
+  padding: 2.4rem 0.8rem 3rem;
+}
+.ensim-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 2.4rem;
+  align-items: center;
+}
+.ensim-hero h1 {
+  font-size: 2.3rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.6rem;
+}
+.ensim-hero p {
+  font-size: 0.92rem;
+  color: var(--ensim-muted);
+  margin: 0 0 1.2rem;
+  max-width: 26rem;
+}
+.ensim-hero .actions a {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  margin-right: 0.5rem;
+  border: 1px solid var(--ensim-line-strong);
+  border-radius: 2px;
+  color: var(--ensim-text);
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+.ensim-hero .actions a.primary {
+  background: var(--ensim-signal);
+  border-color: var(--ensim-signal);
+  color: var(--ensim-bg);
+  font-weight: 600;
+}
+.ensim-hero svg {
+  width: 100%;
+  height: auto;
+  color: var(--ensim-text);
+}
+.ensim-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--ensim-line-strong);
+  border-bottom: 1px solid var(--ensim-line);
+  margin: 2.6rem 0 2rem;
+}
+.ensim-strip div {
+  padding: 0.8rem 0.9rem 0.9rem 0;
+}
+.ensim-strip .value {
+  font-family: var(--md-code-font-family);
+  font-size: 1.3rem;
+  color: var(--ensim-text);
+}
+.ensim-strip .label {
+  font-size: 0.66rem;
+  color: var(--ensim-muted);
+}
+.ensim-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.6rem;
+}
+.ensim-paths a {
+  display: block;
+  color: var(--ensim-text);
+  text-decoration: none;
+  border-top: 2px solid var(--ensim-line-strong);
+  padding-top: 0.7rem;
+}
+.ensim-paths a:hover {
+  border-top-color: var(--ensim-signal);
+}
+.ensim-paths h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+.ensim-paths p {
+  font-size: 0.72rem;
+  color: var(--ensim-muted);
+  margin: 0;
+}
+.ensim-home pre {
+  font-size: 0.72rem;
+}
+
+@media screen and (max-width: 52em) {
+  .ensim-hero,
+  .ensim-paths {
+    grid-template-columns: 1fr;
+  }
+  .ensim-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

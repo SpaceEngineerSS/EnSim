@@ -1,0 +1,40 @@
+<svg viewBox="0 0 720 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Order of the engine calculation" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1.25">
+  <defs>
+    <marker id="sv-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="currentColor" stroke-width="1.2"/></marker>
+  </defs>
+  <g opacity=".85">
+    <rect x="10" y="30" width="190" height="74"/>
+    <rect x="260" y="30" width="200" height="74"/>
+    <rect x="520" y="30" width="190" height="74"/>
+    <rect x="10" y="200" width="190" height="74"/>
+    <rect x="260" y="200" width="200" height="74"/>
+  </g>
+  <rect x="520" y="200" width="190" height="74" stroke="var(--signal, #c4561f)" stroke-width="2"/>
+  <path d="M200 67 H254" marker-end="url(#sv-a)"/>
+  <path d="M460 67 H514" marker-end="url(#sv-a)"/>
+  <path d="M615 104 V150 H105 V194" marker-end="url(#sv-a)"/>
+  <path d="M200 237 H254" marker-end="url(#sv-a)"/>
+  <path d="M460 237 H514" marker-end="url(#sv-a)"/>
+  <path d="M310 30 C310 10 410 10 410 26" stroke-dasharray="3 3" opacity=".7" marker-end="url(#sv-a)"/>
+  <g fill="currentColor" stroke="none">
+    <text x="22" y="54" font-weight="600">Propellants</text>
+    <text x="22" y="74" opacity=".75">in storage state:</text>
+    <text x="22" y="90" opacity=".75">LH2 20 K, LOX 90 K, RP-1 298 K</text>
+    <text x="272" y="54" font-weight="600">Gibbs minimum at (T, pc)</text>
+    <text x="272" y="74" opacity=".75">element balance, nj ≥ 0,</text>
+    <text x="272" y="90" opacity=".75">NASA Glenn polynomials</text>
+    <text x="312" y="12" opacity=".7" font-size="11">adjust T until H(products) = H(reactants)</text>
+    <text x="532" y="54" font-weight="600">Chamber state</text>
+    <text x="532" y="74" opacity=".75">Tc, composition, molar mass,</text>
+    <text x="532" y="90" opacity=".75">frozen gamma</text>
+    <text x="22" y="224" font-weight="600">Isentrope s(T, p) = sc</text>
+    <text x="22" y="244" opacity=".75">p(T) in closed form, cp(T)</text>
+    <text x="22" y="260" opacity=".75">of every species, frozen</text>
+    <text x="272" y="224" font-weight="600">Throat and exit</text>
+    <text x="272" y="244" opacity=".75">throat where ρu peaks,</text>
+    <text x="272" y="260" opacity=".75">exit where (ρu)t / (ρu) = ε</text>
+    <text x="532" y="224" font-weight="600">Performance</text>
+    <text x="532" y="244" opacity=".75">c* × ηc*,  CF × ηCF</text>
+    <text x="532" y="260" opacity=".75">momentum × (1 + cos α) / 2</text>
+  </g>
+</svg>

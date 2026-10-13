@@ -1,0 +1,27 @@
+<svg viewBox="0 0 720 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Body axis, relative wind and the CG to CP lever arm" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1.25">
+  <defs>
+    <marker id="fr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 8 4 0 8" fill="none" stroke="currentColor" stroke-width="1.2"/></marker>
+    <marker id="fr-s" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="var(--signal, #c4561f)" stroke-width="1.4"/></marker>
+  </defs>
+  <g transform="rotate(-10 380 120)">
+    <path d="M150 100 H520 C560 100 600 110 640 120 C600 130 560 140 520 140 H150 Z" stroke-width="1.6"/>
+    <path d="M150 100 L120 66 H168 L208 100 M150 140 L120 174 H168 L208 140" stroke-width="1.4"/>
+    <path d="M110 120 H640" stroke-dasharray="14 4 2 4" opacity=".45"/>
+    <path d="M640 120 H690" marker-end="url(#fr-a)" stroke-width="1.5"/>
+    <circle cx="420" cy="120" r="6"/>
+    <circle cx="330" cy="120" r="6" stroke="var(--signal, #c4561f)" stroke-width="1.6"/>
+    <path d="M336 158 H414" marker-start="url(#fr-a)" marker-end="url(#fr-a)" opacity=".75"/>
+    <g fill="currentColor" stroke="none">
+      <text x="694" y="124">xb</text>
+      <text x="410" y="94">CG</text>
+      <text x="318" y="94" fill="var(--signal, #c4561f)">CP</text>
+      <text x="336" y="178" font-size="11" opacity=".8">static margin</text>
+    </g>
+  </g>
+  <path d="M700 176 L548 196" stroke="var(--signal, #c4561f)" stroke-width="1.6" marker-end="url(#fr-s)"/>
+  <g fill="currentColor" stroke="none">
+    <text x="560" y="216" fill="var(--signal, #c4561f)">relative wind</text>
+    <text x="40" y="244" opacity=".75" font-size="11">Stations are measured aft from the nose tip while xb points forward, so the arm</text>
+    <text x="40" y="260" opacity=".75" font-size="11">from CG to CP is (x_cg − x_cp) along xb. A CP behind the CG turns the nose into the wind.</text>
+  </g>
+</svg>

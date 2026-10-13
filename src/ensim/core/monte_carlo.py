@@ -278,7 +278,7 @@ def run_monte_carlo(
     config: DispersionConfig | None = None,
     launch_angle_deg: float = 85.0,
     launch_azimuth_deg: float = 0.0,
-    exit_area: float = 0.01,
+    exit_area: float = 0.0,
     dt: float = 0.02,
     max_time: float = 300.0,
     use_adaptive: bool = False,

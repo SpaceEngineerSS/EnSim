@@ -1,0 +1,32 @@
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Regenerative cooling wall section" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1.25">
+  <defs>
+    <marker id="cl-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 8 4 0 8" fill="none" stroke="var(--signal, #c4561f)" stroke-width="1.4"/></marker>
+    <pattern id="cl-h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0 V6" stroke="currentColor" stroke-width=".8" opacity=".35"/></pattern>
+  </defs>
+  <rect x="40" y="150" width="420" height="22" fill="url(#cl-h)"/>
+  <path d="M40 150 H460 M40 172 H460" stroke-width="1.5"/>
+  <rect x="40" y="88" width="40" height="62" fill="url(#cl-h)"/>
+  <rect x="150" y="88" width="40" height="62" fill="url(#cl-h)"/>
+  <rect x="260" y="88" width="40" height="62" fill="url(#cl-h)"/>
+  <rect x="370" y="88" width="40" height="62" fill="url(#cl-h)"/>
+  <rect x="40" y="70" width="420" height="18" fill="url(#cl-h)"/>
+  <path d="M40 70 H460 M40 88 H460 M460 70 V172"/>
+  <g fill="var(--signal, #c4561f)" opacity=".16" stroke="none">
+    <rect x="80" y="88" width="70" height="62"/><rect x="190" y="88" width="70" height="62"/>
+    <rect x="300" y="88" width="70" height="62"/><rect x="410" y="88" width="50" height="62"/>
+  </g>
+  <g stroke="var(--signal, #c4561f)" stroke-width="1.6">
+    <path d="M120 240 V182" marker-end="url(#cl-a)"/><path d="M230 240 V182" marker-end="url(#cl-a)"/>
+    <path d="M340 240 V182" marker-end="url(#cl-a)"/><path d="M440 240 V182" marker-end="url(#cl-a)"/>
+  </g>
+  <path d="M470 79 H490 M470 119 H490 M470 161 H490" opacity=".5"/>
+  <g fill="currentColor" stroke="none">
+    <text x="498" y="83">closeout</text>
+    <text x="498" y="123">coolant channels, w × h</text>
+    <text x="498" y="165">hot wall, tw and k</text>
+    <text x="40" y="264">hot gas at the adiabatic wall temperature, heat flux q</text>
+    <text x="498" y="214" opacity=".75">in series per station:</text>
+    <text x="498" y="236" font-family="IBM Plex Mono, monospace" font-size="11">1/hg + tw/k + 1/hc</text>
+    <text x="498" y="256" opacity=".75" font-size="11">Bartz · conduction · Gnielinski</text>
+  </g>
+</svg>
