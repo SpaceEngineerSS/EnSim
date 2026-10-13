@@ -293,12 +293,19 @@ def run_monte_carlo(
 
     Args:
         rocket: Nominal vehicle. Each run receives its own copy.
-        thrust_vac, isp_vac, burn_time: Nominal engine performance.
+        thrust_vac: Nominal vacuum thrust, N.
+        isp_vac: Nominal vacuum specific impulse, s.
+        burn_time: Nominal burn time, s.
         config: Uncertainty model; defaults to :class:`DispersionConfig`.
         launch_angle_deg: Nominal rail elevation above the horizon, deg.
         launch_azimuth_deg: Rail heading clockwise from north, deg.
-        exit_area, dt, max_time, use_adaptive, rail_length, chute_diameter,
-        deploy_at_apogee: Passed to :func:`simulate_flight_6dof`.
+        exit_area: Nozzle exit area, m², for the ambient-pressure thrust loss.
+        dt: Integration step, s.
+        max_time: Time limit of each flight, s.
+        use_adaptive: Use the adaptive integrator.
+        rail_length: Launch rail length, m.
+        chute_diameter: Main parachute diameter, m (0 = none).
+        deploy_at_apogee: Open the main at apogee rather than at a set height.
         progress: Called with (completed, total) after each run.
         cancel: Polled between runs; return True to stop.
         flight_options: Further keyword arguments for every flight (drogue,

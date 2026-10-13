@@ -1,0 +1,75 @@
+<svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Deviation of EnSim from NASA CEA" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="none" stroke="currentColor" stroke-width="1">
+<text x="185.0" y="22" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">Tc</text>
+<line x1="125.0" y1="208" x2="245.0" y2="208" stroke="var(--line)"/>
+<line x1="185.0" y1="34" x2="185.0" y2="208" stroke-dasharray="2 3"/>
+<line x1="125.0" y1="208" x2="125.0" y2="212"/>
+<text x="125.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">-0.15 %</text>
+<line x1="245.0" y1="208" x2="245.0" y2="212"/>
+<text x="245.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">+0.15 %</text>
+<text x="335.0" y="22" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">M</text>
+<line x1="275.0" y1="208" x2="395.0" y2="208" stroke="var(--line)"/>
+<line x1="335.0" y1="34" x2="335.0" y2="208" stroke-dasharray="2 3"/>
+<line x1="275.0" y1="208" x2="275.0" y2="212"/>
+<text x="275.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">-0.15 %</text>
+<line x1="395.0" y1="208" x2="395.0" y2="212"/>
+<text x="395.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">+0.15 %</text>
+<text x="485.0" y="22" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">c*</text>
+<line x1="425.0" y1="208" x2="545.0" y2="208" stroke="var(--line)"/>
+<line x1="485.0" y1="34" x2="485.0" y2="208" stroke-dasharray="2 3"/>
+<line x1="425.0" y1="208" x2="425.0" y2="212"/>
+<text x="425.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">-0.15 %</text>
+<line x1="545.0" y1="208" x2="545.0" y2="212"/>
+<text x="545.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">+0.15 %</text>
+<text x="635.0" y="22" text-anchor="middle" fill="currentColor" stroke="none" font-weight="600">Isp</text>
+<line x1="575.0" y1="208" x2="695.0" y2="208" stroke="var(--line)"/>
+<line x1="635.0" y1="34" x2="635.0" y2="208" stroke-dasharray="2 3"/>
+<line x1="575.0" y1="208" x2="575.0" y2="212"/>
+<text x="575.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">-0.15 %</text>
+<line x1="695.0" y1="208" x2="695.0" y2="212"/>
+<text x="695.0" y="225" text-anchor="middle" font-size="10" fill="var(--muted)" stroke="none">+0.15 %</text>
+<text x="96" y="58" text-anchor="end" fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">LH2/LOX</text>
+<line x1="185.0" y1="54" x2="186.5" y2="54" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="186.5" cy="54" r="3.5" fill="var(--signal)" stroke="none"><title>LH2/LOX Tc: +0.0036 %</title></circle>
+<line x1="335.0" y1="54" x2="334.4" y2="54" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="334.4" cy="54" r="3.5" fill="var(--signal)" stroke="none"><title>LH2/LOX M: -0.0015 %</title></circle>
+<line x1="485.0" y1="54" x2="487.8" y2="54" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="487.8" cy="54" r="3.5" fill="var(--signal)" stroke="none"><title>LH2/LOX c*: +0.0069 %</title></circle>
+<line x1="635.0" y1="54" x2="632.4" y2="54" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="632.4" cy="54" r="3.5" fill="var(--signal)" stroke="none"><title>LH2/LOX Isp: -0.0065 %</title></circle>
+<text x="96" y="92" text-anchor="end" fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">LCH4/LOX</text>
+<line x1="185.0" y1="88" x2="182.2" y2="88" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="182.2" cy="88" r="3.5" fill="var(--signal)" stroke="none"><title>LCH4/LOX Tc: -0.0070 %</title></circle>
+<line x1="335.0" y1="88" x2="334.4" y2="88" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="334.4" cy="88" r="3.5" fill="var(--signal)" stroke="none"><title>LCH4/LOX M: -0.0014 %</title></circle>
+<line x1="485.0" y1="88" x2="484.8" y2="88" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="484.8" cy="88" r="3.5" fill="var(--signal)" stroke="none"><title>LCH4/LOX c*: -0.0005 %</title></circle>
+<line x1="635.0" y1="88" x2="635.1" y2="88" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="635.1" cy="88" r="3.5" fill="var(--signal)" stroke="none"><title>LCH4/LOX Isp: +0.0001 %</title></circle>
+<text x="96" y="126" text-anchor="end" fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">RP-1/LOX</text>
+<line x1="185.0" y1="122" x2="189.0" y2="122" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="189.0" cy="122" r="3.5" fill="var(--signal)" stroke="none"><title>RP-1/LOX Tc: +0.0100 %</title></circle>
+<line x1="335.0" y1="122" x2="378.3" y2="122" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="378.3" cy="122" r="3.5" fill="var(--signal)" stroke="none"><title>RP-1/LOX M: +0.1083 %</title></circle>
+<line x1="485.0" y1="122" x2="465.3" y2="122" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="465.3" cy="122" r="3.5" fill="var(--signal)" stroke="none"><title>RP-1/LOX c*: -0.0492 %</title></circle>
+<line x1="635.0" y1="122" x2="618.2" y2="122" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="618.2" cy="122" r="3.5" fill="var(--signal)" stroke="none"><title>RP-1/LOX Isp: -0.0420 %</title></circle>
+<text x="96" y="160" text-anchor="end" fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">N2H4/NTO</text>
+<line x1="185.0" y1="156" x2="184.4" y2="156" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="184.4" cy="156" r="3.5" fill="var(--signal)" stroke="none"><title>N2H4/NTO Tc: -0.0014 %</title></circle>
+<line x1="335.0" y1="156" x2="334.7" y2="156" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="334.7" cy="156" r="3.5" fill="var(--signal)" stroke="none"><title>N2H4/NTO M: -0.0007 %</title></circle>
+<line x1="485.0" y1="156" x2="486.3" y2="156" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="486.3" cy="156" r="3.5" fill="var(--signal)" stroke="none"><title>N2H4/NTO c*: +0.0033 %</title></circle>
+<line x1="635.0" y1="156" x2="634.4" y2="156" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="634.4" cy="156" r="3.5" fill="var(--signal)" stroke="none"><title>N2H4/NTO Isp: -0.0015 %</title></circle>
+<text x="96" y="194" text-anchor="end" fill="currentColor" stroke="none" font-family="IBM Plex Mono, monospace" font-size="11">MMH/NTO</text>
+<line x1="185.0" y1="190" x2="183.3" y2="190" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="183.3" cy="190" r="3.5" fill="var(--signal)" stroke="none"><title>MMH/NTO Tc: -0.0042 %</title></circle>
+<line x1="335.0" y1="190" x2="335.1" y2="190" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="335.1" cy="190" r="3.5" fill="var(--signal)" stroke="none"><title>MMH/NTO M: +0.0002 %</title></circle>
+<line x1="485.0" y1="190" x2="485.9" y2="190" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="485.9" cy="190" r="3.5" fill="var(--signal)" stroke="none"><title>MMH/NTO c*: +0.0024 %</title></circle>
+<line x1="635.0" y1="190" x2="635.1" y2="190" stroke="var(--signal)" stroke-width="2"/>
+<circle cx="635.1" cy="190" r="3.5" fill="var(--signal)" stroke="none"><title>MMH/NTO Isp: +0.0001 %</title></circle>
+</svg>

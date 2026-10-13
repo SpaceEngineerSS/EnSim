@@ -1,48 +1,71 @@
-# Contributing to EnSim
+# Contributing
 
-Contributions are welcome when they preserve EnSim's explicit model boundaries,
-reproducibility and scientific traceability.
+Thank you for helping. Bug reports, corrections to the physics and small,
+focused pull requests are all welcome.
 
-## Development setup
+## Setting up
 
-```bash
-git clone https://github.com/SpaceEngineerSS/EnSim.git
-cd EnSim
-python -m venv .venv
-python -m pip install -e ".[dev,docs]"
-python -m pytest
+```console
+$ git clone https://github.com/SpaceEngineerSS/EnSim.git
+$ cd EnSim
+$ python -m venv .venv
+$ pip install -e ".[all]"
+$ pytest
 ```
 
-Before opening a pull request, run:
+`[all]` installs the desktop application, the test tools and the
+documentation tools. To work on the library alone, `pip install -e ".[dev]"` is
+enough; the interface tests are skipped without PyQt6.
 
-```bash
-python -m ruff check src tests
-python -m ruff format --check src tests
-python -m pytest
-mkdocs build --strict
+## Before a pull request
+
+```console
+$ ruff check src tests scripts
+$ ruff format --check src tests scripts
+$ pytest
+$ mkdocs build --strict
 ```
 
-## Scientific changes
+CI runs the same, plus the core tests on Windows, macOS and Linux without Qt
+and a wheel build.
 
-A model change must state its governing equations, units, assumptions and valid
-domain. Cite a primary source where one exists. Add tests for invariants, invalid
-inputs and at least one independent reference value; update `docs/THEORY.md`,
-`docs/VALIDATION.md` or `docs/MODEL_LIMITATIONS.md` as appropriate. Do not hide a
-failed solve behind a nominal value, undocumented efficiency or generic
-correlation.
+## Changes to the physics
 
-External comparisons must distinguish verification, cross-comparison and
-experimental validation. Include the exact source version, input case, extraction
-method and tolerances needed to reproduce the evidence.
+- Say which equation changes and cite the source.
+- Keep SI inside the library and state the unit of every public argument.
+- Add a test of the equation or invariant, a test of an invalid input, and,
+  when an independent reference exists, a comparison in `tests/validation`
+  with the reference data in `tests/reference` and its provenance.
+- Update the matching page in `docs/theory`, and `docs/model-limitations.md`
+  if the model's reach changes.
+- Never hide a failure: raise rather than return a nominal value, and do not
+  add an efficiency or margin that is not an input.
 
-## Code changes
+`scripts/generate_cea_references.py` regenerates the CEA reference set with
+NASA's `cea` package; `scripts/make_doc_figures.py` redraws the validation
+figure from it.
 
-- Keep numerical models independent of Qt.
-- Preserve SI internally and label every public unit boundary.
-- Prefer immutable input/result records for numerical APIs.
-- Avoid broad exception handling in core calculations.
-- Add only comments that explain a non-obvious decision or source.
-- Keep commits focused and use a clear imperative subject.
+## Changes to the application
 
-Use the issue templates for defects, feature proposals or scientific challenges.
-Security reports follow [SECURITY.md](SECURITY.md).
+- Calculations belong in `ensim.core`; the interface only collects inputs and
+  shows results.
+- Anything that takes longer than a frame goes through `TaskRunner` and
+  accepts cancellation.
+- Colours, spacing and fonts come from `ensim/ui/theme.py`; icons are SVG in
+  `assets/icons`, drawn on a 20 px grid with a 1.5 px stroke and
+  `currentColor`.
+- Labels are short and in sentence case. Numbers use the mono font.
+- If you change what a page looks like, run
+  `python scripts/capture_screenshots.py` and commit the new images.
+
+## Commits
+
+One change per commit, with a short subject that says what changed, prefixed
+by the area (`core:`, `ui:`, `docs:`, `tests:`).
+
+## Reporting
+
+Use the issue templates. For a physics question, give the full inputs with
+units and the result you expected, with its source. Security problems go
+through private vulnerability reporting as described in
+[SECURITY.md](SECURITY.md), not to a public issue.

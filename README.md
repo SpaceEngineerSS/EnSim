@@ -1,166 +1,112 @@
 # EnSim
 
-EnSim is an open-source desktop application and Python package for liquid-rocket
-propulsion analysis and six-degree-of-freedom flight simulation. It is intended
-for preliminary design, reproducible trade studies and engineering education.
+Liquid rocket engine analysis and six-degree-of-freedom flight simulation, as a
+desktop application and a Python library.
 
 [![CI](https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml/badge.svg)](https://github.com/SpaceEngineerSS/EnSim/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/ensim.svg)](https://pypi.org/project/ensim/)
 [![Python](https://img.shields.io/pypi/pyversions/ensim.svg)](https://pypi.org/project/ensim/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![EnSim main window](docs/screenshot_main.png)
+![EnSim, engine performance](https://raw.githubusercontent.com/SpaceEngineerSS/EnSim/main/docs/assets/screens/engine_performance.png)
 
-## What EnSim calculates
+Pick two propellants, a mixture ratio and a chamber pressure. EnSim finds the
+chamber equilibrium, expands the gas through the nozzle and gives you Isp,
+thrust and the composition of the exhaust, matching NASA CEA to within 0.05 %.
+From there you can draw and cool the chamber, put the engine in a rocket, fly
+it from the rail to landing and scatter a few hundred flights to see where it
+comes down.
 
-- ideal-gas chemical equilibrium by constrained Gibbs-energy minimization;
-- adiabatic chamber temperature from coupled equilibrium and enthalpy balance;
-- frozen-composition, calorically perfect nozzle performance;
-- planar minimum-length method-of-characteristics nozzle contours;
-- preliminary regenerative-cooling heat transfer and pressure loss;
-- acoustic chamber-mode frequencies, with stability classification only when
-  growth and damping rates are supplied;
-- local-frame and WGS-84/J2 six-degree-of-freedom trajectories;
-- staging, dispersion analysis, reduced-order optimization and uncertainty
-  propagation.
+**Documentation:** <https://spaceengineerss.github.io/EnSim/>
 
-The interface uses SI units. Long-running engine, flight and uncertainty jobs run
-outside the GUI event loop. Project files remain local; the application does not
-require a network connection.
+## Install
 
-## Scientific status
+The desktop application:
 
-EnSim distinguishes verification from validation:
-
-- thermodynamic polynomial evaluation, conservation equations and nozzle
-  relations have analytical or invariant tests;
-- two gas-phase HP equilibrium cases are compared with results produced by the
-  official NASA CEA 3.3.2 Python distribution;
-- dragless WGS-84 translation and torque-free rotation are compared with
-  selected public NASA NESC check-case histories;
-- cooling correlations are checked against their equations and physical trends,
-  but are not calibrated to a particular engine hot-fire data set;
-- the general aerodynamic flight model has not been validated against telemetry.
-- axial flight drag uses an explicit user-supplied coefficient rather than an
-  undocumented synthetic Mach curve.
-
-See [validation](docs/VALIDATION.md), [model limitations](docs/MODEL_LIMITATIONS.md)
-and [theory](docs/THEORY.md) before using results in a design decision. EnSim is
-not a certification, range-safety or hardware-release tool.
-
-## Installation
-
-### Desktop downloads
-
-Self-contained downloads that do not require a separate Python installation are
-available on the [GitHub Releases page](https://github.com/SpaceEngineerSS/EnSim/releases/latest):
-
-- Windows x64 executable (`.exe`);
-- Linux x86-64 executable archive (`.tar.gz`);
-- macOS disk images (`.dmg`) for Apple Silicon and Intel.
-
-Each desktop file has a matching `.sha256` checksum. The current Windows and
-macOS builds are not code-signed, so the operating system may ask for explicit
-confirmation before the first launch.
-
-### Python package
-
-Python 3.10 or newer is required.
-
-```bash
-python -m pip install ensim
-ensim
+```console
+$ pip install "ensim[gui]"
+$ ensim
 ```
 
-For a source checkout:
+or a self-contained download for Windows, macOS and Linux from the
+[releases page](https://github.com/SpaceEngineerSS/EnSim/releases/latest).
 
-```bash
-git clone https://github.com/SpaceEngineerSS/EnSim.git
-cd EnSim
-python -m venv .venv
-python -m pip install -e ".[dev,docs]"
-python -m pytest
-python main.py
+The library and the command line only, without Qt:
+
+```console
+$ pip install ensim
+$ ensim engine --fuel LCH4 --of 3.4 --pc 100 --eps 35 --throat-area 200
 ```
 
-The command `ensim --test` performs a short installation and coupled-physics
-smoke test. It is not a substitute for the complete pytest suite.
+Python 3.10 or newer.
 
-## Minimal Python example
+## In Python
 
 ```python
-from ensim.core.chemistry import CombustionProblem
-from ensim.core.propulsion import NozzleConditions, calculate_performance
-from ensim.utils.nasa_parser import load_default_database
+from ensim.core.engine import EngineInputs, analyze_engine
 
-database = load_default_database()
-problem = CombustionProblem(database)
-problem.add_fuel("H2", moles=2.0, temperature=298.15)
-problem.add_oxidizer("O2", moles=1.0, temperature=298.15)
-equilibrium = problem.solve(pressure=6.89e6)
-
-nozzle = NozzleConditions(
-    area_ratio=40.0,
-    chamber_pressure=6.89e6,
-    ambient_pressure=0.0,
-)
-performance = calculate_performance(
-    T_chamber=equilibrium.temperature,
-    P_chamber=nozzle.chamber_pressure,
-    gamma=equilibrium.gamma,
-    mean_molecular_weight=equilibrium.mean_molecular_weight,
-    nozzle=nozzle,
-)
-
-print(equilibrium.temperature, performance.isp)
+engine = analyze_engine(EngineInputs(
+    fuel="LCH4", oxidizer="LOX", of_ratio=3.4,
+    chamber_pressure=100e5, expansion_ratio=35, throat_area=0.02,
+))
+engine.chamber_temperature                 # 3598.0 K
+engine.vacuum.isp, engine.sea_level.isp    # 337.7 s, 272.2 s
+engine.vacuum.thrust                       # 366.0 kN
 ```
 
-`mean_molecular_weight` is expressed in g/mol; pressures are Pa and
-temperatures are K.
+Flights, dispersion studies, staging and the lower-level solvers are covered in
+the [library guide](https://spaceengineerss.github.io/EnSim/library/python/).
 
-## Documentation
+## What is inside
 
-- [Architecture](ARCHITECTURE.md)
-- [Theory and equations](docs/THEORY.md)
-- [Validation evidence](docs/VALIDATION.md)
-- [Flight verification](docs/FLIGHT_VALIDATION.md)
-- [Cooling model](docs/COOLING.md)
-- [Combustion-instability model](docs/COMBUSTION_INSTABILITY.md)
-- [Uncertainty quantification](docs/UNCERTAINTY_QUANTIFICATION.md)
-- [API overview](docs/api/index.md)
+| | |
+|---|---|
+| Chamber | Gibbs minimisation over the NASA Glenn species set, propellants in their storage state |
+| Nozzle | Frozen isentrope with temperature-dependent heat capacity, divergence and efficiency losses, off-design back pressure |
+| Chamber contour | Cylinder from L\*, conical convergence, 80 % bell; CSV and STL export |
+| Cooling | Bartz gas side, Gnielinski coolant side, wall temperature and pressure drop along the contour |
+| Acoustics | Longitudinal, tangential and radial chamber modes; chug estimate |
+| Vehicle | Barrowman centre of pressure, stability margin through the burn, multi-stage sizing |
+| Flight | 6-DOF rigid body, RK4 or Dormand–Prince, US Standard Atmosphere 1976, wind profile, optional WGS-84/J2 rotating Earth, dual-deploy recovery |
+| Studies | Parametric sweeps, nozzle and design-point optimisation, gravity-turn ascent, engine uncertainty, Monte Carlo landing dispersion, planar MOC nozzle |
+
+## How far to trust it
+
+Engine numbers are checked against NASA CEA 3.3.2 on every commit, and the
+flight model against two NASA NESC check cases. Neither the cooling model nor
+the aerodynamics has been compared with hardware. The
+[validation](https://spaceengineerss.github.io/EnSim/validation/) and
+[model limitations](https://spaceengineerss.github.io/EnSim/model-limitations/)
+pages say exactly what has and has not been checked. EnSim is for design studies
+and teaching, not for certifying hardware.
+
+## Moving from 3.x
+
+Projects open unchanged, but propellants now enter the chamber as liquids and
+several flight and staging errors were fixed, so results move. See
+[Moving to 4.0](https://spaceengineerss.github.io/EnSim/migrating/) and the
+[changelog](CHANGELOG.md).
 
 ## Development
 
-```bash
-python -m ruff check src tests
-python -m pytest
-python -m build
-python -m twine check dist/*
+```console
+$ git clone https://github.com/SpaceEngineerSS/EnSim.git
+$ cd EnSim
+$ pip install -e ".[all]"
+$ pytest
+$ ruff check . && ruff format --check .
+$ mkdocs serve
 ```
 
-Bug reports and scientific challenges are welcome through the
-[issue tracker](https://github.com/SpaceEngineerSS/EnSim/issues). A scientific
-issue should include units, full input data, the reference source and enough
-information to reproduce the comparison.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains the layout of the code and what a
+change needs before it is merged; [ARCHITECTURE.md](ARCHITECTURE.md) describes
+how the pieces fit.
 
-## Primary references
+Bug reports and challenges to the physics are welcome in the
+[issue tracker](https://github.com/SpaceEngineerSS/EnSim/issues). Please include
+the inputs, units and, for a physics question, the reference you compare with.
 
-1. Gordon, S. and McBride, B. J., *Computer Program for Calculation of Complex
-   Chemical Equilibrium Compositions and Applications, Part I: Analysis*, NASA
-   RP-1311, 1994.
-2. McBride, B. J., Zehe, M. J. and Gordon, S., *NASA Glenn Coefficients for
-   Calculating Thermodynamic Properties of Individual Species*,
-   NASA/TP-2002-211556, 2002.
-3. Jackson, E. B., Murri, D. G. and Shelton, R. O., *Check-Cases for
-   Verification of 6-Degree-of-Freedom Flight Vehicle Simulations, Volume I*,
-   NASA/TM-2015-218675, 2015.
-4. Bartz, D. R., *A Simple Equation for Rapid Estimation of Rocket Nozzle
-   Convective Heat Transfer Coefficients*, Jet Propulsion, 1957.
-5. Gordon, S. and McBride, B. J., *Computer Program for Calculation of Complex
-   Chemical Equilibrium Compositions and Applications, Part II: Users Manual
-   and Program Description*, NASA RP-1311, 1996.
+## Licence
 
-## License and citation
-
-EnSim is released under the [MIT License](LICENSE). Citation metadata is
-available in [CITATION.cff](CITATION.cff).
+MIT. The bundled IBM Plex fonts are under the SIL Open Font License
+(`src/ensim/assets/fonts/OFL.txt`).

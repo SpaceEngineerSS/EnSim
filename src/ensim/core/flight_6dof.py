@@ -850,8 +850,10 @@ def simulate_flight_6dof(
         wind_speed: Surface wind at 10 m, m/s.
         wind_direction_deg: Direction the wind blows from, clockwise from north.
         use_adaptive: Use Dormand-Prince 5(4) with error control instead of RK4.
-        rtol, atol: Error tolerances for the adaptive integrator.
-        h_min, h_max: Step bounds for the adaptive integrator, s.
+        rtol: Relative error tolerance for the adaptive integrator.
+        atol: Absolute error tolerance for the adaptive integrator.
+        h_min: Smallest adaptive step, s.
+        h_max: Largest adaptive step, s.
         output_dt: Spacing of output samples, s. Adaptive steps are not limited
             by it; samples are interpolated from the step polynomial.
         throttle: Thrust and mass-flow multiplier in [0, 1].
@@ -864,8 +866,9 @@ def simulate_flight_6dof(
         nozzle_exit_pressure: Nozzle exit pressure, Pa, for the
             expansion-regime label. Does not change thrust.
         use_wgs84: Integrate in ECI with WGS-84 J2 gravity and Earth rotation.
-        launch_latitude_deg, launch_longitude_deg, launch_altitude_m:
-            Launch site for WGS-84 mode.
+        launch_latitude_deg: Geodetic latitude of the pad in WGS-84 mode.
+        launch_longitude_deg: Longitude of the pad in WGS-84 mode.
+        launch_altitude_m: Height of the pad above the WGS-84 ellipsoid, m.
         chute_cd: Main parachute drag coefficient on its nominal area.
         drogue_diameter: Drogue diameter, m (0 = none). With a drogue the
             drogue opens at apogee and the main at ``main_deploy_altitude_m``;

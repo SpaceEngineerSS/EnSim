@@ -35,7 +35,9 @@ def render(size: int) -> Image.Image:
     painter.fillPath(tile, QColor(CONSOLE.surface))
     svg = (ASSETS / "logo.svg").read_text(encoding="utf-8").replace("currentColor", CONSOLE.signal)
     inset = size * 0.16
-    QSvgRenderer(QByteArray(svg.encode())).render(painter, QRectF(inset, inset, size - 2 * inset, size - 2 * inset))
+    QSvgRenderer(QByteArray(svg.encode())).render(
+        painter, QRectF(inset, inset, size - 2 * inset, size - 2 * inset)
+    )
     painter.end()
     buffer = QBuffer()
     buffer.open(QIODevice.OpenModeFlag.WriteOnly)

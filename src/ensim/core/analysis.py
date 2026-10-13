@@ -1,10 +1,17 @@
 """Reduced frozen-gas nozzle parameter sweeps."""
 
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .propulsion import NozzleConditions, calculate_performance
+
+if TYPE_CHECKING:
+    from .engine import EngineInputs
 
 
 @dataclass(frozen=True)
@@ -120,11 +127,11 @@ class EngineSweep:
 
 
 def sweep_engine(
-    inputs,
+    inputs: EngineInputs,
     parameter: str,
-    values,
-    progress=None,
-    cancel=None,
+    values: Sequence[float] | np.ndarray,
+    progress: Callable[[float], None] | None = None,
+    cancel: Callable[[], bool] | None = None,
 ) -> EngineSweep:
     """Re-run :func:`ensim.core.engine.analyze_engine` for each value of one input.
 

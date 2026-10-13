@@ -63,7 +63,14 @@ Read the result from left to right: peak hot-wall temperature, its margin to
 the melting point of the chosen alloy, peak heat flux, coolant temperature
 rise and pressure drop, and the coolant Reynolds number. A Reynolds number
 below 2300 means laminar coolant flow, which removes heat poorly; small engines
-need fewer, narrower channels than their size suggests.
+need fewer, narrower channels than their size suggests. Below a few kilonewtons
+the fuel flow is often too small to cool the chamber at all, which is why small
+engines are usually film-cooled or ablative. The view above is the 100 bar
+methalox example with 1.0 × 2.5 mm channels.
+
+If the channels are so narrow that the coolant would lose more pressure than it
+enters with, there is no result: the page says so and suggests a higher inlet
+pressure or larger channels.
 
 !!! warning "What the cooling model leaves out"
     Coolant properties are constant along the channel, there is no boiling or

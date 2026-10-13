@@ -54,12 +54,16 @@ def main() -> None:
     args = parser.parse_args()
     rows = []
     for _ in range(args.runs):
-        output = subprocess.run(
-            [sys.executable, "-c", PROBE, str(ROOT / "src")],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip().splitlines()[-1]
+        output = (
+            subprocess.run(
+                [sys.executable, "-c", PROBE, str(ROOT / "src")],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            .stdout.strip()
+            .splitlines()[-1]
+        )
         rows.append(json.loads(output))
     keys = list(rows[0])
     print("run  " + "  ".join(f"{k:>12s}" for k in keys))

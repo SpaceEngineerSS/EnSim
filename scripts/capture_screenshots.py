@@ -1,108 +1,137 @@
-"""Capture the current desktop interface for the documentation."""
+"""Capture the desktop interface for the documentation.
+
+    python scripts/capture_screenshots.py [--theme console|paper] [--scale 1.5]
+
+Opens the bundled examples in an offscreen window with private settings,
+runs each view and writes docs/assets/screens/<name>.png. Tasks run
+synchronously, so every capture shows a finished result.
+"""
 
 from __future__ import annotations
 
+import argparse
+import os
 import sys
+import tempfile
+import time
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
-
-from PyQt6.QtWidgets import QApplication, QScrollArea, QTabWidget  # noqa: E402
-
-from ensim.ui.windows.main_window import MainWindow  # noqa: E402
-from ensim.ui.workers import CalculationWorker, SimulationParams  # noqa: E402
-
-
-def process_events(app: QApplication, count: int = 4) -> None:
-    for _ in range(count):
-        app.processEvents()
-
-
-def capture(window: MainWindow, app: QApplication, name: str) -> None:
-    process_events(app)
-    path = PROJECT_ROOT / "docs" / f"{name}.png"
-    pixmap = window.grab()
-    if not pixmap.save(str(path), "PNG"):
-        raise RuntimeError(f"Could not save {path}")
-    print(f"{path.name}: {path.stat().st_size / 1024:.1f} KiB")
-
-
-def populate_engine_result(window: MainWindow) -> None:
-    params = SimulationParams(
-        fuel="H2",
-        oxidizer="O2",
-        of_ratio_mass=6.0,
-        chamber_pressure_bar=68.0,
-        expansion_ratio=40.0,
-        ambient_pressure_bar=0.0,
-        throat_area_cm2=100.0,
-    )
-    results = []
-    errors = []
-    worker = CalculationWorker(params)
-    worker.finished.connect(results.append)
-    worker.error.connect(errors.append)
-    worker.run()
-    if errors or not results:
-        raise RuntimeError(errors[0] if errors else "Engine calculation returned no result")
-    window._last_params = params
-    window._on_simulation_complete(results[0])
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT = ROOT / "docs" / "assets" / "screens"
 
 
 def main() -> int:
-    app = QApplication.instance() or QApplication([])
-    app.setApplicationName("EnSim")
-    window = MainWindow()
-    window._first_run = False
-    window.resize(1440, 920)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--theme", choices=("console", "paper"), default="console")
+    parser.add_argument("--scale", type=float, default=1.5, help="device pixel ratio")
+    args = parser.parse_args()
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    os.environ["QT_SCALE_FACTOR"] = f"{args.scale:g}"
+    os.environ["ENSIM_DISABLE_3D"] = "1"
+
+    from PyQt6.QtWidgets import QApplication, QTabWidget
+
+    from ensim.ui import theme
+    from ensim.ui.app import _use_c_locale
+    from ensim.ui.settings import Settings
+    from ensim.ui.tasks import TaskRunner
+    from ensim.ui.windows.main_window import MainWindow, examples_dir
+
+    app = QApplication(sys.argv[:1])
+    _use_c_locale()
+    theme.load_fonts()
+    theme.apply(app, args.theme)
+
+    settings_dir = tempfile.TemporaryDirectory()
+    window = MainWindow(
+        Settings(Path(settings_dir.name) / "settings.ini"), TaskRunner(synchronous=True)
+    )
+    window.set_theme(args.theme)
+    window.resize(1366, 800)
     window.show()
-    process_events(app)
-    populate_engine_result(window)
 
-    window.tabs.setCurrentIndex(0)
-    capture(window, app, "screenshot_main")
+    def open_example(name: str) -> None:
+        if not window.open_path(examples_dir() / name, remember=False, confirm=False):
+            raise RuntimeError(f"could not open the example {name}")
 
-    window.tabs.setCurrentIndex(1)
-    results_tabs = window.tabs.widget(1).findChild(QTabWidget, "subTabs")
-    if results_tabs is None:
-        raise RuntimeError("Results sub-tabs were not found")
-    results_tabs.setCurrentIndex(0)
-    capture(window, app, "screenshot_graphs")
-    results_tabs.setCurrentIndex(1)
-    if window.view3d_widget._plotter is not None:
-        window.view3d_widget._plotter.render()
-        path = PROJECT_ROOT / "docs" / "screenshot_3d.png"
-        window.view3d_widget._plotter.screenshot(str(path))
-        print(f"{path.name}: {path.stat().st_size / 1024:.1f} KiB")
+    open_example("kerolox_sounding_rocket.ensim")
+    OUTPUT.mkdir(parents=True, exist_ok=True)
 
-    window.tabs.setCurrentIndex(2)
-    window.engine_tabs.setCurrentIndex(0)
-    window.cooling_widget._run_analysis()
-    if not window.cooling_widget._worker.wait(60_000):
-        raise RuntimeError("Cooling calculation timed out")
-    process_events(app)
-    capture(window, app, "screenshot_engine")
+    def settle(seconds: float = 0.0) -> None:
+        end = time.perf_counter() + seconds
+        while True:
+            app.processEvents()
+            if time.perf_counter() >= end:
+                break
 
-    window.tabs.setCurrentIndex(3)
-    vehicle_tabs = window.tabs.widget(3).findChild(QTabWidget, "subTabs")
-    if vehicle_tabs is None:
-        raise RuntimeError("Vehicle sub-tabs were not found")
-    vehicle_tabs.setCurrentIndex(1)
-    vehicle_scroll = window.vehicle_widget.findChild(QScrollArea)
-    if vehicle_scroll is not None:
-        vehicle_scroll.ensureWidgetVisible(window.vehicle_widget.axial_cd_spin)
-    window.vehicle_widget._update_diagram()
-    capture(window, app, "screenshot_vehicle")
+    def tab(section, title: str) -> None:
+        for widget in section.findChildren(QTabWidget):
+            for index in range(widget.count()):
+                if widget.tabText(index) == title:
+                    widget.setCurrentIndex(index)
+                    settle()
+                    return
+        raise LookupError(f"no tab {title!r} in {section.title}")
 
-    window.tabs.setCurrentIndex(4)
-    window.advanced_widget.moc_tab._generate()
-    capture(window, app, "screenshot_advanced")
+    def capture(name: str) -> None:
+        settle(0.6)  # let the number and fade animations finish
+        path = OUTPUT / f"{name}.png"
+        if not window.grab().save(str(path), "PNG"):
+            raise RuntimeError(f"could not write {path}")
+        print(f"{path.relative_to(ROOT)}  {path.stat().st_size / 1024:.0f} KiB")
 
+    engine, vehicle, flight, analysis = window.sections[:4]
+
+    window.show_section(0)
+    window.run_current()
+    tab(engine, "Performance")
+    capture("engine_performance")
+
+    window.show_section(1)
+    tab(vehicle, "Design")
+    capture("vehicle_design")
+    tab(vehicle, "Stages")
+    capture("vehicle_stages")
+
+    window.show_section(2)
+    window.run_current()
+    tab(flight, "Trajectory")
+    capture("flight_trajectory")
+    tab(flight, "Dispersion")
+    flight.dispersion.runs.setValue(200)
+    flight.dispersion.workers.setValue(1)
+    flight.dispersion.run()
+    capture("flight_dispersion")
+
+    window.show_section(3)
+    tab(analysis, "Sweep")
+    analysis.sweep.run()
+    capture("analysis_sweep")
+    tab(analysis, "MOC contour")
+    analysis.moc._from_engine()
+    analysis.moc.run()
+    capture("analysis_moc")
+
+    # Regenerative cooling only makes sense for a larger engine than the
+    # sounding rocket's 0.4 kN: use the 100 bar methalox example.
+    open_example("methalox_sealevel.ensim")
+    window.show_section(0)
+    window.run_current()
+    tab(engine, "Cooling")
+    cooling = engine.cooling.widget
+    cooling.width.set_value_si(1.0e-3)
+    cooling.height.set_value_si(2.5e-3)
+    cooling.inlet_p_ratio.set_value_si(2.0)  # keeps the methane above its critical pressure
+    cooling.engine_changed()
+    cooling.run()
+    capture("engine_cooling")
+
+    window.workspace.project._modified = False
     window.close()
-    process_events(app)
+    settings_dir.cleanup()
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
