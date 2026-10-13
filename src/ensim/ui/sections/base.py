@@ -162,3 +162,24 @@ def caption(text: str) -> QLabel:
     label = QLabel(text)
     label.setObjectName("Muted")
     return label
+
+
+class Lazy(QWidget):
+    """Placeholder that builds its real content the first time it is shown."""
+
+    def __init__(self, factory):
+        super().__init__()
+        self._factory = factory
+        self.widget: QWidget | None = None
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self.widget is None:
+            self.widget = self._factory()
+            self._layout.addWidget(self.widget)
+
+
+def lazy(factory) -> Lazy:
+    return Lazy(factory)

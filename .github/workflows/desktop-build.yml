@@ -26,7 +26,7 @@ jobs:
         shell: pwsh
         run: |
           $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"$').Matches.Groups[1].Value
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name EnSim --icon src/ensim/assets/icon.png --paths src --additional-hooks-dir .github/pyinstaller-hooks --collect-all ensim --collect-all pyvistaqt --hidden-import matplotlib.backends.backend_qtagg --copy-metadata ensim main.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name EnSim --icon src/ensim/assets/icon.ico --paths src --additional-hooks-dir .github/pyinstaller-hooks --collect-all ensim --collect-all pyvistaqt --hidden-import matplotlib.backends.backend_qtagg --copy-metadata ensim main.py
           $smoke = Start-Process -FilePath .\dist\EnSim.exe -ArgumentList "--test" -Wait -PassThru -WindowStyle Hidden
           if ($smoke.ExitCode -ne 0) { exit $smoke.ExitCode }
           $asset = "EnSim-$version-Windows-x64.exe"

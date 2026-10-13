@@ -1,10 +1,9 @@
-"""EnSim rocket propulsion and flight simulation package."""
+"""EnSim: liquid rocket engine analysis and six-degree-of-freedom flight simulation.
 
-from importlib.metadata import PackageNotFoundError, version
+The physics lives in :mod:`ensim.core`; the desktop application in
+:mod:`ensim.ui` (``pip install "ensim[gui]"``).
+"""
 
-try:
-    __version__ = version("ensim")
-except PackageNotFoundError:
-    __version__ = "4.0.0.dev0"
+from ._version import __version__
 
 __all__ = ["__version__"]

@@ -10,7 +10,6 @@ References:
     - Gordon, S. & McBride, B.J. (1994). NASA RP-1311.
 """
 
-import re
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +19,7 @@ from scipy.optimize import Bounds, LinearConstraint, brentq, least_squares, linp
 from ensim.utils.numba_support import jit
 
 from .constants import GAS_CONSTANT, P_ATM, P_REF
+from .formula import parse_formula
 from .thermodynamics import h_over_rt
 from .types import (
     CalculationError,
@@ -303,15 +303,6 @@ def lookup_combustion_properties(
 
 
 # Stoichiometry Utilities
-def parse_formula(formula: str) -> dict[str, float]:
-    """Element counts of a formula such as "N2H4" or "CH1.9423"."""
-    formula = re.sub(r"\([GLSCgl]\)$", "", formula)
-    elements: dict[str, float] = {}
-    for symbol, count in re.findall(r"([A-Z][a-z]?)(\d*\.?\d*)", formula):
-        elements[symbol] = elements.get(symbol, 0.0) + (float(count) if count else 1.0)
-    return elements
-
-
 def build_stoichiometry_matrix(
     species_list: list[SpeciesData], element_list: list[str]
 ) -> NDArray[np.float64]:

@@ -1,11 +1,16 @@
-"""Start-up card shown while the main window loads."""
+"""Start-up card shown while the main window loads.
+
+A plain frameless widget rather than QSplashScreen: on Windows,
+QSplashScreen.show() blocks for about a second waiting for the window to be
+exposed, which is longer than everything else the card is there to cover.
+"""
 
 from __future__ import annotations
 
 from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QSplashScreen
+from PyQt6.QtWidgets import QWidget
 
 from ensim import __version__
 
@@ -15,11 +20,30 @@ from .icons import svg_bytes
 WIDTH, HEIGHT = 520, 300
 
 
-class EnSimSplashScreen(QSplashScreen):
+class EnSimSplashScreen(QWidget):
     def __init__(self) -> None:
+        super().__init__(
+            None,
+            Qt.WindowType.SplashScreen
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint,
+        )
         self._step = 0
         self._steps = 4
-        super().__init__(self._paint(""))
+        self._pixmap = self._paint("")
+        self.setFixedSize(WIDTH, HEIGHT)
+        screen = QGuiApplication.primaryScreen()
+        if screen is not None:
+            centre = screen.availableGeometry().center()
+            self.move(centre.x() - WIDTH // 2, centre.y() - HEIGHT // 2)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.drawPixmap(0, 0, self._pixmap)
+        painter.end()
+
+    def finish(self, _window) -> None:
+        self.close()
 
     def _paint(self, message: str) -> QPixmap:
         p = theme.current()
@@ -73,7 +97,8 @@ class EnSimSplashScreen(QSplashScreen):
         painter.end()
         return pixmap
 
-    def showMessage(self, message: str, *_args) -> None:  # noqa: N802 - Qt override
+    def showMessage(self, message: str) -> None:  # noqa: N802 - matches the Qt name
         self._step = min(self._step + 1, self._steps)
-        self.setPixmap(self._paint(message))
+        self._pixmap = self._paint(message)
+        self.repaint()
         QGuiApplication.processEvents()

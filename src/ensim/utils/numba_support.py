@@ -14,19 +14,9 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
-
-def user_cache_dir() -> Path:
-    """Per-user cache directory for EnSim."""
-    if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-        return base / "EnSim" / "Cache"
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Caches" / "EnSim"
-    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ensim"
-
+from .paths import user_cache_dir
 
 if getattr(sys, "frozen", False) and "NUMBA_CACHE_DIR" not in os.environ:
     # Must be set before numba is imported; numba reads it once.

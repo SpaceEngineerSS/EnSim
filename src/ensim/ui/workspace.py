@@ -5,17 +5,18 @@ from __future__ import annotations
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from ensim.core.engine import EngineInputs, EngineResult, analyze_engine
-from ensim.core.frozen_flow import frozen_profile
-from ensim.core.geometry import ChamberContour, chamber_contour
 from ensim.core.project_manager import ProjectData, ProjectManager
-from ensim.core.rocket import Rocket
-from ensim.utils.nasa_parser import load_default_database
+
+if TYPE_CHECKING:
+    import numpy as np
+
+    from ensim.core.engine import EngineInputs, EngineResult
+    from ensim.core.geometry import ChamberContour
+    from ensim.core.rocket import Rocket
 
 from .tasks import TaskRunner
 
@@ -34,6 +35,11 @@ def compute_engine(
     inputs: EngineInputs, contraction_ratio: float, characteristic_length: float, ctx=None
 ) -> EngineRun:
     """Equilibrium, nozzle, contour and wall profile; runs on a worker thread."""
+    from ensim.core.engine import analyze_engine
+    from ensim.core.frozen_flow import frozen_profile
+    from ensim.core.geometry import chamber_contour
+    from ensim.utils.nasa_parser import load_default_database
+
     start = time.perf_counter()
     result = analyze_engine(inputs)
     if ctx is not None:
@@ -121,6 +127,8 @@ class Workspace(QObject):
     # engine
 
     def engine_inputs(self) -> EngineInputs:
+        from ensim.core.engine import EngineInputs
+
         e = self.data.engine
         return EngineInputs(
             fuel=e.fuel,

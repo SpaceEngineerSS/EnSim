@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .chemistry import parse_formula
+from .formula import parse_formula
 from .types import ELEMENTS
 
 

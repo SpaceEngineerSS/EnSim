@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog, QMenu, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QLabel, QMenu, QVBoxLayout, QWidget
 
 from .. import theme
 
@@ -81,15 +81,19 @@ class PlotCanvas(QWidget):
         self._stale = False
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
+        self._label = QLabel(placeholder)
+        self._label.setObjectName("Hint")
+        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._layout.addWidget(self._label)
 
     # lifecycle
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        if self._canvas is None:
+        if self._canvas is None and self._has_data:
             self._build()
             self._draw()
-        elif self._stale:
+        elif self._canvas is not None and self._stale:
             self._draw()
 
     def _build(self) -> None:
@@ -105,14 +109,22 @@ class PlotCanvas(QWidget):
         self._canvas.mpl_connect("button_press_event", self._on_press)
         self._canvas.mpl_connect("button_release_event", self._on_release)
         self._canvas.mpl_connect("motion_notify_event", self._on_motion)
+        self._layout.removeWidget(self._label)
+        self._label.deleteLater()
         self._layout.addWidget(self._canvas)
 
     def refresh(self, has_data: bool = True) -> None:
-        """Redraw from the owner's data; cheap when the canvas is hidden."""
+        """Redraw from the owner's data; deferred while the canvas is hidden."""
         self._has_data = has_data
-        if self._canvas is not None and self.isVisible():
+        if self._canvas is None:
+            if not has_data:
+                return
+            if not self.isVisible():
+                return  # built on the next showEvent
+            self._build()
+        if self.isVisible():
             self._draw()
-        elif self._canvas is not None:
+        else:
             self._stale = True
 
     def restyle(self) -> None:

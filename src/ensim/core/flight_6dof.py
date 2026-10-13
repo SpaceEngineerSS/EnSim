@@ -69,6 +69,7 @@ from ensim.core.math_utils import (
 )
 from ensim.core.mission import atmosphere_properties
 from ensim.core.rocket import Rocket
+from ensim.core.types import SimulationCancelled
 from ensim.utils.numba_support import jit
 
 R_EARTH = EARTH_RADIUS_MEAN
@@ -93,10 +94,6 @@ __all__ = [
 
 class PhysicsViolationError(Exception):
     """Raised when the inputs or the integrated state are not physical."""
-
-
-class SimulationCancelled(Exception):
-    """Raised when the caller's cancel callback asks the simulation to stop."""
 
 
 @dataclass

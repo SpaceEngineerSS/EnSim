@@ -9,7 +9,7 @@ from PyQt6.QtCore import QByteArray, QRectF, QSize, Qt
 from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 
-from ensim.utils.numba_support import user_cache_dir
+from ensim.utils.paths import user_cache_dir
 
 ICON_DIR = Path(__file__).resolve().parents[1] / "assets" / "icons"
 LOGO = ICON_DIR.parent / "logo.svg"

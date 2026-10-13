@@ -54,3 +54,13 @@ def test_run_project_with_flight_writes_json(tmp_path):
 def test_errors_exit_with_status_one(argv, capsys):
     assert main(argv) == 1
     assert capsys.readouterr().err.startswith("ensim ")
+
+
+def test_package_version_matches_pyproject():
+    tomllib = pytest.importorskip("tomllib")  # Python 3.11+
+
+    from ensim import __version__
+
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    with pyproject.open("rb") as handle:
+        assert tomllib.load(handle)["project"]["version"] == __version__

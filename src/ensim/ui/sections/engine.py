@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QPushButton, QSplitter, QVBoxLayout, QWidget
 
 from ensim.core.constants import P_ATM
-from ensim.core.engine import EngineResult
-from ensim.core.mission import atmosphere_properties
 from ensim.core.presets import ENGINE_PRESETS
 from ensim.core.propellants import FUELS, OXIDIZERS, PROPELLANTS
 from ensim.utils.units import Quantity, UnitSystem
@@ -17,8 +17,10 @@ from .. import theme
 from ..units import UNITS, fmt
 from ..widgets.controls import Choice, Form, Metric, NumberField, ResultTable, connect_all, hint
 from ..widgets.plot import PlotCanvas
-from .base import Section, caption, metric_row, tabs
-from .chamber import CoolingView, StabilityView
+from .base import Section, caption, lazy, metric_row, tabs
+
+if TYPE_CHECKING:
+    from ensim.core.engine import EngineResult
 
 
 def _propellant_items(keys) -> list[tuple[str, str, str]]:
@@ -158,8 +160,8 @@ class EngineSection(Section):
 
         self.composition_plot = PlotCanvas(self._render_composition, self._composition_data)
         self.altitude_plot = PlotCanvas(self._render_altitude, self._altitude_data)
-        self.cooling = CoolingView(self.workspace)
-        self.stability = StabilityView(self.workspace)
+        self.cooling = lazy(self._make_cooling)
+        self.stability = lazy(self._make_stability)
 
         self.views = tabs(
             ("Performance", performance),
@@ -332,8 +334,9 @@ class EngineSection(Section):
             self.altitude_plot,
         ):
             plot.refresh()
-        self.cooling.engine_changed()
-        self.stability.engine_changed()
+        for view in (self.cooling, self.stability):
+            if view.widget is not None:
+                view.widget.engine_changed()
 
     def restyle(self) -> None:
         if not self.built:
@@ -345,7 +348,24 @@ class EngineSection(Section):
             self.altitude_plot,
         ):
             plot.restyle()
-        self.cooling.restyle()
+        if self.cooling.widget is not None:
+            self.cooling.widget.restyle()
+
+    def _make_cooling(self):
+        from .chamber import CoolingView
+
+        view = CoolingView(self.workspace)
+        if self.workspace.run is not None:
+            view.engine_changed()
+        return view
+
+    def _make_stability(self):
+        from .chamber import StabilityView
+
+        view = StabilityView(self.workspace)
+        if self.workspace.run is not None:
+            view.engine_changed()
+        return view
 
     # plots
 
@@ -431,6 +451,8 @@ class EngineSection(Section):
         ax.set_title("Equilibrium composition, species above 1e-4")
 
     def _altitude_table(self):
+        from ensim.core.mission import atmosphere_properties
+
         result = self.workspace.result
         altitudes = np.linspace(0.0, 80_000.0, 161)
         thrust, isp, ratio = [], [], []

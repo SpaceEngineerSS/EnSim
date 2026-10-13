@@ -17,7 +17,7 @@ from typing import Any
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
-from ensim.core.flight_6dof import SimulationCancelled
+from ensim.core.types import SimulationCancelled
 
 log = logging.getLogger(__name__)
 

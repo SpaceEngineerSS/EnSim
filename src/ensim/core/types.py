@@ -362,3 +362,7 @@ class SingularMatrixError(CalculationError):
     """Exception raised when stoichiometry matrix is singular."""
 
     pass
+
+
+class SimulationCancelled(Exception):
+    """Raised inside a long calculation when the caller's cancel callback returns True."""

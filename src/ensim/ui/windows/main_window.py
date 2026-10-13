@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
 
 from PyQt6.QtCore import QUrl
@@ -21,11 +22,7 @@ from ensim.core.project_manager import ProjectFileError
 from ensim.utils.units import Quantity, UnitSystem
 
 from .. import motion, theme
-from ..sections.analysis import AnalysisSection
-from ..sections.engine import EngineSection
-from ..sections.flight import FlightSection
 from ..sections.log import LogSection
-from ..sections.vehicle import VehicleSection
 from ..settings import Settings
 from ..shell import Header, NavRail, StatusStrip
 from ..tasks import TaskRunner
@@ -43,7 +40,15 @@ def examples_dir() -> Path | None:
 
 
 class MainWindow(QMainWindow):
-    SECTIONS = (EngineSection, VehicleSection, FlightSection, AnalysisSection, LogSection)
+    # Sections are imported when first opened, so start-up does not load the
+    # modules (and SciPy/matplotlib parts) behind pages the user never visits.
+    SECTIONS = (
+        ("Engine", "engine", "ensim.ui.sections.engine:EngineSection"),
+        ("Vehicle", "vehicle", "ensim.ui.sections.vehicle:VehicleSection"),
+        ("Flight", "flight", "ensim.ui.sections.flight:FlightSection"),
+        ("Analysis", "analysis", "ensim.ui.sections.analysis:AnalysisSection"),
+        ("Log", "log", None),
+    )
 
     def __init__(self, settings: Settings | None = None, tasks: TaskRunner | None = None):
         super().__init__()
@@ -61,17 +66,17 @@ class MainWindow(QMainWindow):
         outer = QHBoxLayout(central)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-        self.sections = [cls(self.workspace, self.settings) for cls in self.SECTIONS]
-        self.log = self.sections[-1]
-        self.nav = NavRail([(s.title, s.icon_name) for s in self.sections])
+        self.log = LogSection(self.workspace, self.settings)
+        self._sections: list = [None] * (len(self.SECTIONS) - 1) + [self.log]
+        self.nav = NavRail([(title, icon) for title, icon, _path in self.SECTIONS])
         outer.addWidget(self.nav)
         column = QVBoxLayout()
         column.setSpacing(0)
         self.header = Header()
         column.addWidget(self.header)
         self.stack = QStackedWidget()
-        for section in self.sections:
-            self.stack.addWidget(section)
+        for section in self._sections:
+            self.stack.addWidget(section if section is not None else QWidget())
         column.addWidget(self.stack, 1)
         self.status = StatusStrip()
         column.addWidget(self.status)
@@ -106,7 +111,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("F5"), self, activated=self.run_current)
         QShortcut(QKeySequence("Ctrl+Return"), self, activated=self.run_current)
         QShortcut(QKeySequence("Escape"), self, activated=self.cancel)
-        for index in range(len(self.sections)):
+        for index in range(len(self.SECTIONS)):
             QShortcut(
                 QKeySequence(f"Ctrl+{index + 1}"),
                 self,
@@ -197,8 +202,28 @@ class MainWindow(QMainWindow):
 
     # navigation
 
+    @property
+    def sections(self) -> list:
+        """Every section, creating the ones not opened yet."""
+        return [self.section(i) for i in range(len(self.SECTIONS))]
+
+    def created_sections(self) -> list:
+        return [s for s in self._sections if s is not None]
+
+    def section(self, index: int):
+        if self._sections[index] is None:
+            module_name, class_name = self.SECTIONS[index][2].split(":")
+            cls = getattr(importlib.import_module(module_name), class_name)
+            section = cls(self.workspace, self.settings)
+            placeholder = self.stack.widget(index)
+            self.stack.insertWidget(index, section)
+            self.stack.removeWidget(placeholder)
+            placeholder.deleteLater()
+            self._sections[index] = section
+        return self._sections[index]
+
     def show_section(self, index: int) -> None:
-        section = self.sections[index]
+        section = self.section(index)
         section.ensure_built()
         if self.stack.currentWidget() is not section:
             self.stack.setCurrentWidget(section)
@@ -247,7 +272,8 @@ class MainWindow(QMainWindow):
     def _engine_failed(self, message: str) -> None:
         self.header.set_state("Engine failed", "Error")
         self.notify(f"Engine failed: {message}")
-        self.sections[0].set_running(False)
+        if self._sections[0] is not None:
+            self._sections[0].set_running(False)
 
     # appearance
 
@@ -258,17 +284,18 @@ class MainWindow(QMainWindow):
         theme.apply(QApplication.instance(), name)
         self.nav.restyle()
         self.status.restyle()
-        for section in self.sections:
+        for section in self.created_sections():
             section.restyle()
 
     def set_units(self, system: UnitSystem) -> None:
         self.settings.units = system
         UNITS.set_system(system)
-        for section in self.sections:
+        for section in self.created_sections():
             section.restyle()
         if self.workspace.result is not None:
             self._show_engine_summary(self.workspace.result)
-            self.sections[0]._show_result(self.workspace.result)
+            if self._sections[0] is not None and self._sections[0].built:
+                self._sections[0]._show_result(self.workspace.result)
 
     def toggle_motion(self, checked: bool) -> None:
         self.settings.reduce_motion = checked
@@ -286,7 +313,7 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.header.set_summary("")
         self.header.set_state("")
-        for section in self.sections:
+        for section in self.created_sections():
             if section.built:
                 section.load_from_project()
 
