@@ -137,8 +137,9 @@ class EngineSection(Section):
         right_layout.addWidget(self.points, 1)
         self.regime = hint("")
         right_layout.addWidget(self.regime)
+        right.setMinimumWidth(380)  # four columns with their headers
         split.addWidget(right)
-        split.setSizes([640, 360])
+        split.setSizes([580, 420])
         layout.addWidget(split, 1)
 
         self.contour_plot = PlotCanvas(self._render_contour, self._contour_data)

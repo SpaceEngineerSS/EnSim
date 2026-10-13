@@ -114,3 +114,23 @@ def test_bad_project_file_is_reported_not_raised(window, tmp_path, monkeypatch):
     bad.write_text("{", encoding="utf-8")
     assert not window.open_path(bad, confirm=False)
     assert shown and "not a valid project" in shown[0]
+
+
+def test_failed_cooling_run_clears_the_previous_result(example, qapp):
+    win = example
+    win.show_section(0)
+    win.run_current()
+    engine = win.sections[0]
+    engine.views.setCurrentIndex(4)  # Cooling
+    qapp.processEvents()
+    cooling = engine.cooling.widget
+    cooling.run()
+    assert cooling._results is not None
+    # Channels so small that the pressure drop exceeds the inlet pressure
+    cooling.width.set_value_si(2e-4)
+    cooling.height.set_value_si(2e-4)
+    cooling.inlet_p_ratio.set_value_si(1.05)
+    cooling.run()
+    assert cooling._results is None
+    assert cooling.m_wall._si is None
+    assert "pressure drop exceeds the inlet pressure" in cooling.note.text()

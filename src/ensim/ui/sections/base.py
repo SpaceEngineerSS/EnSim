@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt
 from PyQt6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
     QScrollArea,
     QSplitter,
@@ -113,7 +113,9 @@ class Section(QWidget):
         splitter.addWidget(views)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([inputs_width, 1000])
-        panel.setMinimumWidth(250)
+        # Never narrower than the form itself: the scroll area has no horizontal bar
+        needed = holder.minimumSizeHint().width() + scroll.verticalScrollBar().sizeHint().width()
+        panel.setMinimumWidth(max(250, needed))
         self._root.addWidget(splitter)
         self._splitter = splitter
         return splitter
@@ -147,14 +149,72 @@ def notice(text: str) -> QWidget:
     return holder
 
 
+class FlowLayout(QLayout):
+    """Left-to-right layout that wraps to a new line instead of squeezing."""
+
+    def __init__(self, parent: QWidget | None = None, h_spacing: int = 28, v_spacing: int = 10):
+        super().__init__(parent)
+        self._items = []
+        self._h = h_spacing
+        self._v = v_spacing
+
+    def addItem(self, item) -> None:
+        self._items.append(item)
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, index: int):
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index: int):
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def expandingDirections(self) -> Qt.Orientation:
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return self._arrange(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect: QRect) -> None:
+        super().setGeometry(rect)
+        self._arrange(rect, apply=True)
+
+    def sizeHint(self) -> QSize:
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+
+    def _arrange(self, rect: QRect, apply: bool) -> int:
+        margins = self.contentsMargins()
+        area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
+        x, y, line = area.x(), area.y(), 0
+        for item in self._items:
+            hint = item.sizeHint()
+            if x + hint.width() > area.right() + 1 and line > 0:
+                x, y, line = area.x(), y + line + self._v, 0
+            if apply:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x += hint.width() + self._h
+            line = max(line, hint.height())
+        return y + line - rect.y() + margins.bottom()
+
+
 def metric_row(*metrics: QWidget) -> QWidget:
+    """Metrics side by side, wrapping onto a second line when the view is narrow."""
     holder = QWidget()
-    layout = QHBoxLayout(holder)
+    layout = FlowLayout(holder)
     layout.setContentsMargins(18, 14, 18, 10)
-    layout.setSpacing(28)
     for metric in metrics:
         layout.addWidget(metric)
-    layout.addStretch()
     return holder
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -81,10 +80,7 @@ class Header(QFrame):
         self._project = QLabel("Untitled")
         self._project.setObjectName("Title")
         self._summary = QLabel("")
-        self._summary.setObjectName("Muted")
-        summary_font = QFont(theme.MONO)
-        summary_font.setPixelSize(12)
-        self._summary.setFont(summary_font)
+        self._summary.setObjectName("Summary")
         self._state = QLabel("")
         self._state.setObjectName("Muted")
         layout.addWidget(self._project)

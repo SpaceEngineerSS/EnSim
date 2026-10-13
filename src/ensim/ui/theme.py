@@ -129,6 +129,9 @@ QLabel#SectionLabel {{
     padding-top: 12px;
 }}
 QLabel#Muted {{ color: {p.muted}; }}
+QLabel#Summary {{ color: {p.muted}; font-family: "{MONO}"; font-size: 12px; }}
+QLabel#MetricCaption {{ color: {p.muted}; font-size: 11px; }}
+QLabel#MetricValue {{ font-family: "{MONO}"; font-size: 20px; }}
 QLabel#Mono {{ font-family: "{MONO}"; }}
 QLabel#Hint {{ color: {p.muted}; font-size: 12px; }}
 QLabel#Error {{ color: {p.error}; }}

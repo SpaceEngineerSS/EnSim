@@ -662,7 +662,10 @@ def analyze_cooling_system(
                 * v_coolant**2
             )
             if P_coolant <= 0.0:
-                raise ValueError("Predicted coolant pressure became non-positive")
+                raise ValueError(
+                    "the coolant pressure drop exceeds the inlet pressure; "
+                    "raise the inlet pressure or use larger channels"
+                )
 
     return sorted(results, key=lambda station: station.axial_position)
 

@@ -135,6 +135,9 @@ class PlotCanvas(QWidget):
         import matplotlib as mpl
 
         self._stale = False
+        # At fractional scale factors the Agg image can fall one pixel short of
+        # the widget; paint that row in the page colour instead of white.
+        self._canvas.setStyleSheet(f"background-color: {theme.current().bg};")
         figure = self._figure
         figure.clear()
         with mpl.rc_context(theme.matplotlib_rc()):

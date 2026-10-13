@@ -67,17 +67,17 @@ class CoolingView(QWidget):
         self.channels.setValue(120)
         form.add("Number", self.channels)
         self.width = form.add(
-            "Width", NumberField(1.5e-3, 2e-4, 2e-2, Quantity.LENGTH, decimals=5, units=_mm())
+            "Width", NumberField(1.5e-3, 2e-4, 2e-2, Quantity.LENGTH, decimals=3, units=_mm())
         )
         self.height = form.add(
-            "Height", NumberField(3e-3, 2e-4, 3e-2, Quantity.LENGTH, decimals=5, units=_mm())
+            "Height", NumberField(3e-3, 2e-4, 3e-2, Quantity.LENGTH, decimals=3, units=_mm())
         )
         self.wall = form.add(
             "Hot-wall thickness",
-            NumberField(1e-3, 2e-4, 1e-2, Quantity.LENGTH, decimals=5, units=_mm()),
+            NumberField(1e-3, 2e-4, 1e-2, Quantity.LENGTH, decimals=3, units=_mm()),
         )
         self.land = form.add(
-            "Land width", NumberField(1e-3, 2e-4, 1e-2, Quantity.LENGTH, decimals=5, units=_mm())
+            "Land width", NumberField(1e-3, 2e-4, 1e-2, Quantity.LENGTH, decimals=3, units=_mm())
         )
         form.heading("Wall")
         self.material = form.add("Material", Choice([(name, name) for name in COOLING_MATERIALS]))
@@ -97,12 +97,12 @@ class CoolingView(QWidget):
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        self.m_wall = Metric("Peak wall temperature", Quantity.TEMPERATURE)
-        self.m_margin = Metric("Margin to melting", unit="K", digits=3)
-        self.m_flux = Metric("Peak heat flux", Quantity.HEAT_FLUX)
-        self.m_dt = Metric("Coolant temperature rise", unit="K", digits=3)
-        self.m_dp = Metric("Coolant pressure drop", Quantity.PRESSURE)
-        self.m_re = Metric("Coolant Reynolds number", unit="", digits=3)
+        self.m_wall = Metric("Peak wall", Quantity.TEMPERATURE)
+        self.m_margin = Metric("Melt margin", unit="K", digits=3)
+        self.m_flux = Metric("Peak flux", Quantity.HEAT_FLUX)
+        self.m_dt = Metric("Coolant rise", unit="K", digits=3)
+        self.m_dp = Metric("Pressure drop", Quantity.PRESSURE)
+        self.m_re = Metric("Coolant Re", unit="", digits=3)
         right_layout.addWidget(
             metric_row(self.m_wall, self.m_margin, self.m_flux, self.m_dt, self.m_dp, self.m_re)
         )
@@ -179,6 +179,12 @@ class CoolingView(QWidget):
 
     def _failed(self, message: str) -> None:
         self.run_button.setEnabled(True)
+        # Do not leave the previous design's numbers on screen
+        self._results = None
+        for metric in (self.m_wall, self.m_margin, self.m_flux, self.m_dt, self.m_dp, self.m_re):
+            metric.set_value(None)
+        self.plot.refresh(has_data=False)
+        self.note.setText(f"No result: {message}")
         self.workspace.message.emit(f"Cooling analysis failed: {message}")
 
     def _done(self, outcome) -> None:
@@ -243,20 +249,20 @@ class CoolingView(QWidget):
         ax1.plot(x, t(d["wall_gas_k"]), color=p.signal, label="hot wall")
         ax1.plot(x, t(d["wall_coolant_k"]), color=p.series[1], label="cold wall")
         ax1.plot(x, t(d["coolant_k"]), color=p.series[2], label="coolant")
-        ax1.axhline(
-            UNITS.show(self._design.wall_melting_point, Quantity.TEMPERATURE),
-            color=p.error,
-            linewidth=0.8,
-            linestyle=(0, (4, 3)),
-        )
+        melting = UNITS.show(self._design.wall_melting_point, Quantity.TEMPERATURE)
+        ax1.axhline(melting, color=p.error, linewidth=0.8, linestyle=(0, (4, 3)))
         ax1.text(
-            x[0],
-            UNITS.show(self._design.wall_melting_point, Quantity.TEMPERATURE),
-            f" melting, {self._design.wall_material}",
+            x[-1],
+            melting,
+            f"melting, {self._design.wall_material} ",
+            ha="right",
             va="bottom",
             fontsize=8,
             color=p.error,
         )
+        # Room above the hottest line for the legend and the melting label
+        top = max(melting, float(np.max(t(d["wall_gas_k"]))))
+        ax1.set_ylim(top=top * 1.2)
         ax1.set_ylabel(f"T  [{UNITS.unit(Quantity.TEMPERATURE)}]")
         ax1.legend(loc="upper left", ncols=3)
         ax2.plot(

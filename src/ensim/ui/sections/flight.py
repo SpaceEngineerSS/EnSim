@@ -593,6 +593,7 @@ class DispersionView(QWidget):
 
     def _render(self, figure) -> None:
         from matplotlib.patches import Circle, Ellipse
+        from matplotlib.ticker import MaxNLocator
 
         p = theme.current()
         r = self._result
@@ -643,4 +644,5 @@ class DispersionView(QWidget):
         )
         ax2.set_xlabel(f"Apogee  [{'km' if divisor > 1 else unit}]")
         ax2.set_ylabel("Runs")
+        ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
         ax2.set_title("Apogee spread")
